@@ -28,4 +28,8 @@ enum Theme {
     static let keyFillTop = Color(red: 0.22, green: 0.35, blue: 0.78)
     static let keyFillBottom = Color(red: 0.14, green: 0.22, blue: 0.55)
     static let keyStroke = Color.white.opacity(0.7)
+
+    // Call button
+    static let callFillTop = Color(red: 0.08, green: 0.70, blue: 0.32)
+    static let callFillBottom = Color(red: 0.04, green: 0.55, blue: 0.24)
 }
