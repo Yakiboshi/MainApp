@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Combine
 
 // 下部ナビゲーション（UIのみ）＋中央キーパッド（UIのみ）
 struct AppTabsView: View {
@@ -17,7 +18,7 @@ struct AppTabsView: View {
         ZStack(alignment: .bottom) {
             Theme.appGradient.ignoresSafeArea()
             VStack(spacing: 0) {
-                TopTimeHeader(imageName: "taimusa-kitto", height: 250)
+                TopTimeHeader(imageName: "timecircuits2", topPadding: 50)
                 KeypadUI()
                     .padding(.bottom, 32) // ナビとの間隔を+20pt拡張（他間隔は固定）
                 BottomNavBar(items: items, selectedIndex: $selectedIndex)
@@ -67,18 +68,21 @@ private struct BottomNavBar: View {
 private struct KeypadUI: View {
     var body: some View {
         GeometryReader { geo in
-            // 基準（以前の横間隔=10ptでの直径を保持）
-            let baseWidth = min(geo.size.width * 0.62, 250)
-            let baseColSpacing: CGFloat = 10
-            let keyDPre = (baseWidth - baseColSpacing * 2) / 3 // スペーシング10pt時の理論直径
-            let visibleDiameter = keyDPre * 0.85               // 実際に描画する直径（既存比率を維持）
+            // 端末別レイアウト（iPhone/ iPad）
+            let isPad = UIDevice.current.userInterfaceIdiom == .pad
+            // 基準幅（直径算出用）。iPadは広めに確保
+            let baseWidth = isPad ? min(geo.size.width * 0.50, 480) : min(geo.size.width * 0.62, 250)
+            let baseColSpacing: CGFloat = isPad ? 20 : 10
+            let keyDPre = (baseWidth - baseColSpacing * 2) / 3 // 基準直径
+            let visibleDiameter = keyDPre * (isPad ? 0.95 : 0.85)
 
-            // 要望: 横間隔を+20pt（= 30pt）に広げる。ただし2/5/8/0/コールの中心は不動。
-            let colSpacing: CGFloat = baseColSpacing + 20      // 30pt
-            let rowSpacing: CGFloat = 20                       // 行間は20ptのまま
-            // コンテナ幅を左右対称に+40pt拡張し、中央列の中心を維持
+            // 横/縦の間隔。iPadでは少し広め
+            let colSpacing: CGFloat = isPad ? (baseColSpacing + 30) : (baseColSpacing + 20)
+            let rowSpacing: CGFloat = isPad ? 28 : 20
+            // 中央列の中心を維持するため、列間に合わせて幅を再計算
             let contentW = keyDPre * 3 + colSpacing * 2
-            let callLift: CGFloat = 16 // コールを上げている分（中心は変更しない）
+            // 0行とコールの見かけの間隔を維持。iPadはわずかに増やす
+            let callLift: CGFloat = isPad ? 20 : 16
 
             VStack(spacing: rowSpacing) {
                 VStack(spacing: rowSpacing) {
@@ -99,9 +103,9 @@ private struct KeypadUI: View {
                 .offset(y: -callLift)
             }
             .frame(width: contentW)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isPad ? .top : .bottom)
         }
-        .frame(height: 420)
+        .frame(height: UIDevice.current.userInterfaceIdiom == .pad ? 520 : 420)
     }
 
     private enum Key: Hashable { case digit(Int) }
@@ -189,22 +193,114 @@ private struct CallButtonUI: View {
 // MARK: - Top image header (時刻表示エリアの土台)
 private struct TopTimeHeader: View {
     var imageName: String
-    var height: CGFloat = 160
+    var topPadding: CGFloat = 0
 
     var body: some View {
-        Group {
-            if let ui = UIImage(named: imageName) {
-                Image(uiImage: ui)
-                    .resizable()
-                    .scaledToFit()
+        ZStack(alignment: .top) {
+            Group {
+                if let ui = UIImage(named: imageName) {
+                    Image(uiImage: ui)
+                        .resizable()
+                        .aspectRatio(ui.size, contentMode: .fit)
+                } else {
+                    Image(imageName)
+                        .resizable()
+                        .scaledToFit()
+                }
+            }
+            // 現在時刻オーバーレイ（上段） — 時刻は現状のまま（修正なし）
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                TimeRowOverlay(layout: .defaultPad)
+                    .allowsHitTesting(false)
             } else {
-                Image(imageName) // アセットにある場合はこちらで表示
-                    .resizable()
-                    .scaledToFit()
+                TimeRowOverlay(layout: .defaultPhone)
+                    .allowsHitTesting(false)
             }
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: height)
+        .padding(.top, topPadding)
+        .frame(maxWidth: .infinity, alignment: .top)
         .clipped()
+        .modifier(TopSafeEdge())
     }
 }
+
+private struct TopSafeEdge: ViewModifier {
+    func body(content: Content) -> some View {
+        content.ignoresSafeArea(edges: [.top])
+    }
+}
+
+// iPadではTopSafeAreaPinで天井に密着し、高さは画像のFitに任せます（iPhoneは指定高さ）
+
+// MARK: - Time row overlay (現在時刻: 上段)
+private struct TimeRowOverlay: View {
+    struct Layout {
+        var topInset: CGFloat
+        var leftInset: CGFloat
+        // 一文字あたりの絶対横幅（pt）
+        var charWidthPt: CGFloat
+    }
+
+
+    var layout: Layout
+    @State private var now: Date = Date()
+
+    var body: some View {
+        GeometryReader { _ in
+            // 1文字分の幅をptで指定（オーバーフロー時の自動縮小は行わない）
+            let charW = layout.charWidthPt
+            let yearW = charW * 4
+            let smallW = charW * 2
+            let fontSize = max(charW, 1)
+
+            HStack(spacing: 0) {
+                DigitText(text: yearText, width: yearW, fontSize: fontSize)
+                DigitText(text: two(month), width: smallW, fontSize: fontSize)
+                DigitText(text: two(day), width: smallW, fontSize: fontSize)
+                DigitText(text: two(hour), width: smallW, fontSize: fontSize)
+                DigitText(text: two(minute), width: smallW, fontSize: fontSize)
+            }
+            .offset(x: layout.leftInset, y: layout.topInset)
+        }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { now = $0 }
+    }
+
+    // MARK: - Date comps
+    private var calendar: Calendar { var c = Calendar.current; c.timeZone = .current; return c }
+    private var yearText: String { String(calendar.component(.year, from: now)) }
+    private var month: Int { calendar.component(.month, from: now) }
+    private var day: Int { calendar.component(.day, from: now) }
+    private var hour: Int { calendar.component(.hour, from: now) }
+    private var minute: Int { calendar.component(.minute, from: now) }
+    private func two(_ v: Int) -> String { String(format: "%02d", v) }
+}
+
+// デフォルトレイアウト定義を Layout 側に持たせ、`.defaultPhone`/`.defaultPad` の省略記法を有効にする
+private extension TimeRowOverlay.Layout {
+    // 初期値（pt指定）: 必要に応じてここを編集
+    static let defaultPhone = Self(
+        topInset: 30, leftInset: 0,
+        charWidthPt: 55
+    )
+    static let defaultPad = Self(
+        topInset: 28, leftInset: 28,
+        charWidthPt: 36
+    )
+}
+
+private struct DigitText: View {
+    var text: String
+    var width: CGFloat
+    var fontSize: CGFloat
+
+    var body: some View {
+        Text(text)
+            .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: fontSize))
+            .foregroundStyle(Theme.segmentPresentText)
+            .frame(width: width, alignment: .center)
+            .minimumScaleFactor(0.5)
+            .lineLimit(1)
+    }
+}
+
+// 初期化に伴い、個別ギャップビューは不要

@@ -6,11 +6,14 @@
 //
 
 import SwiftUI
+import CoreText
 import SwiftData
 
 @main
 struct Voice_to_do_AppApp: App {
     init() {
+        // Register custom fonts (runtime) so Font.custom works without Info.plist UIAppFonts
+        Fonts.register()
         // Style the whole app to exact app blue (#1B1E63)
         let color = UIColor(red: 27/255.0, green: 30/255.0, blue: 99/255.0, alpha: 1.0)
         // Window background for status bar/notch area
