@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // 下部ナビゲーション（UIのみ）＋中央キーパッド（UIのみ）
 struct AppTabsView: View {
@@ -16,8 +17,7 @@ struct AppTabsView: View {
         ZStack(alignment: .bottom) {
             Theme.appGradient.ignoresSafeArea()
             VStack(spacing: 0) {
-                // 上部の時刻表示スペースを確保
-                Spacer(minLength: 160)
+                TopTimeHeader(imageName: "taimusa-kitto", height: 250)
                 KeypadUI()
                     .padding(.bottom, 32) // ナビとの間隔を+20pt拡張（他間隔は固定）
                 BottomNavBar(items: items, selectedIndex: $selectedIndex)
@@ -183,5 +183,28 @@ private struct CallButtonUI: View {
         }
         .buttonStyle(.plain)
         .contentShape(Circle())
+    }
+}
+
+// MARK: - Top image header (時刻表示エリアの土台)
+private struct TopTimeHeader: View {
+    var imageName: String
+    var height: CGFloat = 160
+
+    var body: some View {
+        Group {
+            if let ui = UIImage(named: imageName) {
+                Image(uiImage: ui)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(imageName) // アセットにある場合はこちらで表示
+                    .resizable()
+                    .scaledToFit()
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipped()
     }
 }
