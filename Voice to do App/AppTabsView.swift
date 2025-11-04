@@ -86,15 +86,15 @@ private struct KeypadUI: View {
                     keypadRow([.digit(4), .digit(5), .digit(6)], diameter: visibleDiameter, spacing: colSpacing)
                     keypadRow([.digit(7), .digit(8), .digit(9)], diameter: visibleDiameter, spacing: colSpacing)
                     HStack(spacing: colSpacing) {
-                        KeyButtonUI(diameter: visibleDiameter, systemName: "clock")
-                        KeyButtonUI(diameter: visibleDiameter, title: "0")
-                        KeyButtonUI(diameter: visibleDiameter, systemName: "delete.left")
+                        KeyButtonUI(diameter: visibleDiameter, systemName: "clock", soundName: "kleft")
+                        KeyButtonUI(diameter: visibleDiameter, title: "0", soundName: "k0")
+                        KeyButtonUI(diameter: visibleDiameter, systemName: "delete.left", soundName: "kright")
                     }
                 }
                 .padding(.bottom, callLift) // 見かけの 0 行 ↔ コール間を rowSpacing に揃える
                 // Call button（中心は現状のまま）
                 HStack { Spacer()
-                    CallButtonUI(diameter: visibleDiameter)
+                    CallButtonUI(diameter: visibleDiameter, soundName: "ke")
                     Spacer() }
                 .offset(y: -callLift)
             }
@@ -111,7 +111,7 @@ private struct KeypadUI: View {
         HStack(spacing: spacing) {
             ForEach(keys, id: \.self) { k in
                 switch k {
-                case .digit(let n): KeyButtonUI(diameter: diameter, title: String(n))
+                case .digit(let n): KeyButtonUI(diameter: diameter, title: String(n), soundName: "k\(n)")
                 }
             }
         }
@@ -122,17 +122,24 @@ private struct KeyButtonUI: View {
     var diameter: CGFloat
     var title: String? = nil
     var systemName: String? = nil
+    var soundName: String? = nil
     @State private var pressed = false
 
-    init(diameter: CGFloat, title: String) {
-        self.diameter = diameter; self.title = title; self.systemName = nil
+    init(diameter: CGFloat, title: String, soundName: String? = nil) {
+        self.diameter = diameter; self.title = title; self.systemName = nil; self.soundName = soundName
     }
-    init(diameter: CGFloat, systemName: String) {
-        self.diameter = diameter; self.systemName = systemName; self.title = nil
+    init(diameter: CGFloat, systemName: String, soundName: String? = nil) {
+        self.diameter = diameter; self.systemName = systemName; self.title = nil; self.soundName = soundName
     }
 
     var body: some View {
-        Button(action: { withAnimation(.easeInOut(duration: 0.08)) { pressed.toggle() }; DispatchQueue.main.asyncAfter(deadline: .now()+0.10) { withAnimation(.easeInOut(duration: 0.08)) { pressed = false } } }) {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.08)) { pressed.toggle() }
+            if let s = soundName { SoundManager.shared.play(s) }
+            DispatchQueue.main.asyncAfter(deadline: .now()+0.10) {
+                withAnimation(.easeInOut(duration: 0.08)) { pressed = false }
+            }
+        }) {
             ZStack {
                 Circle()
                     .fill(LinearGradient(colors: [Theme.keyFillTop, Theme.keyFillBottom], startPoint: .top, endPoint: .bottom))
@@ -154,9 +161,16 @@ private struct KeyButtonUI: View {
 
 private struct CallButtonUI: View {
     var diameter: CGFloat
+    var soundName: String = "ke"
     @State private var pressed = false
     var body: some View {
-        Button(action: { withAnimation(.easeInOut(duration: 0.08)) { pressed.toggle() }; DispatchQueue.main.asyncAfter(deadline: .now()+0.12) { withAnimation(.easeInOut(duration: 0.08)) { pressed = false } } }) {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.08)) { pressed.toggle() }
+            SoundManager.shared.play(soundName)
+            DispatchQueue.main.asyncAfter(deadline: .now()+0.12) {
+                withAnimation(.easeInOut(duration: 0.08)) { pressed = false }
+            }
+        }) {
             ZStack {
                 Circle()
                     .fill(LinearGradient(colors: [Theme.callFillTop, Theme.callFillBottom], startPoint: .top, endPoint: .bottom))
