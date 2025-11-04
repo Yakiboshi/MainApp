@@ -1,13 +1,17 @@
 import SwiftUI
 
 enum Theme {
-    // Exact app blue (sampled approximate from keypadUI.png bottom/nav)
+    // Base brand blue
     // sRGB: #1B1E63 (27, 30, 99)
     static let appBlue = Color(red: 27/255, green: 30/255, blue: 99/255)
-    // Optional subtle variants if needed
-    static let bgTop = appBlue
-    static let bgBottom = appBlue
+
+    // Background gradient (soft, eye-friendly; tuned to keypadUI2.png 近似)
+    static let bgTop = Color(red: 44/255, green: 55/255, blue: 140/255)
+    static let bgBottom = Color(red: 18/255, green: 23/255, blue: 84/255)
     static let tabBlue = appBlue
+    static var appGradient: LinearGradient {
+        LinearGradient(colors: [bgTop, bgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
 
     // Segment
     static let segmentBackground = Color.black.opacity(0.82)
