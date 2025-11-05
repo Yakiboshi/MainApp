@@ -1,10 +1,34 @@
 import SwiftUI
-import UIKit
 import Combine
 
 // 下部ナビゲーション（UIのみ）＋中央キーパッド（UIのみ）
 struct AppTabsView: View {
     @State private var selectedIndex: Int = 2 // 0:設定 1:履歴 2:キーパッド 3:予定 4:留守電
+    @State private var destination = DestinationTime()
+    // MARK: Layout constants（独立して編集できます）
+    // 高さの数値は縦幅ではなく「画面下端からの距離」として扱う
+    private let tmpKeypadBottomOffset: CGFloat = 75
+    // ヘッダー画像内の YEAR テキスト上端の相対位置（0=上端, 1=下端）
+    // 小数で調整可能（例: 0.12）
+    private let yearTopNormalized: CGFloat = 0.21
+    // ヘッダー画像内の DESTINATION YEAR の上端相対位置（0=上端, 1=下端）
+    // 小数で調整可能（例: 0.035）
+    private let destYearTopNormalized: CGFloat = 0.915
+    // ヘッダー画像内の YEAR テキスト左端の相対位置（0=左端, 1=右端）
+    // 小数で調整可能（例: 0.10）
+    private let yearLeftNormalized: CGFloat = 0.045
+    // ヘッダー画像内の MON テキスト左端の相対位置（0=左端, 1=右端）
+    // 小数で調整可能（例: 0.336）
+    private let monLeftNormalized: CGFloat = 0.336
+    // ヘッダー画像内の DAY テキスト左端の相対位置（0=左端, 1=右端）
+    // 小数で調整可能（例: 0.511）
+    private let dayLeftNormalized: CGFloat = 0.511
+    // ヘッダー画像内の HOUR テキスト左端の相対位置（0=左端, 1=右端）
+    // 小数で調整可能（初期値は仮）
+    private let hourLeftNormalized: CGFloat = 0.678
+    // ヘッダー画像内の MIN テキスト左端の相対位置（0=左端, 1=右端）
+    // 小数で調整可能（初期値は仮）
+    private let minLeftNormalized: CGFloat = 0.847
 
     private let items: [NavItem] = [
         .init(title: "設定", system: "gearshape.fill"),
@@ -17,12 +41,32 @@ struct AppTabsView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             Theme.appGradient.ignoresSafeArea()
-            VStack(spacing: 0) {
-                TopTimeHeader(imageName: "timecircuits2", topPadding: 50)
+            VStack(spacing: 50) {
+                // 画面上部のヘッダーをスナップショット化し、
+                // 変形時も一枚の画像として等倍で変形させる
+                TimeCircuitsHeaderSnapshotView(
+                    yearTop: yearTopNormalized,
+                    yearLeft: yearLeftNormalized,
+                    monLeft: monLeftNormalized,
+                    dayLeft: dayLeftNormalized,
+                    hourLeft: hourLeftNormalized,
+                    minLeft: minLeftNormalized,
+                    destYearTop: destYearTopNormalized,
+                    destYear: destination.year,
+                    destMonth: destination.month,
+                    destDay: destination.day,
+                    destHour: destination.hour,
+                    destMin: destination.minute
+                )
+                Spacer()
+                // キーパッドは横幅指定なし。下端からの距離のみ維持。
                 KeypadUI()
-                    .padding(.bottom, 32) // ナビとの間隔を+20pt拡張（他間隔は固定）
-                BottomNavBar(items: items, selectedIndex: $selectedIndex)
+                    .padding(.bottom, tmpKeypadBottomOffset)
             }
+        }
+        // safeAreaInset でナビ上端＝コンテンツ下端を定義
+        .safeAreaInset(edge: .bottom) {
+            BottomNavBar(items: items, selectedIndex: $selectedIndex)
         }
     }
 }
@@ -59,53 +103,58 @@ private struct BottomNavBar: View {
             .padding(.bottom, 8)
             .background(Theme.tabBlue)
         }
-        .ignoresSafeArea(edges: .bottom)
         .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: -2)
     }
 }
 
+// 余計な高さ計測（PreferenceKey）は削除し簡素化
+
 // MARK: - Central Keypad UI (UIのみ)
 private struct KeypadUI: View {
+    // 比率の記録（現行見た目から算出した固定値）
+    private struct Metrics {
+        // グループ幅は親の幅に追従（明示比率は定義しない）
+        // 横方向のキー間隔（幅に対する比率）。例: 280pt幅時に約30pt → 30/280 ≒ 0.107
+        static let spacingXRatio: CGFloat = 0.107
+        // 縦方向の行間（幅に対する比率）。例: 280pt幅時に約30pt → 0.107
+        static let rowSpacingRatio: CGFloat = 0.107
+        // コールボタンの上方向オフセット（幅に対する比率）。例: 16/280 ≒ 0.057
+        static let callLiftRatio: CGFloat = 0.057
+        // 各キー直径（幅に対する比率）= 3列・両端にスペーシング2つを加味
+        static var diameterRatio: CGFloat { (1 - 2*spacingXRatio) / 3 }
+        // グループの高さ比（行×4 + 行間×3 + コール直径 − リフト）
+        static var heightToWidthRatio: CGFloat {
+            4*diameterRatio + 3*rowSpacingRatio + diameterRatio - callLiftRatio
+        }
+    }
+
     var body: some View {
         GeometryReader { geo in
-            // 端末別レイアウト（iPhone/ iPad）
-            let isPad = UIDevice.current.userInterfaceIdiom == .pad
-            // 基準幅（直径算出用）。iPadは広めに確保
-            let baseWidth = isPad ? min(geo.size.width * 0.50, 480) : min(geo.size.width * 0.62, 250)
-            let baseColSpacing: CGFloat = isPad ? 20 : 10
-            let keyDPre = (baseWidth - baseColSpacing * 2) / 3 // 基準直径
-            let visibleDiameter = keyDPre * (isPad ? 0.95 : 0.85)
+            // 親の幅ベースで決定（GeometryReaderは高さを広げがちなので外側で比率拘束する）
+            let groupW: CGFloat = geo.size.width
+            let d = groupW * Metrics.diameterRatio
+            let sx = groupW * Metrics.spacingXRatio
+            let sy = groupW * Metrics.rowSpacingRatio
+            let callLift = groupW * Metrics.callLiftRatio
 
-            // 横/縦の間隔。iPadでは少し広め
-            let colSpacing: CGFloat = isPad ? (baseColSpacing + 30) : (baseColSpacing + 20)
-            let rowSpacing: CGFloat = isPad ? 28 : 20
-            // 中央列の中心を維持するため、列間に合わせて幅を再計算
-            let contentW = keyDPre * 3 + colSpacing * 2
-            // 0行とコールの見かけの間隔を維持。iPadはわずかに増やす
-            let callLift: CGFloat = isPad ? 20 : 16
-
-            VStack(spacing: rowSpacing) {
-                VStack(spacing: rowSpacing) {
-                    keypadRow([.digit(1), .digit(2), .digit(3)], diameter: visibleDiameter, spacing: colSpacing)
-                    keypadRow([.digit(4), .digit(5), .digit(6)], diameter: visibleDiameter, spacing: colSpacing)
-                    keypadRow([.digit(7), .digit(8), .digit(9)], diameter: visibleDiameter, spacing: colSpacing)
-                    HStack(spacing: colSpacing) {
-                        KeyButtonUI(diameter: visibleDiameter, systemName: "clock", soundName: "kleft")
-                        KeyButtonUI(diameter: visibleDiameter, title: "0", soundName: "k0")
-                        KeyButtonUI(diameter: visibleDiameter, systemName: "delete.left", soundName: "kright")
+            VStack(spacing: sy) {
+                VStack(spacing: sy) {
+                    keypadRow([.digit(1), .digit(2), .digit(3)], diameter: d, spacing: sx)
+                    keypadRow([.digit(4), .digit(5), .digit(6)], diameter: d, spacing: sx)
+                    keypadRow([.digit(7), .digit(8), .digit(9)], diameter: d, spacing: sx)
+                    HStack(spacing: sx) {
+                        KeyButtonUI(diameter: d, systemName: "clock", soundName: "kleft")
+                        KeyButtonUI(diameter: d, title: "0", soundName: "k0")
+                        KeyButtonUI(diameter: d, systemName: "delete.left", soundName: "kright")
                     }
                 }
-                .padding(.bottom, callLift) // 見かけの 0 行 ↔ コール間を rowSpacing に揃える
-                // Call button（中心は現状のまま）
-                HStack { Spacer()
-                    CallButtonUI(diameter: visibleDiameter, soundName: "ke")
-                    Spacer() }
-                .offset(y: -callLift)
+                .padding(.bottom, callLift)
+                HStack { Spacer(); CallButtonUI(diameter: d, soundName: "ke"); Spacer() }
+                    .offset(y: -callLift)
             }
-            .frame(width: contentW)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isPad ? .top : .bottom)
         }
-        .frame(height: UIDevice.current.userInterfaceIdiom == .pad ? 520 : 420)
+        // GeometryReader 自身の高さを、横幅基準の比率で拘束して Keypad の位置決めを乱さない
+        .aspectRatio(1.0 / KeypadUI.Metrics.heightToWidthRatio, contentMode: .fit)
     }
 
     private enum Key: Hashable { case digit(Int) }
@@ -190,117 +239,28 @@ private struct CallButtonUI: View {
     }
 }
 
-// MARK: - Top image header (時刻表示エリアの土台)
-private struct TopTimeHeader: View {
-    var imageName: String
-    var topPadding: CGFloat = 0
+// (Header view and helper subviews moved to TimeCircuitsHeaderView.swift)
+
+// 現在時刻の「分（2桁）」を表示するビュー（BTTFフォント）
+private struct PresentMinuteView: View {
+    @State private var now = Date()
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    private var minuteString: String {
+        let m = Calendar.current.component(.minute, from: now)
+        return String(format: "%02d", m)
+    }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            Group {
-                if let ui = UIImage(named: imageName) {
-                    Image(uiImage: ui)
-                        .resizable()
-                        .aspectRatio(ui.size, contentMode: .fit)
-                } else {
-                    Image(imageName)
-                        .resizable()
-                        .scaledToFit()
-                }
-            }
-            // 現在時刻オーバーレイ（上段） — 時刻は現状のまま（修正なし）
-            if UIDevice.current.userInterfaceIdiom == .pad {
-                TimeRowOverlay(layout: .defaultPad)
-                    .allowsHitTesting(false)
-            } else {
-                TimeRowOverlay(layout: .defaultPhone)
-                    .allowsHitTesting(false)
-            }
-        }
-        .padding(.top, topPadding)
-        .frame(maxWidth: .infinity, alignment: .top)
-        .clipped()
-        .modifier(TopSafeEdge())
-    }
-}
-
-private struct TopSafeEdge: ViewModifier {
-    func body(content: Content) -> some View {
-        content.ignoresSafeArea(edges: [.top])
-    }
-}
-
-// iPadではTopSafeAreaPinで天井に密着し、高さは画像のFitに任せます（iPhoneは指定高さ）
-
-// MARK: - Time row overlay (現在時刻: 上段)
-private struct TimeRowOverlay: View {
-    struct Layout {
-        var topInset: CGFloat
-        var leftInset: CGFloat
-        // 一文字あたりの絶対横幅（pt）
-        var charWidthPt: CGFloat
-    }
-
-
-    var layout: Layout
-    @State private var now: Date = Date()
-
-    var body: some View {
-        GeometryReader { _ in
-            // 1文字分の幅をptで指定（オーバーフロー時の自動縮小は行わない）
-            let charW = layout.charWidthPt
-            let yearW = charW * 4
-            let smallW = charW * 2
-            let fontSize = max(charW, 1)
-
-            HStack(spacing: 0) {
-                DigitText(text: yearText, width: yearW, fontSize: fontSize)
-                DigitText(text: two(month), width: smallW, fontSize: fontSize)
-                DigitText(text: two(day), width: smallW, fontSize: fontSize)
-                DigitText(text: two(hour), width: smallW, fontSize: fontSize)
-                DigitText(text: two(minute), width: smallW, fontSize: fontSize)
-            }
-            .offset(x: layout.leftInset, y: layout.topInset)
-        }
-        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { now = $0 }
-    }
-
-    // MARK: - Date comps
-    private var calendar: Calendar { var c = Calendar.current; c.timeZone = .current; return c }
-    private var yearText: String { String(calendar.component(.year, from: now)) }
-    private var month: Int { calendar.component(.month, from: now) }
-    private var day: Int { calendar.component(.day, from: now) }
-    private var hour: Int { calendar.component(.hour, from: now) }
-    private var minute: Int { calendar.component(.minute, from: now) }
-    private func two(_ v: Int) -> String { String(format: "%02d", v) }
-}
-
-// デフォルトレイアウト定義を Layout 側に持たせ、`.defaultPhone`/`.defaultPad` の省略記法を有効にする
-private extension TimeRowOverlay.Layout {
-    // 初期値（pt指定）: 必要に応じてここを編集
-    static let defaultPhone = Self(
-        topInset: 30, leftInset: 0,
-        charWidthPt: 55
-    )
-    static let defaultPad = Self(
-        topInset: 28, leftInset: 28,
-        charWidthPt: 36
-    )
-}
-
-private struct DigitText: View {
-    var text: String
-    var width: CGFloat
-    var fontSize: CGFloat
-
-    var body: some View {
-        Text(text)
-            .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: fontSize))
+        Text(minuteString)
+            .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 56))
             .foregroundStyle(Theme.segmentPresentText)
-            .frame(width: width, alignment: .center)
-            .minimumScaleFactor(0.5)
             .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .onReceive(timer) { date in
+                now = date
+            }
+            .accessibilityLabel("現在の分 \(minuteString)")
     }
 }
-
-// 初期化に伴い、個別ギャップビューは不要
+    

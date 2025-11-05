@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum Theme {
+    enum Theme {
     // Base brand blue
     // sRGB: #1B1E63 (27, 30, 99)
     static let appBlue = Color(red: 27/255, green: 30/255, blue: 99/255)
@@ -16,7 +16,8 @@ enum Theme {
     // Segment
     static let segmentBackground = Color.black.opacity(0.82)
     static let segmentText = Color.white
-    static let segmentPresentText = Color(red: 0.90, green: 1.0, blue: 0.90) // slight green tint
+        static let segmentPresentText = Color(red: 0.90, green: 1.0, blue: 0.90) // slight green tint
+        static let segmentPlaceholder = Color(white: 0.55) // 濃い灰色プレースホルダ
     static let segmentBorderActive = Color.white
     static let segmentDash = Color.white.opacity(0.6)
 
