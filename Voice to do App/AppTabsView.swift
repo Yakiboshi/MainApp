@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import SwiftData
 
 // 下部ナビゲーション（UIのみ）＋中央キーパッド（UIのみ）
 struct AppTabsView: View {
@@ -74,7 +75,11 @@ struct AppTabsView: View {
                             .contentShape(Rectangle())
                             .onTapGesture { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet = false } }
                         // The sheet itself
-                        AuxSheetPlaceholder(onClose: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet = false } })
+                        AuxSheetPlaceholder(
+                            now: now,
+                            onApplyDate: { date in applyDate(date) },
+                            onClose: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet = false } }
+                        )
                             .frame(height: sheetHeight)
                             .offset(y: startY)
                             .transition(.move(edge: .bottom))
@@ -235,32 +240,330 @@ private struct BottomBarHeightPreferenceKey: PreferenceKey {
 
 // 小ウィンドウの外観（見た目のみ。中身の機能は未実装）
 private struct AuxSheetPlaceholder: View {
+    enum Mode { case preset, calendar }
+    enum SortMode: CaseIterable { case newest, oldest, nearest, recentUsed }
+    @State private var mode: Mode = .preset
+    @State private var sortMode: SortMode = .newest
+    @Namespace private var underlineNS
+    var now: Date
+    var onApplyDate: (Date) -> Void
     var onClose: (() -> Void)? = nil
+    @State private var showAddSheet = false
+    @Environment(\.modelContext) private var context
+    @State private var headerSafeHeight: CGFloat = 0
+
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            // Background with slight darkening toward bottom
+        let topColor = (mode == .preset) ? Theme.auxPresetBackground : Theme.auxSheetBackground
+        let bottomColor = (mode == .preset) ? Theme.auxPresetBackgroundDark : Theme.auxSheetBackgroundDark
+        ZStack(alignment: .top) {
+            // Background with slight darkening toward bottom (color changes by mode)
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(LinearGradient(colors: [Theme.auxSheetBackground, Theme.auxSheetBackgroundDark], startPoint: .top, endPoint: .bottom))
+                .fill(LinearGradient(colors: [topColor, bottomColor], startPoint: .top, endPoint: .bottom))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(Color.white.opacity(0.10), lineWidth: 1)
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
+            // Header with segment (プリセット｜カレンダー) and content below
+            VStack(spacing: 8) {
+                SegmentedHeader(mode: $mode)
+                    .padding(.top, 8)
+                    .padding(.horizontal, 16)
+
+                if mode == .preset {
+                    // Safe row with sort + add (not scrolled)
+                    HStack {
+                        Button(action: { withAnimation { cycleSort() } }) {
+                            Text("並び替え｜\(labelForSort(sortMode))")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .accessibilityLabel("並び替え")
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
+                        Button(action: { showAddSheet = true }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 28, height: 28)
+                                .background(Circle().fill(Color.white.opacity(0.18)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 12)
+
+                    // Preset list
+                    PresetListContent(sortMode: sortMode, now: now, onApplyDate: onApplyDate)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                } else {
+                    // Calendar content with scroll indicators
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            CalendarPane(now: now, onApplyDate: onApplyDate)
+                                .frame(maxWidth: .infinity, alignment: .top)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                    }
+                    .scrollIndicators(.visible)
+                }
+            }
+
             // Close button (top-right)
             Button(action: { onClose?() }) {
                 Text("閉じる")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Theme.auxSheetBackground)
+                    .foregroundStyle(topColor)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.95)))
             }
             .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .topTrailing)
             .padding(.top, 8)
             .padding(.trailing, 8)
             .accessibilityLabel("閉じる")
         }
+        .animation(.spring(response: 0.35, dampingFraction: 0.86), value: mode)
+        .sheet(isPresented: $showAddSheet) {
+            NavigationStack {
+                QuickPresetEditorView(entity: nil) { entity in
+                    context.insert(entity)
+                }
+            }
+        }
+    }
+
+    private func cycleSort() {
+        let all = SortMode.allCases
+        if let idx = all.firstIndex(of: sortMode) { sortMode = all[(idx+1) % all.count] }
+    }
+
+    private func labelForSort(_ mode: SortMode) -> String {
+        switch mode {
+        case .newest: return "新規順"
+        case .oldest: return "古い順"
+        case .nearest: return "時間順"
+        case .recentUsed: return "使用順"
+        }
+    }
+}
+
+    
+
+// MARK: - Sheet content (scrollable panes)
+private struct PresetListContent: View {
+    var sortMode: AuxSheetPlaceholder.SortMode
+    var now: Date
+    var onApplyDate: (Date) -> Void
+    @Environment(\.modelContext) private var context
+    @Query private var presets: [QuickPresetEntity]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                PresetPane(presets: sortedPresets(), now: now, onApplyDate: onApplyDate)
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
+            .padding(.top, 4)
+        }
+    }
+
+    private func sortedPresets() -> [QuickPresetEntity] {
+        switch sortMode {
+        case .newest:
+            return presets.sorted { $0.createdAt > $1.createdAt }
+        case .oldest:
+            return presets.sorted { $0.createdAt < $1.createdAt }
+        case .nearest:
+            return presets.sorted {
+                timeDistance(for: $0) < timeDistance(for: $1)
+            }
+        case .recentUsed:
+            return presets.sorted {
+                ($0.lastUsedAt ?? .distantPast) > ($1.lastUsedAt ?? .distantPast)
+            }
+        }
+    }
+
+    private func timeDistance(for p: QuickPresetEntity) -> TimeInterval {
+        let cal = Calendar.current
+        let dayBase = cal.startOfDay(for: now)
+        let plus = cal.date(byAdding: .day, value: p.daysOffset, to: dayBase) ?? now
+        var comps = cal.dateComponents([.year, .month, .day], from: plus)
+        comps.hour = p.hour
+        comps.minute = p.minute
+        let date = cal.date(from: comps) ?? now
+        return abs(date.timeIntervalSince(now))
+    }
+}
+
+// Measures height of a view subtree and reports via binding
+private struct HeightMeasurer: View {
+    @Binding var height: CGFloat
+    var body: some View {
+        GeometryReader { geo in
+            Color.clear
+                .onAppear { height = geo.size.height }
+                .onChange(of: geo.size.height) { height = $0 }
+        }
+    }
+}
+
+// Wheel time picker with debounce apply
+private struct WheelTimePicker: View {
+    var initial: Date
+    var onCommit: (Date) -> Void
+    @State private var date: Date
+    @State private var workItem: DispatchWorkItem? = nil
+
+    init(initial: Date, onCommit: @escaping (Date) -> Void) {
+        self.initial = initial
+        self.onCommit = onCommit
+        _date = State(initialValue: initial)
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                DatePicker("", selection: $date, displayedComponents: [.hourAndMinute])
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    // Center-aligned: no vertical offset so可視範囲の中心とホイール中心が一致
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onChange(of: date) { newValue in
+                        workItem?.cancel()
+                        let item = DispatchWorkItem { onCommit(newValue) }
+                        workItem = item
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: item)
+                    }
+
+                // 中央の区切り線（時と分の間）
+                Rectangle()
+                    .fill(Color.white.opacity(0.18))
+                    .frame(width: 1)
+                    .frame(height: geo.size.height * 0.9)
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
+
+                // 上下のフェードで視認範囲を狭く見せる
+                VStack { LinearGradient(colors: [.black.opacity(0.35), .clear], startPoint: .top, endPoint: .bottom).frame(height: 12); Spacer(); LinearGradient(colors: [.clear, .black.opacity(0.35)], startPoint: .top, endPoint: .bottom).frame(height: 12) }
+                    .allowsHitTesting(false)
+            }
+        }
+        // Ensure nothing draws into the sheet's header safe area above
+        .clipped()
+        .mask(Rectangle())
+    }
+}
+
+private struct PresetPane: View {
+    var presets: [QuickPresetEntity]
+    var now: Date
+    var onApplyDate: (Date) -> Void
+    @State private var showEdit = false
+    @State private var editTarget: QuickPresetEntity? = nil
+    @Environment(\.modelContext) private var context
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Header row handled by sheet safe area; keep list only here
+
+            if presets.isEmpty {
+                Text("プリセットがありません。右上の＋から作成してください。")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.8))
+            } else {
+                ForEach(presets, id: \.id) { p in
+                    HStack(spacing: 8) {
+                        // Tap row to apply
+                        Button(action: {
+                            onApplyDate(date(for: p, from: now))
+                            p.lastUsedAt = Date()
+                        }) {
+                            HStack {
+                                Text(p.title)
+                                    .font(.body)
+                                    .foregroundStyle(.white)
+                                Spacer()
+                                Text(detail(for: p))
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.8))
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        // Edit and delete circular buttons
+                        HStack(spacing: 6) {
+                            Button(action: { editTarget = p; showEdit = true }) {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 28, height: 28)
+                                    .background(Circle().fill(Color.white.opacity(0.18)))
+                            }
+                            .buttonStyle(.plain)
+
+                            Button(action: { withAnimation { context.delete(p) } }) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 28, height: 28)
+                                    .background(Circle().fill(Color.white.opacity(0.18)))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                    Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
+                }
+            }
+        }
+        // Add sheet is handled in AuxSheetPlaceholder (safe area)
+        .sheet(isPresented: $showEdit) {
+            NavigationStack {
+                if let target = editTarget {
+                    QuickPresetEditorView(entity: target) { updated in
+                        // mutate in place
+                        target.title = updated.title
+                        target.daysOffset = updated.daysOffset
+                        target.hour = updated.hour
+                        target.minute = updated.minute
+                    }
+                }
+            }
+        }
+    }
+
+    private func date(for p: QuickPresetEntity, from base: Date) -> Date {
+        let cal = Calendar.current
+        let dayBase = cal.startOfDay(for: base)
+        let plus = cal.date(byAdding: .day, value: p.daysOffset, to: dayBase) ?? base
+        var comps = cal.dateComponents([.year, .month, .day], from: plus)
+        comps.hour = p.hour
+        comps.minute = p.minute
+        return cal.date(from: comps) ?? base
+    }
+
+    private func detail(for p: QuickPresetEntity) -> String {
+        String(format: "+%dd %02d:%02d", p.daysOffset, p.hour, p.minute)
+    }
+}
+
+private struct CalendarPane: View {
+    var now: Date
+    var onApplyDate: (Date) -> Void
+    var body: some View {
+        NavigationStack {
+            QuickDatePickerView { date in
+                onApplyDate(date)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -471,5 +774,33 @@ private extension AppTabsView {
             return range.count
         }
         return nil
+    }
+
+    func applyDate(_ date: Date) {
+        let cal = Calendar.current
+        destination.year = String(format: "%04d", cal.component(.year, from: date))
+        destination.month = String(format: "%02d", cal.component(.month, from: date))
+        destination.day = String(format: "%02d", cal.component(.day, from: date))
+        destination.hour = String(format: "%02d", cal.component(.hour, from: date))
+        destination.minute = String(format: "%02d", cal.component(.minute, from: date))
+    }
+}
+// Simple segmented header (プリセット｜カレンダー)
+private struct SegmentedHeader: View {
+    @Binding var mode: AuxSheetPlaceholder.Mode
+    var body: some View {
+        HStack(spacing: 10) {
+            Button(action: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { mode = .preset } }) {
+                Text("プリセット")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(mode == .preset ? Color.white : Color.white.opacity(0.6))
+            }
+            Rectangle().fill(Color.white.opacity(0.85)).frame(width: 1, height: 14)
+            Button(action: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { mode = .calendar } }) {
+                Text("カレンダー")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(mode == .calendar ? Color.white : Color.white.opacity(0.6))
+            }
+        }
     }
 }

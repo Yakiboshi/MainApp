@@ -38,4 +38,7 @@ import SwiftUI
     // Slightly more blue and 85% opacity
     static let auxSheetBackground = Color(red: 0.10, green: 0.44, blue: 0.95, opacity: 0.85)
     static let auxSheetBackgroundDark = Color(red: 0.06, green: 0.30, blue: 0.75, opacity: 0.90)
+    // Aux sheet background for Preset (yellow-green tone)
+    static let auxPresetBackground = Color(red: 0.52, green: 0.85, blue: 0.22, opacity: 0.85)
+    static let auxPresetBackgroundDark = Color(red: 0.36, green: 0.66, blue: 0.14, opacity: 0.90)
 }

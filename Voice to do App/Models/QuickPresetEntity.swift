@@ -10,8 +10,9 @@ final class QuickPresetEntity {
     var minute: Int // 0..59
     var createdAt: Date
     var updatedAt: Date
+    var lastUsedAt: Date?
 
-    init(id: UUID = UUID(), title: String, daysOffset: Int, hour: Int, minute: Int, createdAt: Date = .now, updatedAt: Date = .now) {
+    init(id: UUID = UUID(), title: String, daysOffset: Int, hour: Int, minute: Int, createdAt: Date = .now, updatedAt: Date = .now, lastUsedAt: Date? = nil) {
         self.id = id
         self.title = title
         self.daysOffset = daysOffset
@@ -19,6 +20,6 @@ final class QuickPresetEntity {
         self.minute = minute
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.lastUsedAt = lastUsedAt
     }
 }
-
