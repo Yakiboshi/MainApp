@@ -3,7 +3,7 @@
 背景画像を用意して、iphoneの幅いっぱいにアスペクト比を固定して表示し、背景画像の中にある枠の中(黒い部分)に数字テキストをぴったり収めて、ユーザーの入力に応じて数字が変更されるようにしたいです。（異機種、横画面表示の際に画像内の数字が全くずれないようにするため）
 
 背景画像 @timecircuits2.png
-数字　フォントBTTFTimeCircuitsAPDATEDAGAINIMSORRYを使用。
+数字　フォントBTTFTimeCircuitsUPDATEDAGAINIMSORRYを使用。
 
 現時点で考えている実装手順。
 

@@ -33,4 +33,9 @@ import SwiftUI
     // Call button
     static let callFillTop = Color(red: 0.08, green: 0.70, blue: 0.32)
     static let callFillBottom = Color(red: 0.04, green: 0.55, blue: 0.24)
+
+    // Aux sheet background (slightly more cyan than screen background)
+    // Slightly more blue and 85% opacity
+    static let auxSheetBackground = Color(red: 0.10, green: 0.44, blue: 0.95, opacity: 0.85)
+    static let auxSheetBackgroundDark = Color(red: 0.06, green: 0.30, blue: 0.75, opacity: 0.90)
 }
