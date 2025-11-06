@@ -1,34 +1,11 @@
 import SwiftUI
-import Combine
 
 // 下部ナビゲーション（UIのみ）＋中央キーパッド（UIのみ）
 struct AppTabsView: View {
     @State private var selectedIndex: Int = 2 // 0:設定 1:履歴 2:キーパッド 3:予定 4:留守電
-    @State private var destination = DestinationTime()
     // MARK: Layout constants（独立して編集できます）
     // 高さの数値は縦幅ではなく「画面下端からの距離」として扱う
     private let tmpKeypadBottomOffset: CGFloat = 75
-    // ヘッダー画像内の YEAR テキスト上端の相対位置（0=上端, 1=下端）
-    // 小数で調整可能（例: 0.12）
-    private let yearTopNormalized: CGFloat = 0.21
-    // ヘッダー画像内の DESTINATION YEAR の上端相対位置（0=上端, 1=下端）
-    // 小数で調整可能（例: 0.035）
-    private let destYearTopNormalized: CGFloat = 0.915
-    // ヘッダー画像内の YEAR テキスト左端の相対位置（0=左端, 1=右端）
-    // 小数で調整可能（例: 0.10）
-    private let yearLeftNormalized: CGFloat = 0.045
-    // ヘッダー画像内の MON テキスト左端の相対位置（0=左端, 1=右端）
-    // 小数で調整可能（例: 0.336）
-    private let monLeftNormalized: CGFloat = 0.336
-    // ヘッダー画像内の DAY テキスト左端の相対位置（0=左端, 1=右端）
-    // 小数で調整可能（例: 0.511）
-    private let dayLeftNormalized: CGFloat = 0.511
-    // ヘッダー画像内の HOUR テキスト左端の相対位置（0=左端, 1=右端）
-    // 小数で調整可能（初期値は仮）
-    private let hourLeftNormalized: CGFloat = 0.678
-    // ヘッダー画像内の MIN テキスト左端の相対位置（0=左端, 1=右端）
-    // 小数で調整可能（初期値は仮）
-    private let minLeftNormalized: CGFloat = 0.847
 
     private let items: [NavItem] = [
         .init(title: "設定", system: "gearshape.fill"),
@@ -41,23 +18,7 @@ struct AppTabsView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             Theme.appGradient.ignoresSafeArea()
-            VStack(spacing: 50) {
-                // 画面上部のヘッダーをスナップショット化し、
-                // 変形時も一枚の画像として等倍で変形させる
-                TimeCircuitsHeaderSnapshotView(
-                    yearTop: yearTopNormalized,
-                    yearLeft: yearLeftNormalized,
-                    monLeft: monLeftNormalized,
-                    dayLeft: dayLeftNormalized,
-                    hourLeft: hourLeftNormalized,
-                    minLeft: minLeftNormalized,
-                    destYearTop: destYearTopNormalized,
-                    destYear: destination.year,
-                    destMonth: destination.month,
-                    destDay: destination.day,
-                    destHour: destination.hour,
-                    destMin: destination.minute
-                )
+            VStack(spacing: 0) {
                 Spacer()
                 // キーパッドは横幅指定なし。下端からの距離のみ維持。
                 KeypadUI()
@@ -239,28 +200,4 @@ private struct CallButtonUI: View {
     }
 }
 
-// (Header view and helper subviews moved to TimeCircuitsHeaderView.swift)
-
-// 現在時刻の「分（2桁）」を表示するビュー（BTTFフォント）
-private struct PresentMinuteView: View {
-    @State private var now = Date()
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
-    private var minuteString: String {
-        let m = Calendar.current.component(.minute, from: now)
-        return String(format: "%02d", m)
-    }
-
-    var body: some View {
-        Text(minuteString)
-            .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 56))
-            .foregroundStyle(Theme.segmentPresentText)
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
-            .onReceive(timer) { date in
-                now = date
-            }
-            .accessibilityLabel("現在の分 \(minuteString)")
-    }
-}
-    
+// (ヘッダー関連ビューは削除済み)
