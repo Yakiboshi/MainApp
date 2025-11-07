@@ -78,6 +78,7 @@ struct AppTabsView: View {
                         AuxSheetPlaceholder(
                             now: now,
                             onApplyDate: { date in applyDate(date) },
+                            onApplyPreset: { date in applyFullDateTime(date) },
                             onClose: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet = false } }
                         )
                             .frame(height: sheetHeight)
@@ -247,6 +248,7 @@ private struct AuxSheetPlaceholder: View {
     @Namespace private var underlineNS
     var now: Date
     var onApplyDate: (Date) -> Void
+    var onApplyPreset: (Date) -> Void
     var onClose: (() -> Void)? = nil
     @State private var showAddSheet = false
     @Environment(\.modelContext) private var context
@@ -265,11 +267,24 @@ private struct AuxSheetPlaceholder: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Header with segment (プリセット｜カレンダー) and content below
+            // Header row（左:トグル, 右:閉じる）＋コンテンツ
             VStack(spacing: 8) {
-                SegmentedHeader(mode: $mode)
-                    .padding(.top, 8)
-                    .padding(.horizontal, 16)
+                HStack(alignment: .center, spacing: 8) {
+                    SegmentedHeader(mode: $mode)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button(action: { onClose?() }) {
+                        Text("閉じる")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(topColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.95)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("閉じる")
+                }
+                .padding(.top, 8)
+                .padding(.horizontal, 16)
 
                 if mode == .preset {
                     // Safe row with sort + add (not scrolled)
@@ -294,38 +309,18 @@ private struct AuxSheetPlaceholder: View {
                     .padding(.horizontal, 12)
 
                     // Preset list
-                    PresetListContent(sortMode: sortMode, now: now, onApplyDate: onApplyDate)
+                    PresetListContent(sortMode: sortMode, now: now, onApplyDate: onApplyDate, onApplyPreset: onApplyPreset)
                         .padding(.horizontal, 12)
                         .padding(.bottom, 8)
                 } else {
-                    // Calendar content with scroll indicators
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
-                            CalendarPane(now: now, onApplyDate: onApplyDate)
-                                .frame(maxWidth: .infinity, alignment: .top)
-                        }
+                    // Calendar content (no ScrollView for stable sizing)
+                    CalendarPane(now: now, onApplyDate: onApplyDate)
                         .frame(maxWidth: .infinity, alignment: .top)
                         .padding(.horizontal, 12)
                         .padding(.bottom, 8)
-                    }
-                    .scrollIndicators(.visible)
                 }
             }
-
-            // Close button (top-right)
-            Button(action: { onClose?() }) {
-                Text("閉じる")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(topColor)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.95)))
-            }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity, alignment: .topTrailing)
-            .padding(.top, 8)
-            .padding(.trailing, 8)
-            .accessibilityLabel("閉じる")
+            // （閉じるボタンはヘッダーHStack内に配置済み）
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.86), value: mode)
         .sheet(isPresented: $showAddSheet) {
@@ -359,13 +354,14 @@ private struct PresetListContent: View {
     var sortMode: AuxSheetPlaceholder.SortMode
     var now: Date
     var onApplyDate: (Date) -> Void
+    var onApplyPreset: (Date) -> Void
     @Environment(\.modelContext) private var context
     @Query private var presets: [QuickPresetEntity]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                PresetPane(presets: sortedPresets(), now: now, onApplyDate: onApplyDate)
+                PresetPane(presets: sortedPresets(), now: now, onApplyDate: onApplyDate, onApplyPreset: onApplyPreset)
             }
             .frame(maxWidth: .infinity, alignment: .top)
             .padding(.top, 4)
@@ -463,6 +459,7 @@ private struct PresetPane: View {
     var presets: [QuickPresetEntity]
     var now: Date
     var onApplyDate: (Date) -> Void
+    var onApplyPreset: (Date) -> Void
     @State private var showEdit = false
     @State private var editTarget: QuickPresetEntity? = nil
     @Environment(\.modelContext) private var context
@@ -478,24 +475,18 @@ private struct PresetPane: View {
             } else {
                 ForEach(presets, id: \.id) { p in
                     HStack(spacing: 8) {
-                        // Tap row to apply
-                        Button(action: {
-                            onApplyDate(date(for: p, from: now))
-                            p.lastUsedAt = Date()
-                        }) {
-                            HStack {
-                                Text(p.title)
-                                    .font(.body)
-                                    .foregroundStyle(.white)
-                                Spacer()
-                                Text(detail(for: p))
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.8))
-                            }
+                        // Row content (entire row tappable via onTapGesture)
+                        HStack {
+                            Text(p.title)
+                                .font(.body)
+                                .foregroundStyle(.white)
+                            Spacer()
+                            Text(detail(for: p))
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.8))
                         }
-                        .buttonStyle(.plain)
 
-                        // Edit and delete circular buttons
+                        // Edit and delete circular buttons (remain as separate buttons)
                         HStack(spacing: 6) {
                             Button(action: { editTarget = p; showEdit = true }) {
                                 Image(systemName: "pencil")
@@ -518,6 +509,10 @@ private struct PresetPane: View {
                     }
                     .padding(.vertical, 8)
                     .contentShape(Rectangle())
+                    .onTapGesture {
+                        onApplyPreset(date(for: p, from: now))
+                        p.lastUsedAt = Date()
+                    }
                     Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
                 }
             }
@@ -557,11 +552,8 @@ private struct CalendarPane: View {
     var now: Date
     var onApplyDate: (Date) -> Void
     var body: some View {
-        NavigationStack {
-            QuickDatePickerView { date in
-                onApplyDate(date)
-            }
-            .navigationBarTitleDisplayMode(.inline)
+        QuickDatePickerView { date in
+            onApplyDate(date)
         }
         .frame(maxWidth: .infinity)
     }
@@ -778,29 +770,57 @@ private extension AppTabsView {
 
     func applyDate(_ date: Date) {
         let cal = Calendar.current
+        // カレンダーからは年月日のみ更新。HOUR/MINは既存値を維持（空欄は空欄のまま）。
+        destination.year = String(format: "%04d", cal.component(.year, from: date))
+        destination.month = String(format: "%02d", cal.component(.month, from: date))
+        destination.day = String(format: "%02d", cal.component(.day, from: date))
+        // フォーカス: 時刻が未入力ならHOURへ、次にMIN。両方埋まっていればMINへ。
+        if destination.hour.count < 2 {
+            destination.focus(.hour)
+        } else if destination.minute.count < 2 {
+            destination.focus(.minute)
+        } else {
+            destination.focus(.minute)
+        }
+    }
+
+    func applyFullDateTime(_ date: Date) {
+        let cal = Calendar.current
         destination.year = String(format: "%04d", cal.component(.year, from: date))
         destination.month = String(format: "%02d", cal.component(.month, from: date))
         destination.day = String(format: "%02d", cal.component(.day, from: date))
         destination.hour = String(format: "%02d", cal.component(.hour, from: date))
         destination.minute = String(format: "%02d", cal.component(.minute, from: date))
+        // プリセットは完全な日時を入力する想定。削除開始位置はMIN
+        destination.focus(.minute)
     }
 }
 // Simple segmented header (プリセット｜カレンダー)
 private struct SegmentedHeader: View {
     @Binding var mode: AuxSheetPlaceholder.Mode
     var body: some View {
-        HStack(spacing: 10) {
-            Button(action: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { mode = .preset } }) {
-                Text("プリセット")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(mode == .preset ? Color.white : Color.white.opacity(0.6))
+        Button(action: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { toggle() } }) {
+            VStack(spacing: 6) {
+                HStack(spacing: 24) {
+                    Text("プリセット")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(mode == .preset ? Color.white : Color.white.opacity(0.6))
+                    Text("カレンダー")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(mode == .calendar ? Color.white : Color.white.opacity(0.6))
+                }
+                // ベースの白線（見出しの一部として表示）
+                Rectangle()
+                    .fill(Color.white.opacity(0.85))
+                    .frame(height: 1)
             }
-            Rectangle().fill(Color.white.opacity(0.85)).frame(width: 1, height: 14)
-            Button(action: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { mode = .calendar } }) {
-                Text("カレンダー")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(mode == .calendar ? Color.white : Color.white.opacity(0.6))
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+    }
+
+    private func toggle() {
+        mode = (mode == .preset) ? .calendar : .preset
     }
 }
