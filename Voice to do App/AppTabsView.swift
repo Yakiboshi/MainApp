@@ -19,6 +19,10 @@ struct AppTabsView: View {
     // 高さの数値は縦幅ではなく「画面下端からの距離」として扱う
     private let tmpKeypadBottomOffset: CGFloat = 75
 
+    // 通信画面（フルスクリーン）への遷移制御
+    @State private var showAudioPlay: Bool = false
+    @State private var scheduledDateForCall: Date? = nil
+
     private let items: [NavItem] = [
         .init(title: "設定", system: "gearshape.fill"),
         .init(title: "履歴", system: "clock"),
@@ -48,7 +52,17 @@ struct AppTabsView: View {
                     onDigit: { n in destination.appendDigit(n) },
                     onBackspace: { destination.backspace() },
                     onLeftAux: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet.toggle() } },
-                    onOk: { /* TODO: バリデーション/遷移 */ },
+                    onOk: {
+                        // DESTINATIONTIME が緑（有効）なら通信画面へ遷移
+                        if !hasImmediateInvalid(destination, now: now) && isComplete(destination) && destination.isValid(now: now),
+                           let date = destination.toDate() {
+                            scheduledDateForCall = date
+                            showAuxSheet = false
+                            showAudioPlay = true
+                        } else {
+                            // 無効時は何もしない（将来: 震動/アラートなど）
+                        }
+                    },
                     callSoundNameProvider: { callSoundName(now: now) }
                 )
                 .background(
@@ -99,6 +113,11 @@ struct AppTabsView: View {
                         Color.clear.preference(key: BottomBarHeightPreferenceKey.self, value: p.size.height)
                     }
                 )
+        }
+        // フルスクリーンの通信画面（ナビゲーションバーなし）
+        .fullScreenCover(isPresented: $showAudioPlay) {
+            AudioPlayView(scheduledAt: scheduledDateForCall ?? now, soundName: "callSound", soundExt: "mp3")
+                .ignoresSafeArea()
         }
         .onReceive(timer) { now = $0 }
         .onPreferenceChange(KeypadTopPreferenceKey.self) { keypadTopY = $0 }

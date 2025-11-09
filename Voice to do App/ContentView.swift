@@ -10,6 +10,10 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         AppTabsView()
+            .task {
+                // アプリ起動時に通知/マイク権限を確認（初回は要求）
+                PermissionManager.requestLaunchPermissions()
+            }
     }
 }
 
