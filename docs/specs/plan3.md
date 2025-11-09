@@ -1,227 +1,68 @@
-録音画面をSwiftUIとSwiftDataを使います。
+録音＋ローカル通知 実装ToDo（起動時に権限取得）
 
-目的：
-画面遷移後すぐに録音が開始され、「録音終了」ボタンを押すと録音が停止し、
-遷移時に渡された日時データと録音した音声データを紐付けて保存します。
-また、同時にその日時データに合わせてローカル通知を作成します。
+目的
+- 通信画面から遷移後、録音を自動開始し、停止で保存＋指定日時にローカル通知を登録する。
+- 権限（マイク・ローカル通知）は「アプリ起動時」に確認・要求する（未許可時は起動直後にリクエスト）。
 
-機能要件：
+前提 / ポリシー
+- UI: SwiftUI、永続化: SwiftData、録音: AVAudioRecorder、通知: UserNotifications。
+- 録音ファイルはアプリ Documents 配下に .m4a（AAC）で保存。
+- 通知サウンドは `localsound.mp3` があれば使用（無ければ .default）。
+- 既存の `PermissionManager` を使用し、起動時に通知・マイク権限をまとめて要求する。
 
-画面遷移後すぐに自動で録音を開始する
+作成/更新ファイル
+- RecordingEntity.swift（SwiftData モデル: 録音のメタ情報を保存）
+- AudioRecorderViewModel.swift（録音開始/停止の管理とAVAudioSession設定）
+- NotificationManager.swift（通知作成；PermissionManagerと責務分離）
+- RecordingView.swift（録音画面。自動録音開始→停止→保存→通知）
+- AudioPlayView.swift（録音画面への引き渡しを `RecordingView(date:)` に統一）
+- Voice_to_do_AppApp.swift（`.modelContainer(for:)` に RecordingEntity を追加）
+- Info.plist（`NSMicrophoneUsageDescription` を追加）
 
-画面下部の「録音終了」ボタンで録音を停止する
+実装ToDo
+- [ ] 権限（起動時）
+  - [ ] `ContentView` 起動時に `PermissionManager.requestLaunchPermissions()` を呼ぶ（通知・マイク）。
+  - [ ] 拒否時のUI指針: 録音画面入場時にガイダンスと設定アプリ誘導を表示（実装は任意）。
+- [ ] モデル（SwiftData）
+  - [ ] `RecordingEntity` を定義
+    - [ ] `id: UUID`、`recordedAt: Date`、`fileName: String`、`duration: Double`
+  - [ ] `.modelContainer(for: [既存, RecordingEntity.self])` に更新
+- [ ] 録音VM
+  - [ ] `AudioRecorderViewModel` を実装
+    - [ ] `startRecording(for date: Date)`
+      - [ ] Documents配下に `recording_<epoch>.m4a` を作成
+      - [ ] `AVAudioSession` を `.playAndRecord` で有効化（終了時に解除）
+      - [ ] AAC/44.1kHz/2ch/High で `AVAudioRecorder` を `.record()`
+      - [ ] `@Published isRecording = true`、開始時刻保持
+    - [ ] `stopRecording() -> (fileName: String, duration: Double)?`
+      - [ ] `.stop()`、経過秒を算出、ファイル名返却
+      - [ ] 後片付け（セッション状態の整理）
+- [ ] 通知管理
+  - [ ] `NotificationManager.scheduleNotification(for:)`
+    - [ ] `UNCalendarNotificationTrigger` を作成
+    - [ ] サウンド: `UNNotificationSound(named: "localsound.mp3")` があれば使用、無ければ `.default`
+    - [ ] `userInfo["recordingId"]` などを付与できる拡張性（任意）
+- [ ] 録音画面
+  - [ ] `RecordingView(date: Date)` に統一（`scheduledDate` → `date`）
+  - [ ] `onAppear` で `recorder.startRecording(for: date)` を呼ぶ
+  - [ ] 画面下部「録音終了」ボタンで
+    - [ ] `stopRecording()` → `RecordingEntity` 作成・保存 → `NotificationManager.scheduleNotification(for: date)` → 画面を閉じる
+  - [ ] 状態表示（録音中/停止中）と簡易の経過時間（任意）
+- [ ] AudioPlayView 連携
+  - [ ] 再生完了で `RecordingView(date:)` に切替（現状のフルスクリーン遷移は維持）
+- [ ] 依存リソース/設定
+  - [ ] `localsound.mp3` をバンドルに追加（任意。無ければデフォルト音）
+  - [ ] Info.plist に `NSMicrophoneUsageDescription` を追加
 
-録音データはアプリ内のDocumentsフォルダに .m4a 形式で保存
+動作確認チェックリスト
+- [ ] アプリ起動時に通知・マイク権限を要求（初回のみ）
+- [ ] 通信→録音遷移で自動的に録音が開始される
+- [ ] 「録音終了」でファイルが Documents に保存される（.m4a）
+- [ ] `RecordingEntity` が SwiftData に保存される
+- [ ] 予定日時にローカル通知が発火する（任意サウンド設定も確認）
+- [ ] 権限拒否時に適切なガイダンスが表示される（任意）
 
-遷移時に受け取った日時（Date型）と録音ファイルをSwiftDataで紐付けて保存
-
-録音終了と同時に、その日時でローカル通知を登録
-
-SwiftDataのモデルは RecordingEntity とし、以下のプロパティを持つ
-
-id: UUID
-
-recordedAt: Date
-
-fileName: String
-
-duration: Double
-
-技術条件：
-
-SwiftUIを使用
-
-SwiftDataを使用して録音履歴を保存
-
-音声録音は AVAudioRecorder を使用
-
-通知は UserNotifications フレームワークを使用
-
-モデル保存は .modelContainer(for: RecordingEntity.self) を利用
-
-画面構成は以下の2画面構成
-
-FirstView: DatePickerで日時を選び、「録音画面へ」ボタンで遷移
-
-RecordingView: 自動で録音を開始し、ボタンで停止→保存→通知
-
-ファイル構成：
-
-RecordingEntity.swift（SwiftDataモデル）
-
-AudioRecorderViewModel.swift（録音管理）
-
-NotificationManager.swift（通知処理）
-
-RecordingView.swift（録音画面）
-
-AudioPlayView.swift（遷移元画面）
-
-AppTabsView.swift（アプリエントリ）
-
-コードにはコメントを入れて、録音開始／停止／保存／通知処理がどこで行われているか分かるようにしてください。
-
-
-
-
-以下参考コード
-
-import SwiftUI
-import AVFoundation
-import UserNotifications
-import SwiftData
-
-// MARK: - ViewModel: 録音処理
-@MainActor
-class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderDelegate {
-    private var audioRecorder: AVAudioRecorder?
-    private(set) var recordingURL: URL?
-    @Published var isRecording = false
-    private var startTime: Date?
-    
-    func startRecording(for date: Date) {
-        let fileName = "recording_\(Int(date.timeIntervalSince1970)).m4a"
-        let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let fileURL = docDir.appendingPathComponent(fileName)
-        recordingURL = fileURL
-        startTime = Date()
-        
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 44100,
-            AVNumberOfChannelsKey: 2,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-        ]
-        
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-            
-            audioRecorder = try AVAudioRecorder(url: fileURL, settings: settings)
-            audioRecorder?.delegate = self
-            audioRecorder?.record()
-            isRecording = true
-            print("🎙️録音開始: \(fileName)")
-        } catch {
-            print("❌録音エラー: \(error.localizedDescription)")
-        }
-    }
-    
-    func stopRecording() -> (fileName: String?, duration: Double)? {
-        audioRecorder?.stop()
-        isRecording = false
-        
-        guard let url = recordingURL else { return nil }
-        let duration = -(startTime?.timeIntervalSinceNow ?? 0)
-        print("🛑録音終了: \(url.lastPathComponent)")
-        return (url.lastPathComponent, duration)
-    }
-}
-
-// MARK: - 通知管理
-class NotificationManager {
-    static let shared = NotificationManager()
-    
-    func requestPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, error in
-            if let error = error {
-                print("通知許可エラー: \(error.localizedDescription)")
-            }
-        }
-    }
-    
-    func scheduleNotification(for date: Date) {
-        let content = UNMutableNotificationContent()
-        content.title = "録音データのお知らせ"
-        content.body = "この日時の録音データがあります"
-        content.sound = .default
-        
-        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request)
-        print("🔔通知設定完了: \(date)")
-    }
-}
-
-// MARK: - 録音画面
-struct RecordingView: View {
-    @Environment(\.modelContext) private var modelContext
-    @ObservedObject private var recorder = AudioRecorderViewModel()
-    @Environment(\.dismiss) private var dismiss
-    let date: Date
-    
-    var body: some View {
-        VStack(spacing: 40) {
-            Text("録音日時: \(date.formatted(.dateTime.year().month().day().hour().minute()))")
-                .font(.headline)
-            
-            if recorder.isRecording {
-                Text("🎙️ 録音中...")
-                    .foregroundColor(.red)
-            } else {
-                Text("🛑 録音停止中")
-                    .foregroundColor(.gray)
-            }
-            
-            Button(action: {
-                if recorder.isRecording {
-                    if let result = recorder.stopRecording() {
-                        let newRecording = RecordingEntity(recordedAt: date, fileName: result.fileName ?? "", duration: result.duration)
-                        modelContext.insert(newRecording)
-                        try? modelContext.save()
-                        
-                        NotificationManager.shared.scheduleNotification(for: date)
-                        dismiss()
-                    }
-                }
-            }) {
-                Text("録音終了")
-                    .font(.title2)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.red.opacity(0.8))
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-            }
-        }
-        .padding()
-        .onAppear {
-            NotificationManager.shared.requestPermission()
-            recorder.startRecording(for: date)
-        }
-    }
-}
-
-// MARK: - 遷移元画面
-struct FirstView: View {
-    @State private var targetDate = Date().addingTimeInterval(60)
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 30) {
-                DatePicker("録音・通知日時", selection: $targetDate)
-                    .datePickerStyle(.graphical)
-                
-                NavigationLink("録音画面へ") {
-                    RecordingView(date: targetDate)
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding()
-        }
-    }
-}
-
-// MARK: - アプリエントリ
-@main
-struct RecorderApp: App {
-    var body: some Scene {
-        WindowGroup {
-            FirstView()
-        }
-        .modelContainer(for: RecordingEntity.self)
-    }
-}
+メモ/考慮事項
+- 既存のキー音などは `.ambient`、録音は `.playAndRecord` とカテゴリ差があるため、切替タイミングで競合しないようにする。
+- 通知音にカスタム音を使う場合、ファイル長やフォーマットの制約に注意（30秒以内など）。
+- 将来：録音メタと予定日時を紐付ける識別子（`recordingId`）を通知 userInfo に載せ、ディープリンクで着信画面を開く拡張が可能。
