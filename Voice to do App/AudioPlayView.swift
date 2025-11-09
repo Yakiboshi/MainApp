@@ -20,7 +20,7 @@ struct AudioPlayView: View {
         Group {
             if showRecording {
                 // 次画面：録音（フルスクリーン、ナビバー無し）
-                RecordingView(scheduledDate: scheduledAt)
+                RecordingView(date: scheduledAt)
                     .ignoresSafeArea()
             } else {
                 // 通信中ビュー
