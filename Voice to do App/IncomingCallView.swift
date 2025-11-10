@@ -1,7 +1,9 @@
 import SwiftUI
+import UserNotifications
 
 struct IncomingCallView: View {
     let messageId: String?
+    private let ringtone = RingtonePlayer()
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -20,7 +22,11 @@ struct IncomingCallView: View {
                 Spacer()
                 HStack(spacing: 32) {
                     Button {
-                        // とりあえず画面のみ：閉じる
+                        // 拒否: 残通知キャンセル→スヌーズ再登録（デバッグ既定: 60秒）→閉じる
+                        NotificationManager.shared.cancelAllNotifications(for: messageId)
+                        if let mid = messageId, !mid.isEmpty {
+                            NotificationManager.shared.scheduleSnooze(for: mid, snoozeSeconds: 60)
+                        }
                         dismiss()
                         NotificationRouter.shared.dismissIncomingCall()
                     } label: {
@@ -48,6 +54,15 @@ struct IncomingCallView: View {
             }
             .padding()
         }
+        .onAppear {
+            // 残りのローカル通知をキャンセル
+            NotificationManager.shared.cancelAllNotifications(for: messageId)
+            // ループ再生開始（原音）
+            ringtone.startLooping()
+        }
+        .onDisappear {
+            // 停止
+            ringtone.stop()
+        }
     }
 }
-

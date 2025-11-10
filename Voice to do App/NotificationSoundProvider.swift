@@ -6,7 +6,7 @@ enum NotificationSoundProvider {
     // 現行の通知音ファイル名（Bundle内）。将来は設定から選択可能に拡張。
     private static let defaultName = "ks035"
     private static let defaultExt = "wav"
-    private static let maxDuration: TimeInterval = 30.0 // Apple推奨上限
+    private static let maxDuration: TimeInterval = 7.0 // 要件: 通知音は7秒以内（終端でフェードアウト）
 
     // UNNotificationSoundName に渡すファイル名（"name.ext"）を返す。使用不可の場合は nil。
     static func currentNotificationSoundName() -> String? {

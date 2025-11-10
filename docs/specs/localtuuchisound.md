@@ -1,42 +1,174 @@
-ローカル通知サウンド設計（v1）
+次の仕様でSwiftUIコードを作成してください。
 
-目的
-- 拡張子の互換性問題を回避し、確実に鳴るローカル通知サウンドを提供する。
-- 将来はユーザーが内蔵サウンドから選択できるよう拡張（任意）。
+【目的】
+ユーザーが選択した音声ファイルをアプリ内に保存し、常に7秒でフェードアウト（終端1秒でリニアに減衰）し、総尺は7秒に収める設計にする。
 
-前提と制約（iOS）
-- カスタム通知音はアプリのバンドル内に配置され、長さはおおむね30秒以下である必要がある。
-- ランタイムでユーザーが任意ファイルを通知音として登録することはできない（バンドル外は不可）。
-- フォアグラウンド受信時のサウンドは `UNUserNotificationCenterDelegate.willPresent` で許可が必要。
+【条件】
+- 音声情報（ファイル名・URL・長さ）をSwiftDataで永続化する。
+- Documentsフォルダに音声を保存する。
+- ローカル通知でのサウンドは内蔵サウンド（バンドル）を使用。ユーザー音源はアプリ内の擬似着信音として再生（いずれも7秒でフェードアウト）。
+- SwiftUIのボタンから音声ファイルを選び、トリミング→保存→通知登録を自動で行う。
+- トリミングはAVFoundationを使用する。
+- すべて1つのSwiftUIプロジェクト内で動作するように構成する。
 
-現行仕様（このプロジェクト）
-- 使用音源: `Voice to do App/Audio/KeypadSounds/ks035.wav`
-- 長さ: 25秒（30秒以下の推奨値に収める）。長い場合は OS 側でデフォルトにフォールバックするため、事前にトリミングしてバンドルへ。
-- 実装: `UNNotificationSound(named: UNNotificationSoundName("ks035.wav"))`
-- フォールバック: ファイルが無い、または30秒超の場合は `.default` を適用。
+【構成】
+1. SwiftDataモデル（SoundFile）
+2. トリミング＆保存マネージャ（SoundManager）
+3. SwiftUIビュー（ContentView, AudioPickerView）
 
-実装詳細
-- NotificationManager から集中管理のサウンド取得関数を呼び出す。
-  - `NotificationSoundProvider.currentNotificationSoundName() -> String?`
-  - バンドル存在と長さ(≤30s)を検証し、`"ks035.wav"` を返す。条件を満たさなければ `nil` を返し `.default` を採用。
-- 受信時表示: フォアグラウンドでも `[.banner, .list, .sound]` を返してサウンドを許可。
+【コードベース】
+以下のコードを参考に、SwiftDataを使った完全動作版に仕上げてください。
 
-将来拡張（設計）
-- 内蔵サウンドの選択
-  - 設定画面で「内蔵サウンド」一覧から選択（例: `ks035.wav`, `bell.caf`, `tone.aiff`）。
-  - 選択結果は UserDefaults または SwiftData（AppSettings）へ保存。
-  - `NotificationSoundProvider` が選択結果を参照して返却。
-- ユーザー音源の扱い
-  - iOSの制約上、OSの通知音として任意ファイルを即時採用できない。
-  - 将来は「擬似着信画面（アプリ内）」の着信音には任意ファイルを再生可能（アプリ前景・復帰後）。
-  - OS通知の音は「内蔵（バンドル）サウンド」の範囲で選択式とする。
+swiftDataモデル
 
-テスト観点
-- 1〜2分後でスケジュールし、通知が到達し音が鳴ること。
-- ファイルを30秒超に差し替えた場合は `.default` にフォールバックすること。
-- フォアグラウンドでもバナー＋音が鳴ること（delegate 有効）。
+import SwiftData
 
-関連ファイル
-- `Voice to do App/NotificationManager.swift`
-- `Voice to do App/NotificationSoundProvider.swift`
-- `Voice to do App/NotificationCenterDelegate.swift`
+@Model
+class SoundFile {
+    var id: UUID
+    var fileName: String
+    var fileURL: URL
+    var duration: Double
+    
+    init(fileName: String, fileURL: URL, duration: Double) {
+        self.id = UUID()
+        self.fileName = fileName
+        self.fileURL = fileURL
+        self.duration = duration
+    }
+}
+
+トリミング + 保存マネージャー
+
+import AVFoundation
+import UserNotifications
+import SwiftData
+
+class SoundManager {
+    static let shared = SoundManager()
+    
+    /// 音声を7秒にトリミング（終端1秒フェードアウト）してDocumentsに保存し、SwiftDataに登録
+    func importAndTrimAudio(from inputURL: URL, modelContext: ModelContext, completion: @escaping (SoundFile?) -> Void) {
+        let asset = AVAsset(url: inputURL)
+        let duration = CMTimeGetSeconds(asset.duration)
+        
+        // 出力先
+        let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let outputURL = docsDir.appendingPathComponent("\(UUID().uuidString).caf")
+        
+        // 書き出し設定
+        let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A)
+        exportSession?.outputURL = outputURL
+        exportSession?.outputFileType = .caf
+        
+        // 長い場合は7秒でカット（フェードアウトは終端1秒）
+        let start = CMTime(seconds: 0, preferredTimescale: 600)
+        let cutLength = CMTime(seconds: min(duration, 10.0), preferredTimescale: 600)
+        exportSession?.timeRange = CMTimeRange(start: start, duration: cutLength)
+        
+        exportSession?.exportAsynchronously {
+            switch exportSession?.status {
+            case .completed:
+                print("✅ Trimmed sound saved: \(outputURL)")
+                let newSound = SoundFile(fileName: outputURL.lastPathComponent,
+                                         fileURL: outputURL,
+                                         duration: min(duration, 10.0))
+                modelContext.insert(newSound)
+                try? modelContext.save()
+                completion(newSound)
+            default:
+                print("❌ Export error: \(exportSession?.error?.localizedDescription ?? "unknown error")")
+                completion(nil)
+            }
+        }
+    }
+    
+    /// ローカル通知で再生
+    func scheduleNotification(for sound: SoundFile) {
+        let content = UNMutableNotificationContent()
+        content.title = "カスタムサウンド通知"
+        content.body = "この通知で保存した音が鳴ります。"
+        content.sound = UNNotificationSound(named: UNNotificationSoundName(sound.fileName))
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+        let request = UNNotificationRequest(identifier: "customSound-\(sound.id)", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
+        
+        print("🔔 通知登録済み：\(sound.fileName)")
+    }
+}
+
+SwiftUI側
+
+import SwiftUI
+import UniformTypeIdentifiers
+import SwiftData
+
+struct AudioPickerView: UIViewControllerRepresentable {
+    var modelContext: ModelContext
+    
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.audio])
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(modelContext: modelContext)
+    }
+    
+    class Coordinator: NSObject, UIDocumentPickerDelegate {
+        var modelContext: ModelContext
+        
+        init(modelContext: ModelContext) {
+            self.modelContext = modelContext
+        }
+        
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard let selectedURL = urls.first else { return }
+            SoundManager.shared.importAndTrimAudio(from: selectedURL, modelContext: modelContext) { newSound in
+                if let sound = newSound {
+                    SoundManager.shared.scheduleNotification(for: sound)
+                }
+            }
+        }
+    }
+}
+
+struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \SoundFile.fileName) var sounds: [SoundFile]
+    @State private var showPicker = false
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Button("音声ファイルを選んで通知テスト") {
+                showPicker.toggle()
+            }
+            .sheet(isPresented: $showPicker) {
+                AudioPickerView(modelContext: modelContext)
+            }
+            
+            List(sounds) { sound in
+                VStack(alignment: .leading) {
+                    Text(sound.fileName)
+                    Text("長さ: \(Int(sound.duration))秒")
+                        .font(.caption)
+                    Button("この音で通知") {
+                        SoundManager.shared.scheduleNotification(for: sound)
+                    }
+                }
+            }
+        }
+        .padding()
+        .onAppear {
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                print("通知許可: \(granted)")
+            }
+        }
+    }
+}
+
+「このコードを参考にリファクタリングして完全版を出力してください、またビルド可能な構成にしてください」 
