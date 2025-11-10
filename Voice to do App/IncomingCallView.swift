@@ -1,12 +1,14 @@
 import SwiftUI
+import SwiftData
 import UserNotifications
 
 struct IncomingCallView: View {
     let messageId: String?
     private let ringtone = RingtonePlayer()
+    @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var router = NotificationRouter.shared
-    @State private var showCall: Bool = false
+    @State private var showAfter: Bool = false
 
     var body: some View {
         ZStack {
@@ -27,7 +29,17 @@ struct IncomingCallView: View {
                         // 拒否: 残通知キャンセル→スヌーズ再登録（デバッグ既定: 60秒）→閉じる
                         NotificationManager.shared.cancelAllNotifications(for: messageId)
                         if let mid = messageId, !mid.isEmpty {
-                            NotificationManager.shared.scheduleSnooze(for: mid, snoozeSeconds: 60)
+                            // snoozeMin（分）を参照。未設定は2分（デバッグ）
+                            var seconds: TimeInterval = 120
+                            if let uuid = UUID(uuidString: mid) {
+                                do {
+                                    let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == uuid })
+                                    if let rec = try context.fetch(fd).first, let m = rec.snoozeMin {
+                                        seconds = TimeInterval(m * 60)
+                                    }
+                                } catch {}
+                            }
+                            NotificationManager.shared.scheduleSnooze(for: mid, snoozeSeconds: seconds)
                         }
                         dismiss()
                         NotificationRouter.shared.dismissIncomingCall()
@@ -40,9 +52,11 @@ struct IncomingCallView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     Button {
-                        // 応答: ループ着信音停止→通話画面へ
+                        // 応答: ループ着信音停止→通話画面（ルートカバー）へ
                         ringtone.stop()
-                        showCall = true
+                        if let mid = messageId, !mid.isEmpty {
+                            NotificationRouter.shared.presentCall(for: mid)
+                        }
                     } label: {
                         Text("応答")
                             .font(.title3).bold()
@@ -66,14 +80,9 @@ struct IncomingCallView: View {
             // 停止
             ringtone.stop()
         }
-        .fullScreenCover(isPresented: $showCall) {
-            CallConversationView(messageId: messageId ?? "")
-                .ignoresSafeArea()
-        }
         .onChange(of: router.showAfterCallForMessageId) { mid in
             guard mid != nil else { return }
-            // 通話画面を裏で閉じる（AfterCall はルートで表示される）
-            showCall = false
+            // ルートが AfterCall を提示
         }
     }
 }

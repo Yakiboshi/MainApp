@@ -120,6 +120,7 @@ struct AppTabsView: View {
             AudioPlayView(scheduledAt: scheduledDateForCall ?? now, soundName: "callSound", soundExt: "mp3")
                 .ignoresSafeArea()
         }
+        .transaction { $0.disablesAnimations = true }
         .onReceive(timer) { now = $0 }
         .onPreferenceChange(KeypadTopPreferenceKey.self) { keypadTopY = $0 }
         .onPreferenceChange(BottomBarHeightPreferenceKey.self) { bottomBarHeight = $0 }

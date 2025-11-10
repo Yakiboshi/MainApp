@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Foundation
 
 // 録音画面：表示と同時に自動録音開始。停止で保存→通知→閉じる
 struct RecordingView: View {
@@ -39,7 +40,8 @@ struct RecordingView: View {
                 try? modelContext.save()
                 // 通知登録
                 NotificationManager.shared.scheduleNotification(for: date, messageId: entity.id.uuidString)
-                // 画面を閉じる（フルスクリーンカバーを閉じる）
+                // 詳細設定（中間画面）を提示し、この録音画面は閉じる
+                NotificationRouter.shared.presentIntermediate(for: entity.id)
                 dismiss()
             } label: {
                 Text("録音終了")

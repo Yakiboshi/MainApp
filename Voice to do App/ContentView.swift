@@ -15,23 +15,29 @@ struct ContentView: View {
                 // アプリ起動時に通知/マイク権限を確認（初回は要求）
                 PermissionManager.requestLaunchPermissions()
             }
+            // 通話フローのすべて（着信/通話/通話後）を単一カバーで制御（無アニメ）
             .fullScreenCover(isPresented: Binding(get: {
-                notifRouter.incomingMessageId != nil
+                notifRouter.hasAnyCallOverlay
             }, set: { newVal in
-                if !newVal { notifRouter.dismissIncomingCall() }
+                if !newVal {
+                    notifRouter.dismissAfterCall(); notifRouter.dismissCall(); notifRouter.dismissIncomingCall()
+                }
             })) {
-                IncomingCallView(messageId: notifRouter.incomingMessageId)
-                    .ignoresSafeArea()
+                CallOverlayContainer()
             }
-            // 通話後画面をルートから提示（この表示完了後に着信画面を裏で閉じる）
+            .transaction { $0.disablesAnimations = true }
+            // 詳細設定（中間画面）をルート提示
             .fullScreenCover(isPresented: Binding(get: {
-                notifRouter.showAfterCallForMessageId != nil
+                notifRouter.showIntermediateForRecordingId != nil
             }, set: { newVal in
-                if !newVal { notifRouter.showAfterCallForMessageId = nil }
+                if !newVal { notifRouter.dismissIntermediate() }
             })) {
-                AfterCallView()
-                    .ignoresSafeArea()
+                if let rid = notifRouter.showIntermediateForRecordingId {
+                    IntermediateView(recordingId: rid)
+                        .ignoresSafeArea()
+                }
             }
+            .transaction { $0.disablesAnimations = true }
     }
 }
 
