@@ -10,7 +10,7 @@ struct CallOverlayContainer: View {
             } else if let mid = router.callMessageId {
                 CallConversationView(messageId: mid)
             } else if let mid = router.incomingMessageId {
-                IncomingCallView(messageId: mid)
+                IncomingCallView(messageId: mid, fromVoicemail: router.incomingFromVoicemail)
             } else {
                 EmptyView()
             }
@@ -18,4 +18,3 @@ struct CallOverlayContainer: View {
         .ignoresSafeArea()
     }
 }
-

@@ -4,6 +4,7 @@ import UserNotifications
 
 struct IncomingCallView: View {
     let messageId: String?
+    let fromVoicemail: Bool
     private let ringtone = RingtonePlayer()
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -26,20 +27,22 @@ struct IncomingCallView: View {
                 Spacer()
                 HStack(spacing: 32) {
                     Button {
-                        // 拒否: 残通知キャンセル→スヌーズ再登録（デバッグ既定: 60秒）→閉じる
+                        // 拒否: 残通知キャンセル→スヌーズ再登録（留守電起点ではスヌーズしない）→閉じる
                         NotificationManager.shared.cancelAllNotifications(for: messageId)
-                        if let mid = messageId, !mid.isEmpty {
-                            // snoozeMin（分）を参照。未設定は2分（デバッグ）
-                            var seconds: TimeInterval = 120
-                            if let uuid = UUID(uuidString: mid) {
-                                do {
-                                    let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == uuid })
-                                    if let rec = try context.fetch(fd).first, let m = rec.snoozeMin {
-                                        seconds = TimeInterval(m * 60)
-                                    }
-                                } catch {}
+                        if !fromVoicemail {
+                            if let mid = messageId, !mid.isEmpty {
+                                // snoozeMin（分）を参照。未設定は2分（デバッグ）
+                                var seconds: TimeInterval = 120
+                                if let uuid = UUID(uuidString: mid) {
+                                    do {
+                                        let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == uuid })
+                                        if let rec = try context.fetch(fd).first, let m = rec.snoozeMin {
+                                            seconds = TimeInterval(m * 60)
+                                        }
+                                    } catch {}
+                                }
+                                NotificationManager.shared.scheduleSnooze(for: mid, snoozeSeconds: seconds)
                             }
-                            NotificationManager.shared.scheduleSnooze(for: mid, snoozeSeconds: seconds)
                         }
                         dismiss()
                         NotificationRouter.shared.dismissIncomingCall()
@@ -52,9 +55,20 @@ struct IncomingCallView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     Button {
-                        // 応答: ループ着信音停止→通話画面（ルートカバー）へ
+                        // 応答: ループ着信音停止→履歴反映→通話画面（ルートカバー）へ
                         ringtone.stop()
                         if let mid = messageId, !mid.isEmpty {
+                            if let uuid = UUID(uuidString: mid) {
+                                do {
+                                    let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == uuid })
+                                    if let rec = try context.fetch(fd).first {
+                                        rec.status = "answered"
+                                        rec.answeredAt = Date()
+                                        rec.inVoicemailInbox = false
+                                        try? context.save()
+                                    }
+                                } catch {}
+                            }
                             NotificationRouter.shared.presentCall(for: mid)
                         }
                     } label: {

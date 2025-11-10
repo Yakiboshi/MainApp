@@ -12,12 +12,13 @@ final class RecordingEntity {
     var afterMessage: String?
     var snoozeMin: Int?
     // ステータス管理（将来の拡張を考慮して String）
+    // 既定値をプロパティ側に付与してマイグレーション容易化
     // "scheduled" | "answered" | "missed" を想定（既定は "scheduled"）
-    var status: String
+    var status: String = "scheduled"
     // 応答時刻（履歴並び替えに使用）
-    var answeredAt: Date?
+    var answeredAt: Date? = nil
     // 留守電受信箱に入っているか（missed との併用可）
-    var inVoicemailInbox: Bool
+    var inVoicemailInbox: Bool = false
 
     init(
         id: UUID = UUID(),

@@ -356,6 +356,7 @@ private struct AuxSheetPlaceholder: View {
             NavigationStack {
                 QuickPresetEditorView(entity: nil) { entity in
                     context.insert(entity)
+                    try? context.save()
                 }
             }
         }
@@ -556,6 +557,7 @@ private struct PresetPane: View {
                         target.daysOffset = updated.daysOffset
                         target.hour = updated.hour
                         target.minute = updated.minute
+                        try? context.save()
                     }
                 }
             }

@@ -16,9 +16,8 @@ final class AppNotificationCenterDelegate: NSObject, UNUserNotificationCenterDel
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         let info = response.notification.request.content.userInfo
         let messageId = info["messageId"] as? String
-        // 擬似着信画面へディープリンク
-        NotificationRouter.shared.openIncomingCall(messageId: messageId)
+        // 擬似着信画面へディープリンク（通常通知からは留守電起点ではない）
+        NotificationRouter.shared.openIncomingCall(messageId: messageId, fromVoicemail: false)
         completionHandler()
     }
 }
-
