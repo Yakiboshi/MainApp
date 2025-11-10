@@ -4,6 +4,7 @@ import SwiftData
 
 // 下部ナビゲーション（UIのみ）＋中央キーパッド（UIのみ）
 struct AppTabsView: View {
+    @ObservedObject private var notifRouter = NotificationRouter.shared
     @State private var selectedIndex: Int = 2 // 0:設定 1:履歴 2:キーパッド 3:予定 4:留守電
     // 上段: 現在時刻, 下段: 目的地（キーパッド入力）
     @State private var now: Date = Date()
@@ -122,6 +123,9 @@ struct AppTabsView: View {
         .onReceive(timer) { now = $0 }
         .onPreferenceChange(KeypadTopPreferenceKey.self) { keypadTopY = $0 }
         .onPreferenceChange(BottomBarHeightPreferenceKey.self) { bottomBarHeight = $0 }
+        .onChange(of: notifRouter.requestedTabIndex) { idx in
+            if let i = idx { selectedIndex = i; NotificationRouter.shared.requestedTabIndex = nil }
+        }
     }
 }
 

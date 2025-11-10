@@ -5,6 +5,8 @@ struct IncomingCallView: View {
     let messageId: String?
     private let ringtone = RingtonePlayer()
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var router = NotificationRouter.shared
+    @State private var showCall: Bool = false
 
     var body: some View {
         ZStack {
@@ -38,9 +40,9 @@ struct IncomingCallView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     Button {
-                        // とりあえず画面のみ：閉じる
-                        dismiss()
-                        NotificationRouter.shared.dismissIncomingCall()
+                        // 応答: ループ着信音停止→通話画面へ
+                        ringtone.stop()
+                        showCall = true
                     } label: {
                         Text("応答")
                             .font(.title3).bold()
@@ -63,6 +65,15 @@ struct IncomingCallView: View {
         .onDisappear {
             // 停止
             ringtone.stop()
+        }
+        .fullScreenCover(isPresented: $showCall) {
+            CallConversationView(messageId: messageId ?? "")
+                .ignoresSafeArea()
+        }
+        .onChange(of: router.showAfterCallForMessageId) { mid in
+            guard mid != nil else { return }
+            // 通話画面を裏で閉じる（AfterCall はルートで表示される）
+            showCall = false
         }
     }
 }

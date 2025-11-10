@@ -35,4 +35,25 @@ final class AudioPlayerViewModel: NSObject, ObservableObject, AVAudioPlayerDeleg
         onFinish = nil
         DispatchQueue.main.async { cb?() }
     }
+
+    // ドキュメント等の任意URLから再生（任意ループ）
+    func playURL(_ url: URL, loops: Int = 0, onFinish: @escaping () -> Void) {
+        self.onFinish = onFinish
+        do {
+            let p = try AVAudioPlayer(contentsOf: url)
+            p.delegate = self
+            p.numberOfLoops = loops
+            p.prepareToPlay()
+            p.play()
+            self.player = p
+        } catch {
+            DispatchQueue.main.async { onFinish() }
+        }
+    }
+
+    func stop() {
+        player?.stop()
+        player = nil
+        onFinish = nil
+    }
 }

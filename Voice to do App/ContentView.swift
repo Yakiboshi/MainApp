@@ -23,6 +23,15 @@ struct ContentView: View {
                 IncomingCallView(messageId: notifRouter.incomingMessageId)
                     .ignoresSafeArea()
             }
+            // 通話後画面をルートから提示（この表示完了後に着信画面を裏で閉じる）
+            .fullScreenCover(isPresented: Binding(get: {
+                notifRouter.showAfterCallForMessageId != nil
+            }, set: { newVal in
+                if !newVal { notifRouter.showAfterCallForMessageId = nil }
+            })) {
+                AfterCallView()
+                    .ignoresSafeArea()
+            }
     }
 }
 
