@@ -4,18 +4,19 @@ import SwiftData
 struct HistoryPlaceholderView: View {
     @State private var page: Int = 0
     @State private var sortMode: SortMode = .sentOldest
+    @State private var query: String = ""
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Theme.appGradient.ignoresSafeArea()
                 TabView(selection: $page) {
-                    HistoryListPage(sortMode: sortMode)
+                    HistoryListPage(sortMode: sortMode, query: query)
                         .tag(0)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
-            .safeAreaInset(edge: .top) { TopBarPlaceholder_History(title: "履歴", sortMode: $sortMode) }
+            .safeAreaInset(edge: .top) { TopBarPlaceholder_History(title: "履歴", sortMode: $sortMode, query: $query) }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -25,7 +26,7 @@ struct HistoryPlaceholderView: View {
 private struct TopBarPlaceholder_History: View {
     var title: String
     @Binding var sortMode: SortMode
-    @State private var query: String = ""
+    @Binding var query: String
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
@@ -63,7 +64,8 @@ struct HistoryListPage: View {
     @Environment(\.modelContext) private var context
     @Query private var records: [RecordingEntity]
     fileprivate let sortMode: SortMode
-    fileprivate init(sortMode: SortMode) { self.sortMode = sortMode }
+    fileprivate let query: String
+    fileprivate init(sortMode: SortMode, query: String) { self.sortMode = sortMode; self.query = query }
 
     var body: some View {
         Group {
@@ -99,7 +101,7 @@ struct HistoryListPage: View {
     }
 
     private func historyItems() -> [RecordingEntity] {
-        records.filter { ($0.status ?? "scheduled") == "answered" }
+        records.filter { ($0.status ?? "scheduled") == "answered" && matchesQuery($0) }
     }
 
     private func historyItemsSorted() -> [RecordingEntity] {
@@ -112,6 +114,13 @@ struct HistoryListPage: View {
         case .receivedOldest:
             return items.sorted { ($0.answeredAt ?? .distantPast) < ($1.answeredAt ?? .distantPast) }
         }
+    }
+
+    private func matchesQuery(_ rec: RecordingEntity) -> Bool {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return true }
+        guard let t = rec.title?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return false }
+        return t.localizedCaseInsensitiveContains(q) || t.localizedStandardContains(q)
     }
 
     private func delete(_ rec: RecordingEntity) {

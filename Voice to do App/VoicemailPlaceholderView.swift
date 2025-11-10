@@ -4,18 +4,19 @@ import SwiftData
 struct VoicemailPlaceholderView: View {
     @State private var page: Int = 0
     @State private var sortMode: SortMode = .sentOldest
+    @State private var query: String = ""
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Theme.appGradient.ignoresSafeArea()
                 TabView(selection: $page) {
-                    VoicemailListPage(sortMode: sortMode)
+                    VoicemailListPage(sortMode: sortMode, query: query)
                         .tag(0)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
-            .safeAreaInset(edge: .top) { TopBarPlaceholder_Voicemail(title: "留守電", sortMode: $sortMode) }
+            .safeAreaInset(edge: .top) { TopBarPlaceholder_Voicemail(title: "留守電", sortMode: $sortMode, query: $query) }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -25,7 +26,7 @@ struct VoicemailPlaceholderView: View {
 private struct TopBarPlaceholder_Voicemail: View {
     var title: String
     @Binding var sortMode: SortMode
-    @State private var query: String = ""
+    @Binding var query: String
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
@@ -64,7 +65,8 @@ struct VoicemailListPage: View {
     @Environment(\.modelContext) private var context
     @Query private var records: [RecordingEntity]
     fileprivate let sortMode: SortMode
-    fileprivate init(sortMode: SortMode) { self.sortMode = sortMode }
+    fileprivate let query: String
+    fileprivate init(sortMode: SortMode, query: String) { self.sortMode = sortMode; self.query = query }
 
     var body: some View {
         Group {
@@ -102,7 +104,7 @@ struct VoicemailListPage: View {
     }
 
     private func voicemailItems() -> [RecordingEntity] {
-        records.filter { ($0.status ?? "scheduled") == "missed" || $0.inVoicemailInbox }
+        records.filter { (($0.status ?? "scheduled") == "missed" || $0.inVoicemailInbox) && matchesQuery($0) }
     }
 
     private func voicemailItemsSorted() -> [RecordingEntity] {
@@ -115,6 +117,13 @@ struct VoicemailListPage: View {
         case .receivedOldest:
             return items.sorted { ($0.answeredAt ?? .distantPast) < ($1.answeredAt ?? .distantPast) }
         }
+    }
+
+    private func matchesQuery(_ rec: RecordingEntity) -> Bool {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return true }
+        guard let t = rec.title?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return false }
+        return t.localizedCaseInsensitiveContains(q) || t.localizedStandardContains(q)
     }
 
     private func moveToHistory(_ rec: RecordingEntity) {

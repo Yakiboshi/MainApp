@@ -4,18 +4,19 @@ import SwiftData
 struct PlannedPlaceholderView: View {
     @State private var page: Int = 0
     @State private var sortMode: SortMode = .sentOldest
+    @State private var query: String = ""
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Theme.appGradient.ignoresSafeArea()
                 TabView(selection: $page) {
-                    PlannedListPage(sortMode: sortMode)
+                    PlannedListPage(sortMode: sortMode, query: query)
                         .tag(0)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
-            .safeAreaInset(edge: .top) { TopBarPlaceholder(title: "予定", sortMode: $sortMode) }
+            .safeAreaInset(edge: .top) { TopBarPlaceholder(title: "予定", sortMode: $sortMode, query: $query) }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -25,7 +26,7 @@ struct PlannedPlaceholderView: View {
 private struct TopBarPlaceholder: View {
     var title: String
     @Binding var sortMode: SortMode
-    @State private var query: String = ""
+    @Binding var query: String
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
@@ -67,7 +68,8 @@ struct PlannedListPage: View {
     @Query(sort: [SortDescriptor<RecordingEntity>(\.recordedAt, order: .forward)])
     private var records: [RecordingEntity]
     fileprivate let sortMode: SortMode
-    fileprivate init(sortMode: SortMode) { self.sortMode = sortMode }
+    fileprivate let query: String
+    fileprivate init(sortMode: SortMode, query: String) { self.sortMode = sortMode; self.query = query }
 
     var body: some View {
         Group {
@@ -110,7 +112,7 @@ struct PlannedListPage: View {
 
     private func scheduledUpcoming() -> [RecordingEntity] {
         let now = Date()
-        return records.filter { ($0.status ?? "scheduled") == "scheduled" && $0.recordedAt > now }
+        return records.filter { ($0.status ?? "scheduled") == "scheduled" && $0.recordedAt > now && matchesQuery($0) }
     }
 
     private func sortedPlanned() -> [RecordingEntity] {
@@ -123,6 +125,13 @@ struct PlannedListPage: View {
         case .receivedOldest:
             return items.sorted { ($0.answeredAt ?? .distantPast) < ($1.answeredAt ?? .distantPast) }
         }
+    }
+
+    private func matchesQuery(_ rec: RecordingEntity) -> Bool {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return true }
+        guard let t = rec.title?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return false }
+        return t.localizedCaseInsensitiveContains(q) || t.localizedStandardContains(q)
     }
 
     private func delete(_ rec: RecordingEntity) {
