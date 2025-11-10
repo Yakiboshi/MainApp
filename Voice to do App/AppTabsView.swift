@@ -35,6 +35,7 @@ struct AppTabsView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             Theme.appGradient.ignoresSafeArea()
+            if selectedIndex == 2 {
             VStack(spacing: 20) {
                 // ヘッダー（上段=現在時刻, 下段=入力中の目的地）
                 TimeCircuitsOverlayView(
@@ -104,6 +105,10 @@ struct AppTabsView: View {
                 }
             }
             .animation(.spring(response: 0.35, dampingFraction: 0.86), value: showAuxSheet)
+            } else {
+                // プレースホルダー画面（中身なし、背景とナビのみ）
+                PlaceholderTabContent(selectedIndex: selectedIndex)
+            }
         }
         .coordinateSpace(name: "AppRoot")
         // safeAreaInset でナビ上端＝コンテンツ下端を定義
