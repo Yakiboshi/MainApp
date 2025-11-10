@@ -3,18 +3,19 @@ import SwiftData
 
 struct PlannedPlaceholderView: View {
     @State private var page: Int = 0
+    @State private var sortMode: SortMode = .sentOldest
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Theme.appGradient.ignoresSafeArea()
                 TabView(selection: $page) {
-                    PlannedListPage()
+                    PlannedListPage(sortMode: sortMode)
                         .tag(0)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
-            .safeAreaInset(edge: .top) { TopBarPlaceholder(title: "予定") }
+            .safeAreaInset(edge: .top) { TopBarPlaceholder(title: "予定", sortMode: $sortMode) }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -23,16 +24,18 @@ struct PlannedPlaceholderView: View {
 
 private struct TopBarPlaceholder: View {
     var title: String
+    @Binding var sortMode: SortMode
     @State private var query: String = ""
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 TextField("検索（未実装）", text: $query)
-                    .textFieldStyle(.roundedBorder)
-                Button(action: {}) {
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 16, weight: .semibold))
-                }
+                    .textFieldStyle(.plain)
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.lightBlue))
+                Button(action: { cycleSort() }) { Text(labelForSort(sortMode)) }
                 .buttonStyle(.plain)
                 .foregroundStyle(.white)
             }
@@ -42,13 +45,29 @@ private struct TopBarPlaceholder: View {
             .background(Color.white.opacity(0.08))
         }
     }
+
+    private func cycleSort() {
+        let all = SortMode.allCases
+        if let idx = all.firstIndex(of: sortMode) { sortMode = all[(idx+1) % all.count] }
+    }
+
+    private func labelForSort(_ mode: SortMode) -> String {
+        switch mode {
+        case .sentOldest: return "(発)古い順"
+        case .sentNewest: return "(発)新規順"
+        case .receivedOldest: return "(着)早い順"
+        }
+    }
 }
+
+private enum SortMode: CaseIterable { case sentOldest, sentNewest, receivedOldest }
 
 struct PlannedListPage: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<RecordingEntity>(\.recordedAt, order: .forward)])
     private var records: [RecordingEntity]
-    init() {}
+    fileprivate let sortMode: SortMode
+    fileprivate init(sortMode: SortMode) { self.sortMode = sortMode }
 
     var body: some View {
         Group {
@@ -65,7 +84,7 @@ struct PlannedListPage: View {
                 )
             } else {
                 List {
-                    ForEach(scheduledUpcoming(), id: \.id) { rec in
+                    ForEach(sortedPlanned(), id: \.id) { rec in
                         Button {
                             NotificationRouter.shared.presentPlannedEditor(for: rec.id)
                         } label: {
@@ -91,7 +110,19 @@ struct PlannedListPage: View {
 
     private func scheduledUpcoming() -> [RecordingEntity] {
         let now = Date()
-        return records.filter { $0.status == "scheduled" && $0.recordedAt > now }
+        return records.filter { ($0.status ?? "scheduled") == "scheduled" && $0.recordedAt > now }
+    }
+
+    private func sortedPlanned() -> [RecordingEntity] {
+        let items = scheduledUpcoming()
+        switch sortMode {
+        case .sentOldest:
+            return items.sorted { $0.recordedAt < $1.recordedAt }
+        case .sentNewest:
+            return items.sorted { $0.recordedAt > $1.recordedAt }
+        case .receivedOldest:
+            return items.sorted { ($0.answeredAt ?? .distantPast) < ($1.answeredAt ?? .distantPast) }
+        }
     }
 
     private func delete(_ rec: RecordingEntity) {

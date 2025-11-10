@@ -11,10 +11,9 @@ final class RecordingEntity {
     var title: String?
     var afterMessage: String?
     var snoozeMin: Int?
-    // ステータス管理（将来の拡張を考慮して String）
-    // 既定値をプロパティ側に付与してマイグレーション容易化
-    // "scheduled" | "answered" | "missed" を想定（既定は "scheduled"）
-    var status: String = "scheduled"
+    // ステータス管理（将来の拡張を考慮し Optional。既存ストアの軽量マイグレーションを通すため）
+    // "scheduled" | "answered" | "missed" を想定。nil は未設定として扱い、UI側で "scheduled" と同等に扱う
+    var status: String? = nil
     // 応答時刻（履歴並び替えに使用）
     var answeredAt: Date? = nil
     // 留守電受信箱に入っているか（missed との併用可）

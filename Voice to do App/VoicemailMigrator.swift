@@ -12,8 +12,8 @@ enum VoicemailMigrator {
             let now = Date()
             DispatchQueue.main.async {
                 do {
-                    let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.status == "scheduled" })
-                    let items = try context.fetch(fd)
+                    let fd = FetchDescriptor<RecordingEntity>()
+                    let items = try context.fetch(fd).filter { ($0.status ?? "scheduled") == "scheduled" }
                     var changed = false
                     for rec in items {
                         // 予定時刻が少し過ぎている
@@ -34,4 +34,3 @@ enum VoicemailMigrator {
         }
     }
 }
-

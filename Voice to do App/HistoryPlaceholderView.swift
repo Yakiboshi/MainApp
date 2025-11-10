@@ -3,18 +3,19 @@ import SwiftData
 
 struct HistoryPlaceholderView: View {
     @State private var page: Int = 0
+    @State private var sortMode: SortMode = .sentOldest
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Theme.appGradient.ignoresSafeArea()
                 TabView(selection: $page) {
-                    HistoryListPage()
+                    HistoryListPage(sortMode: sortMode)
                         .tag(0)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
-            .safeAreaInset(edge: .top) { TopBarPlaceholder_History(title: "履歴") }
+            .safeAreaInset(edge: .top) { TopBarPlaceholder_History(title: "履歴", sortMode: $sortMode) }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -23,16 +24,18 @@ struct HistoryPlaceholderView: View {
 
 private struct TopBarPlaceholder_History: View {
     var title: String
+    @Binding var sortMode: SortMode
     @State private var query: String = ""
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 TextField("検索（未実装）", text: $query)
-                    .textFieldStyle(.roundedBorder)
-                Button(action: {}) {
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 16, weight: .semibold))
-                }
+                    .textFieldStyle(.plain)
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.lightBlue))
+                Button(action: { cycleSort() }) { Text(labelForSort(sortMode)) }
                 .buttonStyle(.plain)
                 .foregroundStyle(.white)
             }
@@ -42,12 +45,25 @@ private struct TopBarPlaceholder_History: View {
             .background(Color.white.opacity(0.08))
         }
     }
+    private func cycleSort() {
+        let all = SortMode.allCases
+        if let idx = all.firstIndex(of: sortMode) { sortMode = all[(idx+1) % all.count] }
+    }
+    private func labelForSort(_ mode: SortMode) -> String {
+        switch mode {
+        case .sentOldest: return "(発)古い順"
+        case .sentNewest: return "(発)新規順"
+        case .receivedOldest: return "(着)早い順"
+        }
+    }
 }
+private enum SortMode: CaseIterable { case sentOldest, sentNewest, receivedOldest }
 
 struct HistoryListPage: View {
     @Environment(\.modelContext) private var context
     @Query private var records: [RecordingEntity]
-    init() {}
+    fileprivate let sortMode: SortMode
+    fileprivate init(sortMode: SortMode) { self.sortMode = sortMode }
 
     var body: some View {
         Group {
@@ -59,7 +75,7 @@ struct HistoryListPage: View {
                 )
             } else {
                 List {
-                    ForEach(historyItems(), id: \.id) { rec in
+                    ForEach(historyItemsSorted(), id: \.id) { rec in
                         Button {
                             NotificationRouter.shared.presentHistoryDetail(for: rec.id)
                         } label: {
@@ -83,12 +99,19 @@ struct HistoryListPage: View {
     }
 
     private func historyItems() -> [RecordingEntity] {
-        records.filter { $0.status == "answered" }
-            .sorted { (a, b) in
-                let la = a.answeredAt ?? .distantPast
-                let lb = b.answeredAt ?? .distantPast
-                return la > lb
-            }
+        records.filter { ($0.status ?? "scheduled") == "answered" }
+    }
+
+    private func historyItemsSorted() -> [RecordingEntity] {
+        let items = historyItems()
+        switch sortMode {
+        case .sentOldest:
+            return items.sorted { $0.recordedAt < $1.recordedAt }
+        case .sentNewest:
+            return items.sorted { $0.recordedAt > $1.recordedAt }
+        case .receivedOldest:
+            return items.sorted { ($0.answeredAt ?? .distantPast) < ($1.answeredAt ?? .distantPast) }
+        }
     }
 
     private func delete(_ rec: RecordingEntity) {

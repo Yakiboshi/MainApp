@@ -9,6 +9,8 @@ import SwiftUI
     static let bgTop = Color(red: 44/255, green: 55/255, blue: 140/255)
     static let bgBottom = Color(red: 18/255, green: 23/255, blue: 84/255)
     static let tabBlue = appBlue
+    // Light blue for tab/search backgrounds
+    static let lightBlue = Color(red: 167/255, green: 216/255, blue: 255/255)
     static var appGradient: LinearGradient {
         LinearGradient(colors: [bgTop, bgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
     }

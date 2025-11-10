@@ -16,6 +16,8 @@ struct ContentView: View {
             .task {
                 // アプリ起動時に通知/マイク権限を確認（初回は要求）
                 PermissionManager.requestLaunchPermissions()
+                // 既存データのサニタイズ（初回のみ）
+                DataSanitizer.runIfNeeded(context: modelContext)
                 // 起動時に留守電移行の監査を実行（既存のモデルコンテキストを使用）
                 VoicemailMigrator.migrateIfNeeded(context: modelContext)
             }
