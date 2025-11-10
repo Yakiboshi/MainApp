@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreText
 import SwiftData
+import UserNotifications
 
 @main
 struct Voice_to_do_AppApp: App {
@@ -63,6 +64,17 @@ struct Voice_to_do_AppApp: App {
         UITabBar.appearance().tintColor = .white
 
         // Keep TabBar opaque blue via appearance; avoid setting container views to prevent content layering issues
+
+        // 通知デリゲート設定とカテゴリ登録
+        let center = UNUserNotificationCenter.current()
+        center.delegate = AppNotificationCenterDelegate.shared
+        let incomingCategory = UNNotificationCategory(
+            identifier: "CALL_INCOMING",
+            actions: [],
+            intentIdentifiers: [],
+            options: []
+        )
+        center.setNotificationCategories([incomingCategory])
     }
     var body: some Scene {
         WindowGroup {

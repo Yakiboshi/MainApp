@@ -10,9 +10,9 @@
 - アクション（将来拡張）: 通知に「応答」「拒否」アクションを付与し、拒否時はスヌーズ再登録、応答時は再生へ遷移する。
 
 サウンド仕様
-- 使用音源: `Voice to do App/Audio/KeypadSounds/localsound.mp3` を通知サウンドとして使用する。
-- 実装: `UNNotificationSound(named: UNNotificationSoundName("localsound.mp3"))` を設定。見つからない場合は `.default` にフォールバック。
-- 注意: カスタム通知音は30秒以内を推奨。再生不可の端末がある場合は `.caf/.aiff/.wav` への変換を検討。
+- 使用音源: `Voice to do App/Audio/KeypadSounds/ks035.wav`（25秒にトリミング）
+- 実装: `UNNotificationSound(named: UNNotificationSoundName("ks035.wav"))` を設定。見つからない場合は `.default` にフォールバック。
+- 注意: カスタム通知音は30秒以内を推奨。再生不可の端末がある場合は `.caf/.aiff/.wav` への変換を検討。詳細は `docs/specs/localtuuchisound.md` 参照。
 
 ペイロード（userInfo）
 - 付与例:
@@ -40,13 +40,13 @@
 
 実装ToDo
 - サウンドアセット
-- `Voice to do App/Audio/KeypadSounds/localsound.mp3` をアプリターゲットに追加（Target Membership 有効化）。
+- `Voice to do App/Audio/KeypadSounds/ks035.wav` をアプリターゲットに追加（Target Membership 有効化）。
 - 長さ/フォーマットのチェック（30秒以内が目安）。
 - 通知カテゴリ登録
 - アプリ起動時に `UNNotificationCategory(identifier: "CALL_INCOMING", actions: [...], intentIdentifiers: [], options: [])` を登録。
 - スケジュールAPIの整備（NotificationManager）
 - `scheduleNotification(for date: Date, messageId: String)` を定義。
-- `content.sound = UNNotificationSound(named: ..."localsound.mp3")` を設定、`userInfo` に `messageId` を付与。
+- `content.sound = UNNotificationSound(named: ..."ks035.wav")` を設定、`userInfo` に `messageId` を付与。
 - `UNCalendarNotificationTrigger` で登録。
 - デリゲート/ルーティング
 - `UNUserNotificationCenter.current().delegate = ...` を設定（App起動時）。
@@ -58,7 +58,7 @@
 テスト観点
 - 近未来（1〜2分後）で通知を予約し、以下を確認。
 - 通知が時刻どおりに表示される。
-- カスタム音 `localsound.mp3` が鳴る（無い場合はデフォルト）。
+- カスタム音 `ks035.wav` が鳴る（無い場合はデフォルト）。
 - 通知タップで擬似着信画面へ遷移する（`messageId` の引き回し）。
 - （実装時）アクション「拒否」でスヌーズ再登録、「応答」で再生へ遷移。
 - 留守電投入でバッジが増え、消化で減る。
@@ -70,11 +70,11 @@
 
 目的
 - 指定日時に擬似着信を発生させ、アプリ内の擬似着信画面（または再生画面）へ誘導する。
-- 通知音としてカスタム音源 `localsound.mp3` を再生し、気づきを高める。
+- 通知音としてカスタム音源 `ks035.wav` を再生し、気づきを高める。
 
 サウンド仕様
-- 使用音源: `Voice to do App/Audio/KeypadSounds/localsound.mp3`
-- 実装: `UNNotificationSound(named: UNNotificationSoundName("localsound.mp3"))`
+- 使用音源: `Voice to do App/Audio/KeypadSounds/ks035.wav`
+- 実装: `UNNotificationSound(named: UNNotificationSoundName("ks035.wav"))`
 - フォールバック: 上記が見つからない場合は `.default`
 - 注意: iOS のカスタム通知音は概ね 30 秒以内が推奨。再生不可端末がある場合は `.caf/.aiff/.wav` の検討。
 
@@ -131,3 +131,14 @@
 補足
 - 将来、通知 `userInfo` に `snoozeIntervalMin` などを含め、拒否時スヌーズをシンプルに実装可能。
 - 端末の再起動/省電力等により通知が遅延する可能性があるため、起動時に未配信を救済し留守電へ振替えるスキャン処理を検討。
+
+ローカル通知 仕様（v1.2 変更点）
+
+目的
+- 指定時刻から20秒おきに連続して計10回通知を発火させる。
+
+実装
+- `UNTimeIntervalNotificationTrigger` を用い、基準時刻（指定日時）からの相対時間で 0s/20s/40s/.../180s の10件を個別登録。
+- リクエストIDは `"<messageId>_<seq>"` とし、`userInfo` に `messageId`, `category: "CALL_INCOMING"`, `seq` を付与。
+- サウンドは常時 `ks035.wav`（存在しない場合は `.default`）。
+- 通知タップで擬似着信画面にディープリンク（画面は仮実装）。

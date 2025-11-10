@@ -38,7 +38,7 @@ struct RecordingView: View {
                 modelContext.insert(entity)
                 try? modelContext.save()
                 // 通知登録
-                NotificationManager.shared.scheduleNotification(for: date)
+                NotificationManager.shared.scheduleNotification(for: date, messageId: entity.id.uuidString)
                 // 画面を閉じる（フルスクリーンカバーを閉じる）
                 dismiss()
             } label: {
