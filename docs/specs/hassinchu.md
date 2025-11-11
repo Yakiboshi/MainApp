@@ -1,242 +1,47 @@
-1. 背景
+## 録音画面 ToDo（.voiceChat 準拠）
 
-AudioPlayView.swift　と同じ背景 (すでに実装済み)
+完成イメージ: `docs/specs/hassinchuuUI.png`
 
-2. 録音時間
+### 1) 背景/レイアウト
+- [ ] 背景は AudioPlayView と同じ黒系グラデーション（全面 `ignoresSafeArea()`）。
+- [ ] `GeometryReader` で高さを参照し、要素を比率配置。
+- [ ] 上1/3: 経過時間 `MM:SS` を白・大きめ・`.monospacedDigit()` で中央配置。
+- [ ] 中央: 実音声連動の波形（白線、スクロール風）。
+- [ ] 波形直下: 「残り時間 mm:ss」白テキスト。
+- [ ] さらに下（下から1/3付近）: 「入力切替」ボタン（白丸、黒の `waveform.circle`、下に「切り替え」）。
+- [ ] 最下部1/6: 丸ボタン3つ（左→右）キャンセル/一時停止or再開/終了 + 各ラベル。
 
-画面上部から1/3の位置に中央揃えで「00:25」などの録音経過時間を大きな白いテキストで表示
+### 2) AudioRecorderViewModel 拡張（機能）
+- [ ] セッション: `.playAndRecord` + `mode: .voiceChat`、`options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker]`。
+- [ ] メータリング: `isMeteringEnabled = true`、50ms タイマーで `averagePower` 取得→0…1 に正規化→簡易スムージング（例: `level = level*0.8 + new*0.2`）。
+- [ ] 公開値: `@Published level: Double`、`elapsedSec: Int`、`remainingSec: Int`、`isPaused: Bool`。
+- [ ] 上限: `maxDurationSec = 180`（暫定定数）。1秒タイマーで経過/残り更新、満了で自動 `stopRecording()`。
+- [ ] 制御: `pause() / resume()`（録音再開に対応）。`cancel()`（停止＋生成ファイル削除＋セッション解除）。
+- [ ] 割り込み: `AVAudioSession.interruptionNotification` 監視。`.began` で自動一時停止、`.ended` は `shouldResume` なら自動再開。
+- [ ] ルート変化/異常: `routeChange`/`mediaServicesWereReset` 監視。重大時は録音中止（キャンセル同等）。
 
-3. 音声波形アニメーション
+### 3) 入力切替（Bluetooth対応）
+- [ ] `AudioRouteManager` を追加（`availableInputs` 取得、`setPreferredInput(_:)` で切替、`selectedInput` 公開）。
+- [ ] RecordingView からボタンタップで `confirmationDialog` を提示し、選択で即切替。
+- [ ] 画面に「現在の入力: xxx」を白テキストで表示。
 
-その下に音声に連動する波形アニメーションを白線で表示（簡易なビューでOK）
+### 4) 波形ビュー（軽量）
+- [ ] `Canvas` または `Shape` + リングバッファ（120〜180サンプル）で水平方向に流れる線を描画。
+- [ ] `level` をもとに中心を基点とした上下対称の白線を更新、アニメは `.linear(duration: 0.05)`。
 
-4. 残り時間
+### 5) UIアクション/保存フロー（ID命名）
+- [ ] キャンセル: `recorder.cancel()` → 画面を閉じる。
+- [ ] 一時停止/再開: `recorder.pause()/resume()`、中央ボタンのアイコン（`pause.fill`/`play.fill`）とラベル切替。
+- [ ] 終了: `stopRecording()` → `RecordingEntity` を作成 → ファイルを `entity.id.uuidString + ".m4a"` にリネーム → 通知登録 → `NotificationRouter.presentIntermediate(entity.id)` → 閉じる。
 
-波形のすぐ下に「残り時間 2:35」のようなテキストを白で表示
+### 6) アクセシビリティ/仕上げ
+- [ ] 各ボタンにラベル（キャンセル/一時停止/再開/終了/入力切替）。
+- [ ] セーフエリア・ホームインジケータ考慮（下部に十分な余白）。
+- [ ] 押下時の軽い縮小アニメ/影、触覚フィードバック（任意）。
 
-5. 下部ボタン（1/6位置）
+### Definition of Done
+- [ ] 実機で Bluetooth ヘッドセット接続時に「入力切替」で選択・切替ができる。
+- [ ] `.voiceChat` で録音・一時停止・自動一時停止（着信などの割り込み）・復帰が動作する。
+- [ ] 上限時間で自動停止→保存→ID命名→中間画面へ遷移。
+- [ ] UIが `hassinchuuUI.png` と概ね一致し、数値表示・波形・ボタン位置が指定比率どおり。
 
-3つの丸ボタンを横並びに配置（中央揃え、等間隔）
-
-🔴 左：「キャンセル」
-
-赤丸、白バツマーク（xmark）、下に小さく「キャンセル」と白テキスト
-
-タップで録音破棄、エントリ画面へ戻る
-
-⚪️ 中央：「一時停止／再開」
-
-白丸、黒の一時停止／再生アイコン（pause.fill / play.fill）、下に「一時停止」または「再開」
-
-タップで録音を一時停止または再開（状態管理）
-
-🟢 右：「終了」
-
-黄緑色の丸、白の電話を切るアイコン（phone.down.fill）、下に「終了」
-
-タップで録音を終了し、次の画面に遷移
-
-🧾【SwiftUIのサンプルコード】
-import SwiftUI
-
-struct RecordingView: View {
-    @State private var isPaused = false
-    @State private var elapsedTime = 25
-    @State private var remainingTime = 155 // 残り2分35秒
-
-    var body: some View {
-        ZStack {
-            // 背景グラデーション
-            LinearGradient(
-                gradient: Gradient(colors: [Color.black, Color.gray]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
-            VStack {
-                Spacer()
-                    .frame(height: UIScreen.main.bounds.height / 3)
-
-                // 録音経過時間
-                Text(String(format: "%02d:%02d", elapsedTime / 60, elapsedTime % 60))
-                    .font(.largeTitle)
-                    .foregroundColor(.white)
-                    .padding(.bottom, 40)
-
-                // 波形（仮の表示）
-                WaveformView()
-                    .frame(height: 100)
-                    .padding(.horizontal)
-
-                // 残り時間
-                Text("残り時間  \(String(format: "%01d:%02d", remainingTime / 60, remainingTime % 60))")
-                    .foregroundColor(.white)
-                    .font(.headline)
-                    .padding(.top, 16)
-
-                Spacer()
-
-                // ボタン3つ並べる
-                HStack(spacing: 40) {
-                    // キャンセルボタン
-                    VStack {
-                        Button(action: {
-                            // 録音破棄して戻る
-                        }) {
-                            Image(systemName: "xmark")
-                                .foregroundColor(.white)
-                                .font(.title)
-                                .padding()
-                                .background(Color.red)
-                                .clipShape(Circle())
-                        }
-                        Text("キャンセル")
-                            .foregroundColor(.white)
-                            .font(.caption)
-                    }
-
-                    // 一時停止／再開ボタン
-                    VStack {
-                        Button(action: {
-                            isPaused.toggle()
-                        }) {
-                            Image(systemName: isPaused ? "play.fill" : "pause.fill")
-                                .foregroundColor(.black)
-                                .font(.title)
-                                .padding()
-                                .background(Color.white)
-                                .clipShape(Circle())
-                        }
-                        Text(isPaused ? "再開" : "一時停止")
-                            .foregroundColor(.white)
-                            .font(.caption)
-                    }
-
-                    // 終了ボタン
-                    VStack {
-                        Button(action: {
-                            // 録音終了して次画面へ
-                        }) {
-                            Image(systemName: "phone.down.fill")
-                                .foregroundColor(.white)
-                                .font(.title)
-                                .padding()
-                                .background(Color.green)
-                                .clipShape(Circle())
-                        }
-                        Text("終了")
-                            .foregroundColor(.white)
-                            .font(.caption)
-                    }
-                }
-                .padding(.bottom, UIScreen.main.bounds.height / 12)
-            }
-        }
-    }
-}
-
-// 仮の波形ビュー（本格的にするならCALayer連携）
-struct WaveformView: View {
-    var body: some View {
-        Rectangle()
-            .fill(Color.white)
-            .frame(height: 1)
-            .overlay(
-                Text("≋≋≋≋≋≋≋≋≋")
-                    .foregroundColor(.white)
-                    .opacity(0.5)
-            )
-    }
-}
-
-#Preview {
-    RecordingView()
-}
-
-実際の音声に連動する波形（サンプルコード）
-
-音量レベル取得と波形Viewの作成
-
-import SwiftUI
-import AVFoundation
-
-class AudioRecorder: ObservableObject {
-    private var recorder: AVAudioRecorder!
-    private var timer: Timer?
-    
-    @Published var currentLevel: Float = 0.0
-    
-    init() {
-        startRecording()
-    }
-    
-    func startRecording() {
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatAppleLossless),
-            AVSampleRateKey: 44100.0,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue
-        ]
-        
-        let url = URL(fileURLWithPath: "/dev/null")
-        
-        do {
-            recorder = try AVAudioRecorder(url: url, settings: settings)
-            recorder.isMeteringEnabled = true
-            recorder.record()
-            
-            timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-                self.recorder.updateMeters()
-                self.currentLevel = self.recorder.averagePower(forChannel: 0)
-            }
-        } catch {
-            print("録音に失敗しました: \(error)")
-        }
-    }
-    
-    func stopRecording() {
-        recorder.stop()
-        timer?.invalidate()
-    }
-}
-
-波形アニメーションView
-
-struct WaveformBar: Shape {
-    var level: Float
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let height = CGFloat((level + 50) / 50) * rect.height
-        let centerY = rect.midY
-        path.move(to: CGPoint(x: rect.midX, y: centerY - height / 2))
-        path.addLine(to: CGPoint(x: rect.midX, y: centerY + height / 2))
-        return path
-    }
-
-    var animatableData: Float {
-        get { level }
-        set { level = newValue }
-    }
-}
-
-SwiftUI UI部分
-
-struct AudioWaveformView: View {
-    @StateObject private var recorder = AudioRecorder()
-
-    var body: some View {
-        VStack {
-            Text("リアルタイム波形")
-                .foregroundColor(.white)
-
-            WaveformBar(level: recorder.currentLevel)
-                .stroke(Color.white, lineWidth: 4)
-                .frame(width: 6, height: 100)
-                .animation(.linear(duration: 0.05), value: recorder.currentLevel)
-        }
-        .padding()
-        .background(Color.black)
-    }
-}
