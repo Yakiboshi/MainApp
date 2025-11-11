@@ -1,6 +1,6 @@
 1. 背景
 
-濃いネイビー〜黒の縦グラデーション背景
+AudioPlayView.swift　と同じ背景 (すでに実装済み)
 
 2. 録音時間
 
@@ -152,4 +152,91 @@ struct WaveformView: View {
 
 #Preview {
     RecordingView()
+}
+
+実際の音声に連動する波形（サンプルコード）
+
+音量レベル取得と波形Viewの作成
+
+import SwiftUI
+import AVFoundation
+
+class AudioRecorder: ObservableObject {
+    private var recorder: AVAudioRecorder!
+    private var timer: Timer?
+    
+    @Published var currentLevel: Float = 0.0
+    
+    init() {
+        startRecording()
+    }
+    
+    func startRecording() {
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatAppleLossless),
+            AVSampleRateKey: 44100.0,
+            AVNumberOfChannelsKey: 1,
+            AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue
+        ]
+        
+        let url = URL(fileURLWithPath: "/dev/null")
+        
+        do {
+            recorder = try AVAudioRecorder(url: url, settings: settings)
+            recorder.isMeteringEnabled = true
+            recorder.record()
+            
+            timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                self.recorder.updateMeters()
+                self.currentLevel = self.recorder.averagePower(forChannel: 0)
+            }
+        } catch {
+            print("録音に失敗しました: \(error)")
+        }
+    }
+    
+    func stopRecording() {
+        recorder.stop()
+        timer?.invalidate()
+    }
+}
+
+波形アニメーションView
+
+struct WaveformBar: Shape {
+    var level: Float
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let height = CGFloat((level + 50) / 50) * rect.height
+        let centerY = rect.midY
+        path.move(to: CGPoint(x: rect.midX, y: centerY - height / 2))
+        path.addLine(to: CGPoint(x: rect.midX, y: centerY + height / 2))
+        return path
+    }
+
+    var animatableData: Float {
+        get { level }
+        set { level = newValue }
+    }
+}
+
+SwiftUI UI部分
+
+struct AudioWaveformView: View {
+    @StateObject private var recorder = AudioRecorder()
+
+    var body: some View {
+        VStack {
+            Text("リアルタイム波形")
+                .foregroundColor(.white)
+
+            WaveformBar(level: recorder.currentLevel)
+                .stroke(Color.white, lineWidth: 4)
+                .frame(width: 6, height: 100)
+                .animation(.linear(duration: 0.05), value: recorder.currentLevel)
+        }
+        .padding()
+        .background(Color.black)
+    }
 }
