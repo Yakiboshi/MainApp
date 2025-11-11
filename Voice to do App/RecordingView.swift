@@ -1,64 +1,194 @@
 import SwiftUI
 import SwiftData
+import AVFoundation
 import Foundation
+import Combine
 
 // 録音画面：表示と同時に自動録音開始。停止で保存→通知→閉じる
 struct RecordingView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @StateObject private var recorder = AudioRecorderViewModel()
+    @StateObject private var routeManager = AudioRouteManager()
+    @State private var showInputDialog = false
 
     let date: Date
 
     var body: some View {
-        VStack(spacing: 32) {
-            VStack(spacing: 8) {
-                Text("録音")
-                    .font(.title).bold()
-                Text("予定時刻: \(date.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+        GeometryReader { geo in
+            let h = geo.size.height
+            ZStack {
+                // 背景（AudioPlayView と同グラデ）
+                LinearGradient(
+                    colors: [
+                        Color(red: 12/255, green: 13/255, blue: 20/255),
+                        Color(red: 48/255, green: 50/255, blue: 58/255)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
-            if recorder.isRecording {
-                Text("🎙️ 録音中…")
-                    .font(.title3)
-                    .foregroundStyle(.red)
-            } else {
-                Text("🛑 録音停止")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
+                VStack(spacing: 0) {
+                    Spacer().frame(height: h/3)
 
-            Spacer()
+                    // 経過時間（等幅）
+                    Text(timeString(recorder.elapsedSec))
+                        .font(.system(size: 44, weight: .bold, design: .default))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                        .accessibilityLabel("録音経過時間")
 
-            Button {
-                guard recorder.isRecording, let result = recorder.stopRecording() else { return }
-                // 保存
-                let entity = RecordingEntity(recordedAt: date, fileName: result.fileName, duration: result.duration)
-                modelContext.insert(entity)
-                try? modelContext.save()
-                // 通知登録
-                NotificationManager.shared.scheduleNotification(for: date, messageId: entity.id.uuidString)
-                // 詳細設定（中間画面）を提示し、この録音画面は閉じる
-                NotificationRouter.shared.presentIntermediate(for: entity.id)
-                dismiss()
-            } label: {
-                Text("録音終了")
-                    .font(.title2).bold()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Color.red.opacity(0.85))
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .padding(.horizontal)
+                    Spacer().frame(height: 20)
+
+                    // 波形
+                    ScrollingWaveformView(level: $recorder.level)
+                        .frame(height: 80)
+                        .padding(.horizontal, 32)
+
+                    // 残り時間
+                    Text("残り時間  \(timeString(recorder.remainingSec))")
+                        .foregroundStyle(.white)
+                        .font(.headline)
+                        .padding(.top, 16)
+
+                    // 入力切替ボタン（下から1/3付近）
+                    Spacer()
+                    VStack(spacing: 6) {
+                        Button(action: {
+                            routeManager.refreshAvailableInputs()
+                            showInputDialog = true
+                        }) {
+                            Image(systemName: "waveform.circle")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundStyle(.black)
+                                .padding(14)
+                                .background(Color.white)
+                                .clipShape(Circle())
+                        }
+                        .accessibilityLabel("入力切り替え")
+                        Text("切り替え")
+                            .font(.caption)
+                            .foregroundStyle(.white)
+                        if let current = routeManager.selectedInput {
+                            Text("現在の入力: \(current.portName)")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.85))
+                        }
+                    }
+
+                    Spacer()
+
+                    // 下部 3 ボタン
+                    HStack(spacing: 40) {
+                        VStack(spacing: 6) {
+                            Button(action: { cancelAndClose() }) {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 64, height: 64)
+                                    .overlay(Image(systemName: "xmark").font(.system(size: 22, weight: .bold)).foregroundStyle(.white))
+                                    .shadow(color: .black.opacity(0.35), radius: 6, x: 0, y: 3)
+                            }
+                            .accessibilityLabel("キャンセル")
+                            Text("キャンセル").font(.caption).foregroundStyle(.white)
+                        }
+
+                        VStack(spacing: 6) {
+                            Button(action: { togglePause() }) {
+                                Circle()
+                                    .fill(Color.white)
+                                    .frame(width: 64, height: 64)
+                                    .overlay(Image(systemName: recorder.isPaused ? "play.fill" : "pause.fill").font(.system(size: 22, weight: .bold)).foregroundStyle(.black))
+                                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
+                            }
+                            .accessibilityLabel(recorder.isPaused ? "再開" : "一時停止")
+                            Text(recorder.isPaused ? "再開" : "一時停止").font(.caption).foregroundStyle(.white)
+                        }
+
+                        VStack(spacing: 6) {
+                            Button(action: { finishAndProceed() }) {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 64, height: 64)
+                                    .overlay(Image(systemName: "phone.down.fill").font(.system(size: 22, weight: .bold)).foregroundStyle(.white))
+                                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
+                            }
+                            .accessibilityLabel("終了")
+                            Text("終了").font(.caption).foregroundStyle(.white)
+                        }
+                    }
+                    .padding(.bottom, h/12)
+                }
             }
-            .disabled(!recorder.isRecording)
         }
-        .padding()
+        // 入力切替ダイアログ
+        .confirmationDialog("入力デバイスを選択", isPresented: $showInputDialog) {
+            ForEach(routeManager.availableInputs, id: \.uid) { input in
+                Button(input.portName) { routeManager.select(input) }
+            }
+        }
         .onAppear {
-            // 自動録音開始
-            recorder.startRecording(for: date)
+            recorder.startRecording(for: date, maxDurationSec: 180)
+            routeManager.refreshAvailableInputs()
         }
+        // タイムアップ等で自動停止したときのフォールバック（保存に進む）
+        .onChange(of: recorder.isRecording) { isRec in
+            if !isRec {
+                finishAndProceed()
+            }
+        }
+    }
+
+    private func togglePause() {
+        if recorder.isPaused { recorder.resume() } else { recorder.pause() }
+    }
+
+    private func cancelAndClose() {
+        recorder.cancel()
+        dismiss()
+    }
+
+    private func finishAndProceed() {
+        // 既に停止していても安全
+        let newId = UUID()
+        guard let res = recorder.stopRecording(renameToId: newId) else { return }
+        let entity = RecordingEntity(id: newId, recordedAt: date, fileName: res.fileName, duration: res.duration)
+        modelContext.insert(entity)
+        try? modelContext.save()
+        NotificationManager.shared.scheduleNotification(for: date, messageId: entity.id.uuidString)
+        NotificationRouter.shared.presentIntermediate(for: entity.id)
+        dismiss()
+    }
+
+    private func timeString(_ t: Int) -> String {
+        String(format: "%02d:%02d", max(0, t) / 60, max(0, t) % 60)
+    }
+}
+
+// 軽量スクロール波形（Recorderの level を0.05sごとにサンプリングして縦線で描画）
+private struct ScrollingWaveformView: View {
+    @Binding var level: Double // 0...1
+    let sampleCount: Int = 140
+    @State private var samples: [Double] = []
+    private let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        Canvas { ctx, size in
+            let midY = size.height / 2
+            let stepX = size.width / CGFloat(max(samples.count - 1, 1))
+            var path = Path()
+            for (idx, s) in samples.enumerated() {
+                let x = CGFloat(idx) * stepX
+                let amp = CGFloat(min(max(s, 0), 1)) * (size.height * 0.46)
+                path.move(to: CGPoint(x: x, y: midY - amp))
+                path.addLine(to: CGPoint(x: x, y: midY + amp))
+            }
+            ctx.stroke(path, with: .color(.white), lineWidth: 2)
+        }
+        .onReceive(timer) { _ in
+            samples.append(level)
+            if samples.count > sampleCount { samples.removeFirst(samples.count - sampleCount) }
+        }
+        .onAppear { samples = Array(repeating: 0, count: sampleCount) }
     }
 }
