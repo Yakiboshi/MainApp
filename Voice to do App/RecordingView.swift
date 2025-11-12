@@ -11,6 +11,8 @@ struct RecordingView: View {
     @StateObject private var recorder = AudioRecorderViewModel()
     @StateObject private var routeManager = AudioRouteManager()
     @State private var showInputDialog = false
+    // 二重保存防止ガード
+    @State private var didFinalize: Bool = false
 
     let date: Date
 
@@ -133,7 +135,8 @@ struct RecordingView: View {
         }
         // タイムアップ等で自動停止したときのフォールバック（保存に進む）
         .onChange(of: recorder.isRecording) { isRec in
-            if !isRec {
+            // 自動停止（上限到達等）時のみ遷移。手動終了後の二重呼び出しは didFinalize で抑止。
+            if !isRec && !didFinalize {
                 finishAndProceed()
             }
         }
@@ -149,9 +152,16 @@ struct RecordingView: View {
     }
 
     private func finishAndProceed() {
+        // 二重実行ガード（手動/自動の双方から呼ばれ得るため）
+        guard !didFinalize else { return }
+        didFinalize = true
         // 既に停止していても安全
         let newId = UUID()
-        guard let res = recorder.stopRecording(renameToId: newId) else { return }
+        guard let res = recorder.stopRecording(renameToId: newId) else {
+            // 停止失敗時は再試行を許可
+            didFinalize = false
+            return
+        }
         let entity = RecordingEntity(id: newId, recordedAt: date, fileName: res.fileName, duration: res.duration)
         modelContext.insert(entity)
         try? modelContext.save()

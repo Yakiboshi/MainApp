@@ -21,6 +21,10 @@ struct ContentView: View {
                 // 起動時に留守電移行の監査を実行（既存のモデルコンテキストを使用）
                 VoicemailMigrator.migrateIfNeeded(context: modelContext)
             }
+            // ディープリンク（URLスキーム）受け取り
+            .onOpenURL { url in
+                DeepLinkHandler.handle(url)
+            }
             // 通話フローのすべて（着信/通話/通話後）を単一カバーで制御（無アニメ）
             .fullScreenCover(isPresented: Binding(get: {
                 notifRouter.hasAnyCallOverlay
