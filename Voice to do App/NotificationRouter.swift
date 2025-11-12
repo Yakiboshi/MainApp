@@ -13,6 +13,8 @@ final class NotificationRouter: ObservableObject {
     @Published var callMessageId: String? = nil
     @Published var showPlannedEditorForRecordingId: UUID? = nil
     @Published var showHistoryDetailForRecordingId: UUID? = nil
+    // AudioPlay（通信中→録音）を外部から要求するためのルート
+    @Published var audioPlayDate: Date? = nil
 
     func openIncomingCall(messageId: String?, fromVoicemail: Bool = false) {
         DispatchQueue.main.async {
@@ -97,5 +99,13 @@ final class NotificationRouter: ObservableObject {
 
     var hasAnyCallOverlay: Bool {
         incomingMessageId != nil || callMessageId != nil || showAfterCallForMessageId != nil
+    }
+
+    // MARK: - AudioPlay route
+    func presentAudioPlay(for date: Date) {
+        DispatchQueue.main.async { withAnimation(nil) { self.audioPlayDate = date } }
+    }
+    func dismissAudioPlay() {
+        DispatchQueue.main.async { withAnimation(nil) { self.audioPlayDate = nil } }
     }
 }

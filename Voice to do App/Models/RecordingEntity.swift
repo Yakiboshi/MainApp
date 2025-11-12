@@ -11,6 +11,14 @@ final class RecordingEntity {
     var title: String?
     var afterMessage: String?
     var snoozeMin: Int?
+    // 追加項目（詳細登録画面対応）
+    var linkURLString: String? = nil           // https:// のみ
+    var iconImageData: Data? = nil             // 円形アイコン画像（PNG/JPEGのバイト列）
+    @Relationship(deleteRule: .cascade) var tasks: [RecordingTaskEntity] = [] // ToDo（子）
+    // タスクの締切（相対指定・どちらかの概念）
+    var deadlineHours: Int? = nil
+    var deadlineMinutes: Int? = nil
+    var deadlineDays: Int? = nil
     // ステータス管理（将来の拡張を考慮し Optional。既存ストアの軽量マイグレーションを通すため）
     // "scheduled" | "answered" | "missed" を想定。nil は未設定として扱い、UI側で "scheduled" と同等に扱う
     var status: String? = nil
@@ -29,7 +37,13 @@ final class RecordingEntity {
         snoozeMin: Int? = nil,
         status: String = "scheduled",
         answeredAt: Date? = nil,
-        inVoicemailInbox: Bool = false
+        inVoicemailInbox: Bool = false,
+        linkURLString: String? = nil,
+        iconImageData: Data? = nil,
+        tasks: [RecordingTaskEntity] = [],
+        deadlineHours: Int? = nil,
+        deadlineMinutes: Int? = nil,
+        deadlineDays: Int? = nil
     ) {
         self.id = id
         self.recordedAt = recordedAt
@@ -41,5 +55,23 @@ final class RecordingEntity {
         self.status = status
         self.answeredAt = answeredAt
         self.inVoicemailInbox = inVoicemailInbox
+        self.linkURLString = linkURLString
+        self.iconImageData = iconImageData
+        self.tasks = tasks
+        self.deadlineHours = deadlineHours
+        self.deadlineMinutes = deadlineMinutes
+        self.deadlineDays = deadlineDays
+    }
+}
+
+@Model
+final class RecordingTaskEntity {
+    @Attribute(.unique) var id: UUID
+    var text: String
+    var isDone: Bool
+    init(id: UUID = UUID(), text: String = "", isDone: Bool = false) {
+        self.id = id
+        self.text = text
+        self.isDone = isDone
     }
 }

@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import UserNotifications
+import AVKit
 
 // 通知／マイク権限の確認・要求ユーティリティ
 enum PermissionManager {
@@ -27,5 +28,11 @@ enum PermissionManager {
             completion?(notifOK, micOK)
         }
     }
-}
 
+    // 任意: カメラ権限（撮影機能を実装した時に使用）
+    static func requestCameraPermission(completion: ((Bool) -> Void)? = nil) {
+        AVCaptureDevice.requestAccess(for: .video) { granted in
+            DispatchQueue.main.async { completion?(granted) }
+        }
+    }
+}

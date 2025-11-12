@@ -121,8 +121,16 @@ struct AppTabsView: View {
                 )
         }
         // フルスクリーンの通信画面（ナビゲーションバーなし）
-        .fullScreenCover(isPresented: $showAudioPlay) {
-            AudioPlayView(scheduledAt: scheduledDateForCall ?? now, soundName: "callSound", soundExt: "mp3")
+        .fullScreenCover(isPresented: Binding(get: {
+            showAudioPlay || (notifRouter.audioPlayDate != nil)
+        }, set: { newVal in
+            if !newVal {
+                showAudioPlay = false
+                notifRouter.dismissAudioPlay()
+            }
+        })) {
+            let date = notifRouter.audioPlayDate ?? scheduledDateForCall ?? now
+            AudioPlayView(scheduledAt: date, soundName: "callSound", soundExt: "mp3")
                 .ignoresSafeArea()
         }
         .transaction { $0.disablesAnimations = true }
