@@ -41,8 +41,8 @@ struct RecordingView: View {
 
                     Spacer().frame(height: 20)
 
-                    // 波形
-                    ScrollingWaveformView(level: $recorder.level)
+                    // 軽量レベルメータ（バー型）
+                    LightLevelMeterView(level: $recorder.level)
                         .frame(height: 80)
                         .padding(.horizontal, 32)
 
@@ -190,5 +190,35 @@ private struct ScrollingWaveformView: View {
             if samples.count > sampleCount { samples.removeFirst(samples.count - sampleCount) }
         }
         .onAppear { samples = Array(repeating: 0, count: sampleCount) }
+    }
+}
+
+// より軽量なバー型レベルメータ（描画負荷を抑える）
+private struct LightLevelMeterView: View {
+    @Binding var level: Double   // 0...1
+    private let barCount = 9
+    private let maxHeight: CGFloat = 70
+    @State private var values: [Double] = Array(repeating: 0, count: 9)
+    private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<barCount, id: \.self) { i in
+                Capsule()
+                    .fill(Color.white.opacity(0.95 - Double(i) * 0.06))
+                    .frame(width: 6, height: 8 + CGFloat(values[i]) * maxHeight)
+            }
+        }
+        .onReceive(timer) { _ in
+            let v = min(max(level, 0), 1)
+            var next = values
+            next.removeFirst()
+            next.append(v)
+            // 緩やかな平滑化で過剰な再描画を抑制
+            for idx in next.indices {
+                values[idx] = values[idx] * 0.85 + next[idx] * 0.15
+            }
+        }
+        .onAppear { values = Array(repeating: 0, count: barCount) }
     }
 }
