@@ -3,6 +3,7 @@ import SwiftData
 import AVFoundation
 import PhotosUI
 import UIKit
+import SwiftyCrop
 
 // 中間画面：仕様の「詳細登録画面」をこのファイルに統合
 struct IntermediateView: View {
@@ -42,8 +43,8 @@ private struct DetailCoreView: View {
     // アイコン（簡易クロップ）
     @State private var showPhotoPicker = false
     @State private var pickedItem: PhotosPickerItem?
-    @State private var pickedImage: UIImage?
-    @State private var showCropper = false
+    // クロップ対象（sheet 用に Identifiable 化）
+    @State private var cropTarget: CroppingImage?
 
     // URL
     @State private var linkInput: String = ""
@@ -61,184 +62,8 @@ private struct DetailCoreView: View {
         ZStack {
             Theme.appGradient.ignoresSafeArea()
             VStack(spacing: 0) {
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // アイコン
-                        VStack(alignment: .center, spacing: 12) {
-                            ZStack {
-                                Circle().fill(Color.white.opacity(0.08)).frame(width: 120, height: 120)
-                                if let data = recording.iconImageData, let ui = UIImage(data: data) {
-                                    Image(uiImage: ui).resizable().scaledToFill().frame(width: 120, height: 120).clipShape(Circle())
-                                } else {
-                                    Image(systemName: "person.crop.circle").resizable().scaledToFit().frame(width: 110, height: 110).foregroundStyle(.white.opacity(0.6))
-                                }
-                                Button { showPhotoPicker = true } label: {
-                                    Image(systemName: "arrow.2.circlepath.circle.fill").font(.system(size: 32)).foregroundStyle(.white).shadow(radius: 2).offset(x: 40, y: 40)
-                                }
-                                .accessibilityLabel("アイコンを変更")
-                            }
-                            Text("アイコン（写真/撮影→トリミング）").font(.subheadline).foregroundStyle(.white.opacity(0.8))
-                        }
-                        .padding(.top, 24)
-                        .photosPicker(isPresented: $showPhotoPicker, selection: $pickedItem, matching: .images)
-                        .onChange(of: pickedItem) { _, newItem in
-                            guard let newItem else { return }
-                            Task { @MainActor in
-                                if let data = try? await newItem.loadTransferable(type: Data.self),
-                                   let ui = UIImage(data: data) {
-                                    // 先にピッカーを閉じ、少し待ってからクロッパーを提示
-                                    pickedImage = ui
-                                    showPhotoPicker = false
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                        showCropper = true
-                                    }
-                                } else {
-                                    // 読み込み失敗時は安全に閉じる
-                                    showPhotoPicker = false
-                                    showCropper = false
-                                }
-                            }
-                        }
-                        .sheet(isPresented: $showCropper) {
-                            if let img = pickedImage {
-                                SimpleSquareCropper(image: img) { out in
-                                    if let out, let data = out.pngData() { recording.iconImageData = data }
-                                    showCropper = false
-                                }
-                            }
-                        }
-
-                        // プレビュー
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("プレビュー").font(.headline).foregroundStyle(.white)
-                            HStack(spacing: 12) {
-                                Button { togglePlay() } label: {
-                                    Image(systemName: isPlaying ? "pause.fill" : "play.fill").foregroundStyle(.white).padding(10).background(Circle().fill(Color.accentColor))
-                                }
-                                Slider(value: $progress, in: 0...1) { editing in
-                                    guard let player else { return }
-                                    if editing == false { player.currentTime = player.duration * progress }
-                                }.disabled(player == nil)
-                                Text(playerDurationString()).font(.caption).frame(width: 46, alignment: .trailing).foregroundStyle(.white.opacity(0.7))
-                            }
-                            .onAppear { preparePlayerIfNeeded() }
-                            .onDisappear { stopPlayer() }
-                        }
-
-                        // スヌーズ
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("スヌーズ時間（分）").font(.headline).foregroundStyle(.white)
-                            Stepper(value: Binding(get: { recording.snoozeMin ?? 10 }, set: { recording.snoozeMin = $0 }), in: 1...240) {
-                                Text("\(recording.snoozeMin ?? 10) 分").foregroundStyle(.white)
-                            }
-                        }
-
-                        // タイトル
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("タイトル").font(.headline).foregroundStyle(.white)
-                            ZStack(alignment: .leading) {
-                                if (recording.title ?? "").isEmpty {
-                                    Text("録音を終了した時刻(発信日時) からの連絡").foregroundStyle(.white.opacity(0.6)).padding(.horizontal, 12)
-                                }
-                                TextField("", text: Binding(get: { recording.title ?? "" }, set: { recording.title = String($0.prefix(titleLimit)) }))
-                                    .textFieldStyle(.plain)
-                                    .foregroundStyle(.black)
-                                    .padding(10)
-                                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white))
-                            }
-                            HStack { Spacer(); Text("\((recording.title ?? "").count)/\(titleLimit)").font(.caption2).foregroundStyle(.white.opacity(0.7)) }
-                        }
-
-                        // アフターメモ
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("アフターメモ").font(.headline).foregroundStyle(.white)
-                            ZStack(alignment: .topLeading) {
-                                if (recording.afterMessage ?? "").isEmpty {
-                                    Text("（任意）着信後に表示されるメモ").foregroundStyle(.white.opacity(0.6)).padding(.horizontal, 8).padding(.vertical, 8)
-                                }
-                                TextEditor(text: Binding(get: { recording.afterMessage ?? "" }, set: { recording.afterMessage = String($0.prefix(memoLimit)) }))
-                                    .frame(minHeight: 90)
-                                    .scrollContentBackground(.hidden)
-                                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white))
-                                    .foregroundStyle(.black)
-                            }
-                            HStack { Spacer(); Text("\((recording.afterMessage ?? "").count)/\(memoLimit)").font(.caption2).foregroundStyle(.white.opacity(0.7)) }
-                        }
-
-                        // URL
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("URL（任意・https:// のみ）").font(.headline).foregroundStyle(.white)
-                            TextField("https://example.com", text: Binding(get: { linkInput.isEmpty ? (recording.linkURLString ?? "") : linkInput }, set: { newVal in
-                                linkInput = newVal
-                                linkIsValidHTTPS = newVal.trimmingCharacters(in: .whitespaces).isEmpty || newVal.hasPrefix("https://")
-                            }))
-                            .textFieldStyle(.roundedBorder)
-                            if !linkIsValidHTTPS { Text("URLは https:// で始めてください").font(.footnote).foregroundStyle(.red) }
-                        }
-
-                        // タスク
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("ToDo").font(.headline).foregroundStyle(.white)
-                            if recording.tasks.isEmpty {
-                                Button(action: { addTask() }) {
-                                    HStack(spacing: 8) { Image(systemName: "plus.circle"); Text("タスクを追加") }
-                                        .foregroundStyle(.white)
-                                        .frame(maxWidth: .infinity).padding(14)
-                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(style: StrokeStyle(lineWidth: 1, dash: [6])).foregroundColor(.white))
-                                }
-                            } else {
-                                VStack(spacing: 10) {
-                                    ForEach(recording.tasks, id: \.id) { task in
-                                        HStack(alignment: .top, spacing: 8) {
-                                            TextField("タスク", text: Binding(get: { task.text }, set: { task.text = String($0.prefix(120)) }))
-                                                .textFieldStyle(.roundedBorder)
-                                                .foregroundStyle(.black)
-                                            Button(role: .destructive) { removeTask(task) } label: { Image(systemName: "trash").foregroundStyle(.red) }
-                                        }
-                                    }
-                                    Button(action: { addTask() }) {
-                                        HStack(spacing: 8) { Image(systemName: "plus.circle"); Text("タスクを追加") }
-                                            .foregroundStyle(.white)
-                                            .frame(maxWidth: .infinity).padding(10)
-                                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(style: StrokeStyle(lineWidth: 1, dash: [6])).foregroundColor(.white))
-                                    }
-                                }
-                            }
-                        }
-
-                        // 締切（タスクがある時のみ）
-                        if !recording.tasks.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("全タスクの締切設定").font(.headline).foregroundStyle(.white)
-                                Picker("モード", selection: $deadlineMode) {
-                                    Text(DeadlineMode.hoursMinutes.rawValue).tag(DeadlineMode.hoursMinutes)
-                                    Text(DeadlineMode.days.rawValue).tag(DeadlineMode.days)
-                                }
-                                .pickerStyle(.segmented)
-                                .tint(.white)
-                                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.12)))
-
-                                if deadlineMode == .hoursMinutes {
-                                    Stepper(value: Binding(get: { recording.deadlineHours ?? 0 }, set: { recording.deadlineHours = $0 }), in: 0...72) {
-                                        Text("\(recording.deadlineHours ?? 0) 時間").foregroundStyle(.white)
-                                    }
-                                    Stepper(value: Binding(get: { recording.deadlineMinutes ?? 0 }, set: { recording.deadlineMinutes = $0 }), in: 0...59) {
-                                        Text("\(recording.deadlineMinutes ?? 0) 分").foregroundStyle(.white)
-                                    }
-                                } else {
-                                    Stepper(value: Binding(get: { recording.deadlineDays ?? 0 }, set: { recording.deadlineDays = $0 }), in: 0...60) {
-                                        Text("\(recording.deadlineDays ?? 0) 日後").foregroundStyle(.white)
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(minLength: actionBarHeight)
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 12)
-                }
-
+                ScrollView { contentStack }
+            
                 // 下部固定バー
                 LinearGradient(colors: [Color.black.opacity(0.55), Color.black.opacity(0)], startPoint: .bottom, endPoint: .top)
                     .frame(height: actionBarHeight)
@@ -270,6 +95,9 @@ private struct DetailCoreView: View {
         }
         .navigationTitle("詳細登録")
         .navigationBarTitleDisplayMode(.inline)
+        // 背景タップでキーボードを閉じる
+        .contentShape(Rectangle())
+        .onTapGesture { dismissKeyboard() }
         .onAppear {
             if linkInput.isEmpty { linkInput = recording.linkURLString ?? "" }
             if (recording.deadlineDays ?? 0) > 0 { deadlineMode = .days } else { deadlineMode = .hoursMinutes }
@@ -277,6 +105,198 @@ private struct DetailCoreView: View {
         .onChange(of: deadlineMode) { newMode in
             if newMode == .days { recording.deadlineHours = nil; recording.deadlineMinutes = nil }
             else { recording.deadlineDays = nil }
+        }
+    }
+
+    // MARK: - Sections
+    @ViewBuilder
+    private var contentStack: some View {
+        VStack(spacing: 20) {
+            iconSection
+            previewSection
+            snoozeSection
+            titleSection
+            afterMemoSection
+            urlSection
+            tasksSection
+            deadlineSection
+            Spacer(minLength: actionBarHeight)
+        }
+        .padding(.horizontal)
+        .padding(.top, 12)
+    }
+
+    private var iconSection: some View {
+        VStack(alignment: .center, spacing: 12) {
+            ZStack {
+                Circle().fill(Color.white.opacity(0.08)).frame(width: 120, height: 120)
+                if let data = recording.iconImageData, let ui = UIImage(data: data) {
+                    Image(uiImage: ui).resizable().scaledToFill().frame(width: 120, height: 120).clipShape(Circle())
+                } else {
+                    Image(systemName: "person.crop.circle").resizable().scaledToFit().frame(width: 110, height: 110).foregroundStyle(.white.opacity(0.6))
+                }
+                Button { showPhotoPicker = true } label: {
+                    Image(systemName: "arrow.2.circlepath.circle.fill").font(.system(size: 32)).foregroundStyle(.white).shadow(radius: 2).offset(x: 40, y: 40)
+                }
+                .accessibilityLabel("アイコンを変更")
+            }
+            Text("アイコン（写真/撮影→トリミング）").font(.subheadline).foregroundStyle(.white.opacity(0.8))
+        }
+        .padding(.top, 24)
+        .photosPicker(isPresented: $showPhotoPicker, selection: $pickedItem, matching: .images)
+        .onChange(of: pickedItem) { _, newItem in
+            guard let newItem else { return }
+            Task { @MainActor in
+                if let data = try? await newItem.loadTransferable(type: Data.self), let ui = UIImage(data: data) {
+                    showPhotoPicker = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        cropTarget = CroppingImage(image: ui)
+                    }
+                } else { showPhotoPicker = false }
+            }
+        }
+        .sheet(item: $cropTarget) { box in
+            IconCropperSheet(image: box.image) { result in
+                if let img = result, let data = img.pngData() { recording.iconImageData = data }
+                cropTarget = nil
+            }
+        }
+    }
+
+    private var previewSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("プレビュー").font(.headline).foregroundStyle(.white)
+            HStack(spacing: 12) {
+                Button { togglePlay() } label: {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill").foregroundStyle(.white).padding(10).background(Circle().fill(Color.accentColor))
+                }
+                Slider(value: $progress, in: 0...1) { editing in
+                    guard let player else { return }
+                    if editing == false { player.currentTime = player.duration * progress }
+                }.disabled(player == nil)
+                Text(playerDurationString()).font(.caption).frame(width: 46, alignment: .trailing).foregroundStyle(.white.opacity(0.7))
+            }
+            .onAppear { preparePlayerIfNeeded() }
+            .onDisappear { stopPlayer() }
+        }
+    }
+
+    private var snoozeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("スヌーズ時間（分）").font(.headline).foregroundStyle(.white)
+            Stepper(value: Binding(get: { recording.snoozeMin ?? 10 }, set: { recording.snoozeMin = $0 }), in: 1...240) {
+                Text("\(recording.snoozeMin ?? 10) 分").foregroundStyle(.white)
+            }
+        }
+    }
+
+    private var titleSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("タイトル").font(.headline).foregroundStyle(.white)
+            TextField(
+                text: Binding(get: { recording.title ?? "" }, set: { recording.title = String($0.prefix(titleLimit)) }),
+                prompt: Text(defaultTitleNow()).foregroundColor(.secondary)
+            ) {}
+            .textFieldStyle(.plain)
+            .foregroundStyle(.black)
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white))
+            HStack { Spacer(); Text("\((recording.title ?? "").count)/\(titleLimit)").font(.caption2).foregroundStyle(.white.opacity(0.7)) }
+        }
+    }
+
+    private var afterMemoSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("アフターメモ").font(.headline).foregroundStyle(.white)
+            ZStack(alignment: .topLeading) {
+                if (recording.afterMessage ?? "").isEmpty {
+                    Text("（\(scheduledLabel()) に送るメモ）")
+                        .foregroundStyle(.gray.opacity(0.6))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 8)
+                }
+                TextEditor(text: Binding(get: { recording.afterMessage ?? "" }, set: { recording.afterMessage = String($0.prefix(memoLimit)) }))
+                    .frame(minHeight: 90)
+                    .scrollContentBackground(.hidden)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white))
+                    .foregroundStyle(.black)
+            }
+            HStack { Spacer(); Text("\((recording.afterMessage ?? "").count)/\(memoLimit)").font(.caption2).foregroundStyle(.white.opacity(0.7)) }
+        }
+    }
+
+    private var urlSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("URL（任意・https:// のみ）").font(.headline).foregroundStyle(.white)
+            TextField(
+                text: Binding(get: { linkInput.isEmpty ? (recording.linkURLString ?? "") : linkInput }, set: { newVal in
+                    linkInput = newVal
+                    linkIsValidHTTPS = newVal.trimmingCharacters(in: .whitespaces).isEmpty || newVal.hasPrefix("https://")
+                }),
+                prompt: Text("https://example.com").foregroundColor(.secondary)
+            ) {}
+            .textFieldStyle(.roundedBorder)
+            if !linkIsValidHTTPS { Text("URLは https:// で始めてください").font(.footnote).foregroundStyle(.red) }
+        }
+    }
+
+    private var tasksSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("ToDo").font(.headline).foregroundStyle(.white)
+            if recording.tasks.isEmpty {
+                Button(action: { addTask() }) {
+                    HStack(spacing: 8) { Image(systemName: "plus.circle"); Text("タスクを追加") }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).padding(14)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(style: StrokeStyle(lineWidth: 1, dash: [6])).foregroundColor(.white))
+                }
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(recording.tasks, id: \.id) { task in
+                        HStack(alignment: .top, spacing: 8) {
+                            TextField("タスク", text: Binding(get: { task.text }, set: { task.text = String($0.prefix(120)) }))
+                                .textFieldStyle(.roundedBorder)
+                                .foregroundStyle(.black)
+                            Button(role: .destructive) { removeTask(task) } label: { Image(systemName: "trash").foregroundStyle(.red) }
+                        }
+                    }
+                    Button(action: { addTask() }) {
+                        HStack(spacing: 8) { Image(systemName: "plus.circle"); Text("タスクを追加") }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity).padding(10)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(style: StrokeStyle(lineWidth: 1, dash: [6])).foregroundColor(.white))
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var deadlineSection: some View {
+        if !recording.tasks.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("全タスクの締切設定").font(.headline).foregroundStyle(.white)
+                Picker("モード", selection: $deadlineMode) {
+                    Text(DeadlineMode.hoursMinutes.rawValue).tag(DeadlineMode.hoursMinutes)
+                    Text(DeadlineMode.days.rawValue).tag(DeadlineMode.days)
+                }
+                .pickerStyle(.segmented)
+                .tint(.white)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.12)))
+
+                if deadlineMode == .hoursMinutes {
+                    Stepper(value: Binding(get: { recording.deadlineHours ?? 0 }, set: { recording.deadlineHours = $0 }), in: 0...72) {
+                        Text("\(recording.deadlineHours ?? 0) 時間").foregroundStyle(.white)
+                    }
+                    Stepper(value: Binding(get: { recording.deadlineMinutes ?? 0 }, set: { recording.deadlineMinutes = $0 }), in: 0...59) {
+                        Text("\(recording.deadlineMinutes ?? 0) 分").foregroundStyle(.white)
+                    }
+                } else {
+                    Stepper(value: Binding(get: { recording.deadlineDays ?? 0 }, set: { recording.deadlineDays = $0 }), in: 0...60) {
+                        Text("\(recording.deadlineDays ?? 0) 日後").foregroundStyle(.white)
+                    }
+                }
+            }
         }
     }
 
@@ -345,7 +365,7 @@ private struct DetailCoreView: View {
     }
     private func saveAndContinue() {
         if (recording.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let df = DateFormatter(); df.dateFormat = "yyyy/MM/dd HH:mm"; recording.title = "\(df.string(from: recording.recordedAt)) からの電話"
+            recording.title = "\(format(date: Date())) からの電話"
         }
         let trimmed = (linkInput.isEmpty ? (recording.linkURLString ?? "") : linkInput).trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty { recording.linkURLString = nil } else if trimmed.hasPrefix("https://") { recording.linkURLString = trimmed } else { recording.linkURLString = nil }
@@ -359,9 +379,18 @@ private struct DetailCoreView: View {
         let url = docs.appendingPathComponent(recording.fileName)
         try? FileManager.default.removeItem(at: url)
     }
+    // Helpers for placeholders/formatting
+    private func format(date: Date) -> String {
+        let df = DateFormatter(); df.dateFormat = "yyyy/MM/dd HH:mm"; return df.string(from: date)
+    }
+    private func defaultTitleNow() -> String { "\(format(date: Date())) からの電話" }
+    private func scheduledLabel() -> String { format(date: recording.recordedAt) }
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
 }
 
-// Chrome 優先の URL 生成（同ファイル内）
+    // Chrome 優先の URL 生成
 extension URL {
     static func preferredBrowserURL(from httpsString: String) -> URL? {
         guard httpsString.hasPrefix("https://"), let url = URL(string: httpsString) else { return nil }
@@ -370,28 +399,5 @@ extension URL {
             if let chromeURL = URL(string: "googlechrome://\(dropped)") { return chromeURL }
         }
         return url
-    }
-}
-
-// 簡易クロップ（SwiftyCrop置き換え予定）
-private struct SimpleSquareCropper: View {
-    let image: UIImage
-    let onFinish: (UIImage?) -> Void
-    var body: some View {
-        VStack {
-            Text("トリミング（デモ）").font(.headline).padding(.top, 12)
-            Spacer()
-            Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 300)
-            Spacer()
-            HStack { Button("キャンセル") { onFinish(nil) }; Spacer(); Button("中央を正方形で確定") { onFinish(centerSquare(of: image)) } }.padding()
-        }
-        .presentationDetents([.medium, .large])
-    }
-    private func centerSquare(of img: UIImage) -> UIImage? {
-        let size = min(img.size.width, img.size.height)
-        let x = (img.size.width - size) / 2; let y = (img.size.height - size) / 2
-        let rect = CGRect(x: x, y: y, width: size, height: size)
-        guard let cg = img.cgImage?.cropping(to: rect) else { return nil }
-        return UIImage(cgImage: cg, scale: img.scale, orientation: img.imageOrientation)
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct QuickPresetEditorView: View {
     @Environment(\.dismiss) private var dismiss
@@ -62,7 +63,14 @@ struct QuickPresetEditorView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("キャンセル") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) { Button("保存") { save() } }
+            // キーボード上に閉じるボタンを表示（背景タップと競合しない）
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("閉じる") { dismissKeyboard() }
+            }
         }
+        // 背景タップではなく、スクロールとツールバーで閉じる運用に変更（Picker操作と干渉しない）
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var defaultTitle: String { Self.composeDefaultTitle(daysOffset: daysOffset, hour: hour, minute: minute) }
@@ -111,5 +119,9 @@ struct QuickPresetEditorView: View {
                                        minute: minute)
         onSave(entity)
         dismiss()
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
