@@ -7,6 +7,7 @@ import Combine
 final class AudioPlayerViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private var player: AVAudioPlayer?
     private var onFinish: (() -> Void)?
+    @Published var isPlaying: Bool = false
 
     // 指定名の音源をバンドルから再生。見つからない/失敗時は onFinish を即時呼び出し
     func playSound(fileName: String, fileExtension: String = "mp3", onFinish: @escaping () -> Void) {
@@ -25,6 +26,7 @@ final class AudioPlayerViewModel: NSObject, ObservableObject, AVAudioPlayerDeleg
             p.prepareToPlay()
             p.play()
             self.player = p
+            DispatchQueue.main.async { self.isPlaying = true }
         } catch {
             DispatchQueue.main.async { onFinish() }
         }
@@ -33,6 +35,7 @@ final class AudioPlayerViewModel: NSObject, ObservableObject, AVAudioPlayerDeleg
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         let cb = onFinish
         onFinish = nil
+        DispatchQueue.main.async { self.isPlaying = false }
         DispatchQueue.main.async { cb?() }
     }
 
@@ -46,6 +49,7 @@ final class AudioPlayerViewModel: NSObject, ObservableObject, AVAudioPlayerDeleg
             p.prepareToPlay()
             p.play()
             self.player = p
+            DispatchQueue.main.async { self.isPlaying = true }
         } catch {
             DispatchQueue.main.async { onFinish() }
         }
@@ -55,5 +59,11 @@ final class AudioPlayerViewModel: NSObject, ObservableObject, AVAudioPlayerDeleg
         player?.stop()
         player = nil
         onFinish = nil
+        DispatchQueue.main.async { self.isPlaying = false }
     }
+
+    // 現在の再生時間（秒）
+    func currentTime() -> TimeInterval { player?.currentTime ?? 0 }
+    // 総再生時間（秒）
+    func duration() -> TimeInterval { player?.duration ?? 0 }
 }
