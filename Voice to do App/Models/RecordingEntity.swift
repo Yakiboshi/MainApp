@@ -5,10 +5,15 @@ import SwiftData
 final class RecordingEntity {
     @Attribute(.unique) var id: UUID
     var recordedAt: Date
+    // 録音ファイルを保存した日時（着信画面での表示に使用）
+    // 既存データ互換のため Optional（導入前レコードは nil）
+    var savedAt: Date? = nil
     var fileName: String
     var duration: Double
     // 詳細設定（任意）
     var title: String?
+    // タイトルが自動生成（空白時の代替）かどうか
+    var isAutoTitle: Bool = false
     var afterMessage: String?
     var snoozeMin: Int?
     // 追加項目（詳細登録画面対応）
@@ -30,9 +35,11 @@ final class RecordingEntity {
     init(
         id: UUID = UUID(),
         recordedAt: Date,
+        savedAt: Date? = nil,
         fileName: String,
         duration: Double,
         title: String? = nil,
+        isAutoTitle: Bool = false,
         afterMessage: String? = nil,
         snoozeMin: Int? = nil,
         status: String = "scheduled",
@@ -47,9 +54,11 @@ final class RecordingEntity {
     ) {
         self.id = id
         self.recordedAt = recordedAt
+        self.savedAt = savedAt
         self.fileName = fileName
         self.duration = duration
         self.title = title
+        self.isAutoTitle = isAutoTitle
         self.afterMessage = afterMessage
         self.snoozeMin = snoozeMin
         self.status = status

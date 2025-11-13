@@ -364,8 +364,12 @@ private struct DetailCoreView: View {
         }
     }
     private func saveAndContinue() {
+        // タイトルが空なら自動生成し、フラグを立てる
         if (recording.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             recording.title = "\(format(date: Date())) からの電話"
+            recording.isAutoTitle = true
+        } else {
+            recording.isAutoTitle = false
         }
         let trimmed = (linkInput.isEmpty ? (recording.linkURLString ?? "") : linkInput).trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty { recording.linkURLString = nil } else if trimmed.hasPrefix("https://") { recording.linkURLString = trimmed } else { recording.linkURLString = nil }

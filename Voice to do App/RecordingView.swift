@@ -162,7 +162,14 @@ struct RecordingView: View {
             didFinalize = false
             return
         }
-        let entity = RecordingEntity(id: newId, recordedAt: date, fileName: res.fileName, duration: res.duration)
+        // 保存日時は現在時刻（録音完了時）。予定日時は recordedAt（既存フィールド）
+        let entity = RecordingEntity(
+            id: newId,
+            recordedAt: date,
+            savedAt: Date(),
+            fileName: res.fileName,
+            duration: res.duration
+        )
         modelContext.insert(entity)
         try? modelContext.save()
         NotificationManager.shared.scheduleNotification(for: date, messageId: entity.id.uuidString)
