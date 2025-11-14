@@ -24,6 +24,8 @@ final class RecordingEntity {
     var deadlineHours: Int? = nil
     var deadlineMinutes: Int? = nil
     var deadlineDays: Int? = nil
+    // 期限計算の基準時刻（通話画面→通話後画面に初めて遷移した時刻）
+    var deadlineBaseAt: Date? = nil
     // ステータス管理（将来の拡張を考慮し Optional。既存ストアの軽量マイグレーションを通すため）
     // "scheduled" | "answered" | "missed" を想定。nil は未設定として扱い、UI側で "scheduled" と同等に扱う
     var status: String? = nil
@@ -50,7 +52,8 @@ final class RecordingEntity {
         tasks: [RecordingTaskEntity] = [],
         deadlineHours: Int? = nil,
         deadlineMinutes: Int? = nil,
-        deadlineDays: Int? = nil
+        deadlineDays: Int? = nil,
+        deadlineBaseAt: Date? = nil
     ) {
         self.id = id
         self.recordedAt = recordedAt
@@ -70,6 +73,7 @@ final class RecordingEntity {
         self.deadlineHours = deadlineHours
         self.deadlineMinutes = deadlineMinutes
         self.deadlineDays = deadlineDays
+        self.deadlineBaseAt = deadlineBaseAt
     }
 }
 

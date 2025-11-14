@@ -76,10 +76,11 @@ struct CallConversationView: View {
                     // 通話終了ボタン
                     VStack(spacing: 8) {
                         Button {
-                            // 手動終了 → AfterCallをリクエスト
-                            player.stop()
-                            NotificationRouter.shared.presentAfterCall(for: messageId)
-                        } label: {
+                    // 手動終了 → AfterCallをリクエスト
+                    player.stop()
+                    stampDeadlineBaseIfNeeded()
+                    NotificationRouter.shared.presentAfterCall(for: messageId)
+                } label: {
                             ZStack {
                                 Circle()
                                     .fill(Color.red)
@@ -122,6 +123,7 @@ struct CallConversationView: View {
                 elapsedTime = 0
                 player.playURL(url, loops: 0) {
                     // 自動終了 → AfterCallをリクエスト
+                    stampDeadlineBaseIfNeeded()
                     NotificationRouter.shared.presentAfterCall(for: messageId)
                 }
             } else {
@@ -137,6 +139,20 @@ struct CallConversationView: View {
         let min = Int(seconds) / 60
         let sec = Int(seconds) % 60
         return String(format: "%02d : %02d", min, sec)
+    }
+
+    // 初回の AfterCall 遷移時刻を保存（既に値があれば上書きしない）
+    private func stampDeadlineBaseIfNeeded() {
+        guard let uuid = UUID(uuidString: messageId) else { return }
+        do {
+            let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == uuid })
+            if let rec = try context.fetch(fd).first {
+                if rec.deadlineBaseAt == nil {
+                    rec.deadlineBaseAt = Date()
+                    try? context.save()
+                }
+            }
+        } catch {}
     }
 }
 
