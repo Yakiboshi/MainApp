@@ -85,26 +85,30 @@ struct PlannedListPage: View {
                     }
                 )
             } else {
-                List {
-                    ForEach(sortedPlanned(), id: \.id) { rec in
-                        Button {
-                            NotificationRouter.shared.presentPlannedEditor(for: rec.id)
-                        } label: {
-                            PlannedRowView(entity: rec)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isWithinOneMinute(rec))
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                delete(rec)
+                ZStack {
+                    List {
+                        ForEach(sortedPlanned(), id: \.id) { rec in
+                            Button {
+                                NotificationRouter.shared.presentPlannedEditor(for: rec.id)
                             } label: {
-                                Label("削除", systemImage: "trash")
+                                PlannedRowView(entity: rec)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isWithinOneMinute(rec))
+                            .listRowBackground(Color.clear)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    delete(rec)
+                                } label: {
+                                    Label("削除", systemImage: "trash")
+                                }
                             }
                         }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
                 // 直接NavigationLink(destination:)を使用し、型ベース遷移に依存しない
             }
         }
@@ -158,18 +162,29 @@ private struct PlannedRowView: View {
     let entity: RecordingEntity
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "calendar")
-                .foregroundStyle(.white)
+            if let data = entity.iconImageData, let ui = UIImage(data: data) {
+                Image(uiImage: ui)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
+                    .shadow(radius: 2)
+            } else {
+                Circle().fill(Color.white.opacity(0.2)).frame(width: 44, height: 44)
+                    .overlay(Image(systemName: "person.fill").foregroundStyle(.white.opacity(0.7)))
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(displayTitle(entity))
                     .foregroundStyle(.white)
-                Text(entity.recordedAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.title3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(savedDateText(entity))
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.8))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            Spacer()
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
         .listRowBackground(Color.clear)
     }
 
@@ -181,5 +196,11 @@ private struct PlannedRowView: View {
         f.dateStyle = .medium
         f.timeStyle = .short
         return "\(f.string(from: rec.recordedAt)) からの電話"
+    }
+
+    private func savedDateText(_ rec: RecordingEntity) -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy/MM/dd HH:mm"
+        if let d = rec.savedAt { return f.string(from: d) }
+        return f.string(from: rec.recordedAt)
     }
 }

@@ -77,15 +77,16 @@ struct VoicemailListPage: View {
                         .foregroundStyle(.white.opacity(0.9))
                 )
             } else {
-                List {
-                    ForEach(voicemailItemsSorted(), id: \.id) { rec in
-                        Button {
-                            // 留守電起点で着信画面へ（拒否時スヌーズなし）
-                            NotificationRouter.shared.openIncomingCall(messageId: rec.id.uuidString, fromVoicemail: true)
-                        } label: {
-                            VoicemailRowView(entity: rec)
-                        }
-                        .buttonStyle(.plain)
+                ZStack {
+                    List {
+                        ForEach(voicemailItemsSorted(), id: \.id) { rec in
+                            Button {
+                                // 留守電起点で着信画面へ（拒否時スヌーズなし）
+                                NotificationRouter.shared.openIncomingCall(messageId: rec.id.uuidString, fromVoicemail: true)
+                            } label: {
+                                VoicemailRowView(entity: rec)
+                            }
+                            .buttonStyle(.plain)
                         .listRowBackground(Color.clear)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button {
@@ -94,10 +95,12 @@ struct VoicemailListPage: View {
                                 Label("履歴へ", systemImage: "archivebox")
                             }.tint(.blue)
                         }
+                        }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
             }
         }
         .onAppear { VoicemailMigrator.migrateIfNeeded(context: context) }
@@ -141,23 +144,40 @@ private struct VoicemailRowView: View {
     let entity: RecordingEntity
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "tray.fill")
-                .foregroundStyle(.white)
+            if let data = entity.iconImageData, let ui = UIImage(data: data) {
+                Image(uiImage: ui)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
+                    .shadow(radius: 2)
+            } else {
+                Circle().fill(Color.white.opacity(0.2)).frame(width: 44, height: 44)
+                    .overlay(Image(systemName: "person.fill").foregroundStyle(.white.opacity(0.7)))
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(title())
                     .foregroundStyle(.white)
-                Text(entity.recordedAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.title3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(savedDateText())
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.8))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            Spacer()
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
     }
 
     private func title() -> String {
         if let t = entity.title, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return t }
         let f = DateFormatter(); f.dateStyle = .medium; f.timeStyle = .short
         return "\(f.string(from: entity.recordedAt)) からの電話"
+    }
+
+    private func savedDateText() -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy/MM/dd HH:mm"
+        if let d = entity.savedAt { return f.string(from: d) }
+        return f.string(from: entity.recordedAt)
     }
 }

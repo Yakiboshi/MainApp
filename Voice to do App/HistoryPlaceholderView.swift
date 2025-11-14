@@ -76,25 +76,29 @@ struct HistoryListPage: View {
                         .foregroundStyle(.white.opacity(0.9))
                 )
             } else {
-                List {
-                    ForEach(historyItemsSorted(), id: \.id) { rec in
-                        Button {
-                            NotificationRouter.shared.presentHistoryDetail(for: rec.id)
-                        } label: {
-                            HistoryRowView(entity: rec)
-                        }
-                        .buttonStyle(.plain)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                delete(rec)
+                ZStack {
+                    List {
+                        ForEach(historyItemsSorted(), id: \.id) { rec in
+                            Button {
+                                NotificationRouter.shared.presentHistoryDetail(for: rec.id)
                             } label: {
-                                Label("削除", systemImage: "trash")
+                            HistoryRowView(entity: rec)
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(Color.clear)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    delete(rec)
+                                } label: {
+                                    Label("削除", systemImage: "trash")
+                                }
                             }
                         }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
                 // タップでルーター経由のフルスクリーン画面を提示
             }
         }
@@ -140,20 +144,34 @@ private struct HistoryRowView: View {
     let entity: RecordingEntity
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "clock")
-                .foregroundStyle(.white)
+            // 左: 丸型アイコン（保存画像）
+            if let data = entity.iconImageData, let ui = UIImage(data: data) {
+                Image(uiImage: ui)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
+                    .shadow(radius: 2)
+            } else {
+                Circle()
+                    .fill(Color.white.opacity(0.2))
+                    .frame(width: 44, height: 44)
+                    .overlay(Image(systemName: "person.fill").foregroundStyle(.white.opacity(0.7)))
+            }
+
+            // 右: タイトル（左揃え）/ 保存日時（右揃え）
             VStack(alignment: .leading, spacing: 4) {
                 Text(title())
                     .foregroundStyle(.white)
-                if let at = entity.answeredAt {
-                    Text(at.formatted(date: .abbreviated, time: .shortened))
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.8))
-                }
+                    .font(.title3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(savedDateText())
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            Spacer()
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
         .listRowBackground(Color.clear)
     }
 
@@ -161,5 +179,11 @@ private struct HistoryRowView: View {
         if let t = entity.title, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return t }
         let f = DateFormatter(); f.dateStyle = .medium; f.timeStyle = .short
         return "\(f.string(from: entity.recordedAt)) からの電話"
+    }
+
+    private func savedDateText() -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyy/MM/dd HH:mm"
+        if let d = entity.savedAt { return f.string(from: d) }
+        return f.string(from: entity.recordedAt)
     }
 }
