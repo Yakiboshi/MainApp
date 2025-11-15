@@ -1,179 +1,168 @@
-SwiftUI と SwiftData を使った擬似着信アプリを開発しています。
-ローカル通知の動作が複雑なので、下記の仕様に完全に合致する
-「通知キュー管理システム（LocalNotificationManager）」を実装してください。
+localsnooze.md 実装計画（ToDo）
+=============================
 
-──────────────────────────────
-【アプリの概要】
-──────────────────────────────
-・ユーザーはアラーム時刻を選択し、録音を行い、タイトルや詳細と共に SwiftData に保存します。
-・アラーム時刻になるとローカル通知が届きます。
-・通知を開くと擬似着信画面に遷移し、録音した音声が再生されます。
-・通知に反応されなかった場合、そのデータは「留守電リスト」に移動されます。
+目的：既存の擬似着信アプリの仕様・データ構造を壊さずに、docs/specs/localsnooze.md の通知キュー＋スヌーズ仕様を満たす実装を行う。
 
-SwiftData のモデル名とプロパティ名は、私のアプリ内の既存のものと自動的に整合させてください。
+前提
+----
+- アラームの実体は SwiftData の `RecordingEntity`（予定時刻は `recordedAt`）とする。
+- 既存の通知入口は `NotificationManager.scheduleNotification(for:messageId:)` と `scheduleSnooze(...)`、通知タップ時のルートは `AppNotificationCenterDelegate` → `NotificationRouter.openIncomingCall`。
+- 留守電判定は `VoicemailMigrator` が「recordedAt 経過 ＋ pending 通知なし」で行っている。
+- これらの既存インターフェイスを可能な限り維持しつつ、内部実装を新しい「通知キュー管理システム（LocalNotificationManager）」に差し替える。
 
-──────────────────────────────
-【通知の基本仕様】
-──────────────────────────────
+1. 設計整理（責務とIDルール）
+----------------------------
+- 「アラーム」の定義を整理し、`RecordingEntity`＋`status`＋`inVoicemailInbox` を中心に扱うことを明文化する。
+- 通知のID・userInfo のルールを決める。
+  - 本体 25 回通知: `"<messageId>-main-<0...24>"`。
+  - スヌーズ 9 回通知: `"<messageId>-snooze-<0...8>"`。
+  - `userInfo`: `["messageId": messageId, "kind": "main"|"snooze", "index": i]`。
+- 「同時に予約できる本体アラームは 1 件」「スヌーズは最大 4 件・各 9 通知」として、合計 25 + 9×4 = 61 通知以内に収まる前提でロジックを設計する。
 
-▼ 1. アラーム本体（25回通知）
-・1つのアラームにつき「7秒間隔 × 25回（約175秒）」の通知を連続発行する。
-・iOS の “ローカル通知64件上限” を守るため、同時に通知を予約できるアラームは 1件に制限する。
-・25回通知が完了するまでは、他のアラームは予約しない。
+2. LocalNotificationManager の新規実装
+-----------------------------------
+- 新規ファイル `LocalNotificationManager.swift` を追加し、以下を実装する。
+  - `@MainActor final class LocalNotificationManager: NSObject`。
+  - `static let shared` シングルトン。
+  - コアAPI：
+    - `scheduleMainAlarm(for recording: RecordingEntity, in context: ModelContext)`  
+      - 1件の `RecordingEntity` に対して 7 秒間隔×25 回の通知を登録。
+      - 既にその messageId の main 通知があればキャンセルしてから再登録。
+    - `scheduleSnooze(for recording: RecordingEntity, in context: ModelContext)`  
+      - 1件の `RecordingEntity` に対して 7 秒間隔×9 回のスヌーズ通知を登録。
+      - スヌーズ開始時刻は `Date() + snoozeSeconds`（既存の `snoozeMin` を用いる）とし、その時刻から 7 秒ごとに 9 通知を並べる。
+    - `refreshQueue(in context: ModelContext)`  
+      - SwiftData から「status が scheduled で recordedAt が未来」のレコードを取得し、recordedAt 昇順で並べる。
+      - UNUserNotificationCenter の pending 通知を解析し、「本体アラームとして現在予約中の messageId セット」と「スヌーズ中の messageId セット」を把握。
+      - 本体アラームについて：
+        - main 通知を持つ messageId が 0 件 → キュー先頭（最も早い recordedAt）だけ main を新規予約。
+        - main 通知を持つ messageId が複数 → 未来の最も早い 1 件だけを残し、他は main 通知をキャンセル。
+      - 予約済みだが DB から削除された messageId が存在する場合 → その通知をキャンセルし、再度ロジックを評価。
+    - `convertExpiredToVoicemail(in context: ModelContext)`  
+      - 既存の `VoicemailMigrator.migrateIfNeeded` を内部から呼び出すか、同等のロジックを内包し、  
+        「recordedAt を一定時間過ぎ、かつ main 通知が1件も残っていない scheduled レコード」を `status = "missed"`, `inVoicemailInbox = true` に更新。
+    - `handleNotificationFinished(for messageId: String, in context: ModelContext)`  
+      - 何らかのきっかけ（通知キャンセル、削除など）で main 通知群が消えたタイミングで呼び出すヘルパ。
+      - 内部で `convertExpiredToVoicemail` → `refreshQueue` を連続して実行し、次の本体アラームを 1 件だけ予約する。
+- UNUserNotificationCenter とのブリッジヘルパ：
+  - `fetchPendingSummary(completion:)` を用意し、pending 通知から  
+    - main 用 messageId セット  
+    - snooze 用 messageId セット  
+    を算出して返す（ID 文字列 or userInfo.kind から判定）。
 
-▼ 2. キュー方式（順番待ち）
-・SwiftData に保存されているアラームの中から、
-　現在時刻より未来のデータを抽出し、時刻の早い順に並べる。
-・通知が完全に終了したタイミングで、次のアラームを1件だけ予約する。
-・予定時刻を過ぎてしまったアラームは通知登録せず、「留守電リスト」に移動する。
+3. Snooze 制約（1件1回＋アプリ全体4件）の実装
+------------------------------------------
+- LocalNotificationManager 内に以下を実装する。
+  - `func canScheduleSnooze(for recording: RecordingEntity, completion: @escaping (Bool, Int) -> Void)`  
+    - UNUserNotificationCenter の pending 通知を解析し：
+      - 対象 recording の messageId について、`-snooze-` を含む ID が 1 件でもあれば「そのレコードにはスヌーズを追加できない」と判定。
+      - 全 pending 通知から snooze 中の messageId セットを作り、その件数を `activeSnoozeCount` とする。
+      - グローバル残枠 = `max(0, 4 - activeSnoozeCount)` を計算。
+    - `(canSchedule, globalRemaining)` をコールバックする。
+- `scheduleSnooze(for recording: ...)` は、上記 `canScheduleSnooze` を使って以下を満たす。
+  - グローバル残枠が 0 の場合は何も登録しない。
+  - 対象 recording にすでに snooze 通知がある場合も登録しない。
+  - 実際に登録した場合のみ `completion(true, newRemaining)` のような形で UI 側が残り回数を更新できるようにする。
+  - 「ボタン右下の残り回数」はグローバル残枠（4 - 現在のスヌーズ件数）のみ表示する。
 
-▼ 3. 通知無視時の挙動
-・ユーザーが通知をタップしなかった場合でも、
-　7秒×25回の通知がすべて発行し終わった時点でそのアラームは完了扱い。
-・完了後、キューを再チェックして次のアラームを登録する。
+4. NotificationManager との統合（ラッパー化）
+-----------------------------------------
+- 既存 `NotificationManager.swift` の役割を「古い実装」から「LocalNotificationManager への薄いラッパー」に変更する。
+  - `scheduleNotification(for date: Date, messageId: String?)`  
+    - 引数から messageId を受け取り、SwiftData から対応する `RecordingEntity` を取得。
+    - LocalNotificationManager の `refreshQueue(...)` を呼び出す形に変更し、「新規予約されたレコードも含めてキューを再構築」するようにする。  
+    - 今後、個別の日時指定による直接 UNUserNotificationCenter 予約は LocalNotificationManager 側のみで行う。
+  - `cancelAllNotifications(for messageId: String?)`  
+    - ID ルール（`-main-` / `-snooze-`）に合わせて main/snooze の両方をキャンセルするユーティリティとして維持。
+  - `scheduleSnooze(for messageId: String, snoozeSeconds: TimeInterval)` / `scheduleSnooze(at:for:)`  
+    - SwiftData から `RecordingEntity` を解決し、LocalNotificationManager の `scheduleSnooze` を呼ぶように変更。
+    - 内部では `snoozeSeconds` より `recording.snoozeMin` を優先し、開始時刻を決める。
+- これにより、`RecordingView.finishAndProceed()`・`PlannedDetailView.saveAndClose()`・`VoicemailMigrator` などの呼び出し元は既存APIのままでも、新実装に移行できる。
 
-──────────────────────────────
-【スヌーズの仕様（重要）】
-──────────────────────────────
-・1つのアラームにつき “スヌーズを登録できるのは1回だけ”。
-　（スヌーズが鳴った後、ユーザーが再びスヌーズを押した場合は改めて1回だけ登録可能）
+5. アプリ起動時のキュー初期化
+---------------------------
+- `Voice_to_do_AppApp` 初期化処理内（`Voice_to_do_AppApp.swift`）に、LocalNotificationManager の初期化呼び出しを追加。
+  - 例：`LocalNotificationManager.shared.bootstrap(modelContainer:)` のようなメソッドで
+    - UNUserNotificationCenter の delegate を LocalNotificationManager に設定（既存の AppNotificationCenterDelegate の役割と競合しない形で統合を検討）。
+    - アプリ起動時に `convertExpiredToVoicemail` と `refreshQueue` を一度走らせる。
+- 既存の `AppNotificationCenterDelegate` が行っている「通知タップ→擬似着信画面へのルート」処理は維持しつつ、将来的には LocalNotificationManager の delegate 実装内から `NotificationRouter` を呼び出す形に寄せていく。
 
-・アプリ全体として、同時にスヌーズ予約を持てるアラームは「最大4件まで」。
+6. IncomingCallView（着信画面）の更新
+----------------------------------
+- レイアウト：
+  - 既存の「拒否」「応答」2ボタン構成を「拒否｜再通知｜応答」の3ボタン構成に変更（`IncomingCallView.swift`）。
+  - 再通知ボタンは白地 × 黒い繰り返しマーク＋その下に小さく白文字で「スヌーズ」と表示。
+  - ボタン右下には「グローバル残枠（4 - 現在のスヌーズ件数）」を表示（例：`残り 3`）。
+    - LocalNotificationManager.canScheduleSnooze の `globalRemaining` を使ってテキスト更新。
+    - グローバル残枠が 0 の場合はボタンを無効化し、ビジュアルもグレーアウト。
+- 振る舞い：
+  - 拒否ボタン：
+    - 残りの本体通知・スヌーズ通知をすべてキャンセル。
+    - 対象レコードを `status = "missed"`, `inVoicemailInbox = true` に更新して保存。
+    - `NotificationRouter` 経由でキーパッドタブへ戻る。
+  - 再通知ボタン：
+    - LocalNotificationManager.canScheduleSnooze で可否とグローバル残枠を確認。
+    - 可の場合のみ LocalNotificationManager.scheduleSnooze を実行し、成功時に残枠表示を更新。
+    - 実行後はキーパッド画面に遷移（`NotificationRouter.switchToTab(2)` 等）。
+  - 応答ボタン：
+    - 既存の通話開始処理（ステータス更新、ルーティング）は維持。
+    - 副作用として main/snooze 通知をキャンセルし、必要に応じて LocalNotificationManager.handleNotificationFinished を呼ぶ。
+- `onAppear` で：
+  - 対象 recording を読み込み、タイトルやサブテキスト表示を維持。
+  - LocalNotificationManager.canScheduleSnooze を呼び出し、初回のグローバル残枠表示とボタン有効/無効を決定。
 
-・スヌーズは「7秒間隔 × 9回（約1分）」の通知で構成する。
+7. 予定リスト・編集画面の仕様反映
+------------------------------
+- `PlannedPlaceholderView`：
+  - セルのサブテキストを「データ作成日時（savedAt）」から「着信日時（recordedAt）」のみに変更。
+  - LocalNotificationManager から「現在 main アラームとして予約されている基準時刻 T」を取得できるようにし、  
+    - `recordedAt` が T+60秒, T+120秒, T+180秒 のいずれかと一致するレコードについて：
+      - 着信日時の文字色を黄色にする。
+      - その下に灰色の小さなテキスト「前の着信に埋もれて発信されない可能性があります。」を表示。
+- `PlannedDetailView`（予定編集画面）：
+  - 予定日時を変更した際、`recordedAt` を更新した上で、LocalNotificationManager.refreshQueue を呼び出してキューを再構築。
+  - 通知の直接再登録は NotificationManager（→ LocalNotificationManager）が行うため、既存の API 呼び出しを内部実装変更で吸収。
 
-・スヌーズは本体アラームの順番待ちキューには含めない。
-　（スヌーズは独立した短期再通知として扱う）
+8. 同時刻予約バリデーション（キーパッド＋予定編集）
+-----------------------------------------------
+- 「同じ時刻で 2 件以上の予約が存在しない」ことを保証する。
+- キーパッド（`AppTabsView`）：
+  - `onOk` 内で `destination.toDate()` を `scheduledAt` として算出。
+  - SwiftData から「status が scheduled で recordedAt == scheduledAt」のレコードを検索し、  
+    - 一件でも存在する場合は `DestinationTime` 表示を赤色（既存の `destinationForegroundColor` を拡張）にし、Call ボタンのアクションを無効化。
+  - 既存の「形式的な日付エラー」チェック（年・月・日上限など）と組み合わせて、`hasImmediateInvalid` に「同時刻重複」の判定を追加。
+- 予定編集画面（`PlannedDetailView`）：
+  - `isFutureDate` に加え、「他レコードとの重複がないか」を確認する `isUniqueScheduledDate` を追加。
+  - 自分以外の `RecordingEntity` で `recordedAt == scheduledAt` のものが存在する場合は、エラーメッセージを表示し、完了ボタンを無効化（opacity 低下）。
+  - レコード削除時は DB から対象が消えるだけで、次回バリデーション時に自然と「空き」扱いになるため、特別な解除処理は不要。
 
-・スヌーズ（9回×最大4件）と本体アラーム（25回）が
-　ローカル通知64件上限を絶対に超えないように調整すること。
+9. 削除・留守電移行時の通知キャンセル・キュー更新
+---------------------------------------------
+- 予定リストからの削除処理（`PlannedPlaceholderView.delete(_:)`）を拡張。
+  - 既存の `NotificationManager.cancelAllNotifications(for:)` を呼び出した後、  
+    LocalNotificationManager.handleNotificationFinished を呼んでキューを再構築。
+- 留守電移行（`VoicemailMigrator` または LocalNotificationManager.convertExpiredToVoicemail）：
+  - main 通知が 0 件で recordedAt を一定時間過ぎたレコードを「missed + inVoicemailInbox」にし、  
+    その後 `refreshQueue` を呼んで次の本体アラームを 1 件だけ予約。
+- スヌーズ中に削除された場合も、`cancelAllNotifications` で snooze 通知を含めてキャンセルし、  
+  `handleNotificationFinished` でキューを整理する。
 
-──────────────────────────────
-【削除・変化時の仕様】
-──────────────────────────────
-・現在通知中のアラームデータが削除された場合 → 通知をキャンセルし、次の予定を予約する。
-・順番待ちのアラームが削除された場合 → そのままスキップ。
-・スヌーズ中のアラームが削除された場合 → スヌーズ通知もキャンセルする。
+10. 動作確認シナリオ
+-------------------
+- 単一アラーム：
+  - 未来の日時で録音 → 保存 → main 25 通知が 7 秒間隔で発行されること。
+  - 通知のどれかをタップすると擬似着信画面に遷移し、以降の main/snooze 通知がキャンセルされること。
+- キュー動作：
+  - A・B・C の 3 件を未来時刻で作成し、常に「最も早い 1 件」だけが main として予約されていること。
+  - A の通知完了 or 削除 or 留守電移行後に、B が main として自動登録されること。
+- スヌーズ：
+  - 再通知ボタンを押すと、`snoozeMin` に応じた時間後に 7秒×9回の短期通知が鳴ること。
+  - 同一レコードで 2 回連続のスヌーズ登録ができないこと（1回目が終了するまでは不可）。
+  - 同時に 5 件以上のスヌーズを登録しようとすると、4 件目までは成功し 5 件目はボタン無効で登録されないこと。
+  - ボタン右下の「残り回数」が常に「グローバル残枠（4 − 現在のスヌーズ件数）」を表示すること。
+- 同時刻予約バリデーション：
+  - 既に A が 2025-01-01 10:00 で登録されている状態で、同じ時刻をキーパッドから入力すると DESTINATIONTIME が赤色になりコール不可になること。
+  - 予定編集画面でも既存の別レコードと時刻が被ると完了ボタンが押せないこと。
+  - 重複の元になっていたレコードを削除すると、その時刻で再び新規登録・編集完了が可能になること。
 
-──────────────────────────────
-【必要なクラス・関数（名前はAI側で調整可）(既存のファイルがある場合はそちらを上書きする形で大丈夫)】
-──────────────────────────────
-・LocalNotificationManager（UNUserNotificationCenterDelegate）
-・scheduleMainAlarm()        → 本体25回通知
-・scheduleSnooze()           → 9回通知（1データにつき1回）
-・refreshQueue()             → 順番待ち構築
-・convertExpiredToVoicemail()→ 留守電へ移動
-・handleNotificationFinished() → 次のアラーム登録
-
-SwiftData のモデル構造は、既存のモデル名／プロパティ名／保存方式に合わせて自動で最適化してください。
-
-──────────────────────────────
-【欲しいもの】
-──────────────────────────────
-・LocalNotificationManager の完成コード
-・本体アラームの予約処理コード
-・スヌーズの予約処理コード
-・キュー管理・留守電処理・削除処理のコード
-・NotificationCenter の delegate 設定
-・擬似着信画面へ遷移するための userInfo 付き通知生成
-
-──────────────────────────────
-【UI側の変更】
-──────────────────────────────
-・着信画面にて応答と拒否ボタンの間に「再通知」ボタンを用意、
- -スヌーズの際は再通知ボタンを押すことで登録できる。
- -見た目は応答、拒否ボタンと同じ大きさで白色、黒色のくり返しのマークを挿入。　下には小さく白色のスヌーズのテキスト
- -再通知ボタンの右下に残り回数を表示、すでに同時に4回登録されている場合はボタンを無効にする。
- -押した後はスヌーズ登録と同時にキーパッド画面に遷移
- -本来の拒否ボタンはスヌーズ登録せずにキーパッド画面へ、その際データは留守電へ行く。
-・予定のリストコンテンツの中の表示内容変更
- -データ作成日時を消して、代わりに着信日時に変更
- -現時点でローカル通知登録されている予定の1分後、2分後、3分後に登録されている順番待ちデータは、リストの着信日時の文字を黄色にして、その下に灰色で小さく、"前の着信に埋もれて発信されない可能性があります。"というテキストを挿入。
-・同時刻での予約を不可能にする
- -予定が登録されたらキーパッドで同時刻で登録しようとした際にDISTINATIONTIMEを赤色になりコールボタンを遷移不可の状態になるようにする。
- -予定画面にて予定時刻を変更した際も同様にバリテーションを再登録。また予定日時変更の際に別の予定と被せるようにできない(被ったら完了ボタンを押せない)ようにする。
- -予定が削除された場合は、同時にバリテーションを解除する。
-
-以上の仕様に完全準拠した実装コードを生成してください。
-
-以下システムのサンプルコード
-import Foundation
-import SwiftUI
-import UserNotifications
-
-@MainActor
-final class LocalNotificationManager: NSObject, UNUserNotificationCenterDelegate {
-
-    static let shared = LocalNotificationManager()
-
-    func scheduleMainAlarm(for alarm: AlarmEntity) {
-        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-
-        for i in 0..<25 {
-            let trigger = UNTimeIntervalNotificationTrigger(
-                timeInterval: TimeInterval(i * 7),
-                repeats: false
-            )
-
-            let content = UNMutableNotificationContent()
-            content.title = alarm.title
-            content.sound = .default
-            content.userInfo = ["alarmID": alarm.id.uuidString]
-
-            let request = UNNotificationRequest(
-                identifier: "\(alarm.id.uuidString)-main-\(i)",
-                content: content,
-                trigger: trigger
-            )
-
-            UNUserNotificationCenter.current().add(request)
-        }
-    }
-
-    func scheduleSnooze(for alarm: AlarmEntity) {
-        guard alarm.snoozeActive == false else { return }
-
-        for i in 0..<9 {
-            let trigger = UNTimeIntervalNotificationTrigger(
-                timeInterval: TimeInterval((i * 7) + 60),
-                repeats: false
-            )
-
-            let content = UNMutableNotificationContent()
-            content.title = "Snooze: \(alarm.title)"
-            content.sound = .default
-            content.userInfo = ["alarmID": alarm.id.uuidString]
-
-            let request = UNNotificationRequest(
-                identifier: "\(alarm.id.uuidString)-snooze-\(i)",
-                content: content,
-                trigger: trigger
-            )
-
-            UNUserNotificationCenter.current().add(request)
-        }
-
-        alarm.snoozeActive = true
-    }
-
-    func handleNotificationFinished() {
-        let alarms = fetchFutureAlarms()
-
-        for alarm in alarms where alarm.targetDate < Date() {
-            alarm.isVoicemail = true
-        }
-
-        if let next = alarms
-            .filter({ $0.targetDate > Date() })
-            .sorted(by: { $0.targetDate < $1.targetDate })
-            .first {
-
-            scheduleMainAlarm(for: next)
-        }
-    }
-
-    private func fetchFutureAlarms() -> [AlarmEntity] {
-        // AIが自動で SwiftData の構文に変換
-        return []
-    }
-}
+この ToDo に沿って、まず LocalNotificationManager の実装と NotificationManager ラッパー化から着手し、その後 IncomingCallView・予定リスト・バリデーションの順で UI 側へ反映していく。
