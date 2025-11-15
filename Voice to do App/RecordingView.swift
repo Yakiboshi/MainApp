@@ -172,7 +172,8 @@ struct RecordingView: View {
         )
         modelContext.insert(entity)
         try? modelContext.save()
-        NotificationManager.shared.scheduleNotification(for: date, messageId: entity.id.uuidString)
+        // 新しい予定をキューに反映
+        LocalNotificationManager.shared.refreshQueue(in: modelContext)
         NotificationRouter.shared.presentIntermediate(for: entity.id)
         dismiss()
     }

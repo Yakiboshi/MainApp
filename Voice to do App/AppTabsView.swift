@@ -4,6 +4,7 @@ import SwiftData
 
 // 下部ナビゲーション（UIのみ）＋中央キーパッド（UIのみ）
 struct AppTabsView: View {
+    @Environment(\.modelContext) private var modelContext
     @ObservedObject private var notifRouter = NotificationRouter.shared
     @State private var selectedIndex: Int = 2 // 0:設定 1:履歴 2:キーパッド 3:予定 4:留守電
     // 上段: 現在時刻, 下段: 目的地（キーパッド入力）
@@ -783,6 +784,10 @@ private extension AppTabsView {
                 if day > maxDay { return true }
             }
         }
+        // 同一時刻の予定が既に存在する場合も NG
+        if isComplete(d), let date = d.toDate(), !isUniqueScheduledDate(date) {
+            return true
+        }
         return false
     }
 
@@ -805,6 +810,16 @@ private extension AppTabsView {
             return range.count
         }
         return nil
+    }
+
+    func isUniqueScheduledDate(_ date: Date) -> Bool {
+        do {
+            let fd = FetchDescriptor<RecordingEntity>()
+            let items = try modelContext.fetch(fd)
+            return !items.contains { ($0.status ?? "scheduled") == "scheduled" && $0.recordedAt == date }
+        } catch {
+            return true
+        }
     }
 
     func applyDate(_ date: Date) {

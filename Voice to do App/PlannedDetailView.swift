@@ -47,6 +47,10 @@ struct PlannedDetailView: View {
                         Text("未来の時刻を入力してください")
                             .font(.footnote)
                             .foregroundStyle(Color.red)
+                    } else if !isUniqueDate {
+                        Text("別の予定と同じ時刻は登録できません")
+                            .font(.footnote)
+                            .foregroundStyle(Color.red)
                     }
                 }
                 .padding(.horizontal)
@@ -77,8 +81,8 @@ struct PlannedDetailView: View {
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
-                    .disabled(!isFutureDate)
-                    .opacity(isFutureDate ? 1.0 : 0.6)
+                    .disabled(!isFutureDate || !isUniqueDate)
+                    .opacity(isFutureDate && isUniqueDate ? 1.0 : 0.6)
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 16)
@@ -96,16 +100,16 @@ struct PlannedDetailView: View {
     }
 
     private func saveAndClose() {
-        guard isFutureDate else { return }
+        guard isFutureDate, isUniqueDate else { return }
         var t = title.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.isEmpty { t = defaultTitle() }
         entity.title = t
         // afterMessage / snooze は今回は未編集のため変更しない
         if entity.recordedAt != scheduledAt {
             entity.recordedAt = scheduledAt
-            // 通知を再スケジュール
+            // 通知を再スケジュール（キューを再構築）
             NotificationManager.shared.cancelAllNotifications(for: entity.id.uuidString)
-            NotificationManager.shared.scheduleNotification(for: scheduledAt, messageId: entity.id.uuidString)
+            LocalNotificationManager.shared.refreshQueue(in: context)
         }
         try? context.save()
         dismiss()
@@ -121,4 +125,14 @@ struct PlannedDetailView: View {
 
 private extension PlannedDetailView {
     var isFutureDate: Bool { scheduledAt > Date() }
+
+    var isUniqueDate: Bool {
+        do {
+            let fd = FetchDescriptor<RecordingEntity>()
+            let items = try context.fetch(fd)
+            return !items.contains { $0.id != entity.id && ($0.status ?? "scheduled") == "scheduled" && $0.recordedAt == scheduledAt }
+        } catch {
+            return true
+        }
+    }
 }

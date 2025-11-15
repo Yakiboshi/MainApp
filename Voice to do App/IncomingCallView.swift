@@ -20,6 +20,9 @@ struct IncomingCallView: View {
 
     // 表示用データ（SwiftData から取得）
     @State private var recording: RecordingEntity? = nil
+    // スヌーズ関連表示
+    @State private var globalSnoozeRemaining: Int = 4
+    @State private var canSnooze: Bool = true
 
     // プレビュー判定（プレビュー時はサウンドを抑止）
     private var isPreview: Bool { ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" }
@@ -91,19 +94,25 @@ struct IncomingCallView: View {
                     Spacer()
 
                     // 下部ボタン（6分の1 位置付近）
-                    HStack(spacing: 80) {
+                    HStack(spacing: 60) {
                         // 拒否
                         VStack(spacing: 8) {
                             Button {
-                                // 残通知キャンセル →（必要なら）スヌーズ再登録 → 終了
-                                NotificationManager.shared.cancelAllNotifications(for: messageId)
-                                if !fromVoicemail, let mid = messageId, !mid.isEmpty {
-                                    var seconds: TimeInterval = 120 // 既定: 2分（保険）
-                                    if let rec = recording, let m = rec.snoozeMin { seconds = TimeInterval(m * 60) }
-                                    NotificationManager.shared.scheduleSnooze(for: mid, snoozeSeconds: seconds)
+                                // 残通知キャンセル → 留守電送り → キーパッドへ
+                                if let mid = messageId, let uuid = UUID(uuidString: mid) {
+                                    do {
+                                        let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == uuid })
+                                        if let rec = try context.fetch(fd).first {
+                                            rec.status = "missed"
+                                            rec.inVoicemailInbox = true
+                                            try? context.save()
+                                        }
+                                    } catch { }
                                 }
-                                dismiss()
+                                NotificationManager.shared.cancelAllNotifications(for: messageId)
+                                NotificationRouter.shared.switchToTab(2)
                                 NotificationRouter.shared.dismissIncomingCall()
+                                dismiss()
                             } label: {
                                 ZStack {
                                     Circle()
@@ -117,6 +126,52 @@ struct IncomingCallView: View {
                             Text("拒否")
                                 .font(.caption)
                                 .foregroundStyle(Color(red: 1, green: 1, blue: 1))
+                        }
+
+                        // 再通知（スヌーズ）
+                        VStack(spacing: 4) {
+                            Button {
+                                guard canSnooze, let rec = recording else { return }
+                                LocalNotificationManager.shared.scheduleSnooze(for: rec, in: context) { success, remaining in
+                                    if success {
+                                        globalSnoozeRemaining = remaining
+                                        canSnooze = remaining > 0
+                                        NotificationRouter.shared.switchToTab(2)
+                                        NotificationRouter.shared.dismissIncomingCall()
+                                        dismiss()
+                                    }
+                                }
+                            } label: {
+                                ZStack(alignment: .bottomTrailing) {
+                                    Circle()
+                                        .fill(Color.white)
+                                        .frame(width: 64, height: 64)
+                                        .overlay(
+                                            Image(systemName: "repeat")
+                                                .foregroundStyle(Color.black)
+                                                .font(.system(size: 24, weight: .semibold))
+                                        )
+                                        .opacity(canSnooze ? 1.0 : 0.4)
+
+                                    // グローバル残枠表示
+                                    Text("残り \(globalSnoozeRemaining)")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .padding(4)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                .fill(Color.black.opacity(0.7))
+                                        )
+                                        .foregroundStyle(Color.white)
+                                        .offset(x: 10, y: 10)
+                                }
+                            }
+                            .disabled(!canSnooze)
+
+                            VStack(spacing: 2) {
+                                Text("スヌーズ")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.white)
+                            }
                         }
 
                         // 応答
@@ -167,10 +222,18 @@ struct IncomingCallView: View {
                 } catch { recording = nil }
             }
 
-            // 残りのローカル通知をキャンセル
+            // 残りのローカル通知をキャンセル（着信画面表示中は鳴らさない）
             NotificationManager.shared.cancelAllNotifications(for: messageId)
             // ループ再生開始（プレビュー時は抑止）
             if !isPreview { ringtone.startLooping() }
+
+            // スヌーズ可能数を取得
+            if let rec = recording {
+                LocalNotificationManager.shared.canScheduleSnooze(for: rec) { can, remaining in
+                    self.canSnooze = can
+                    self.globalSnoozeRemaining = remaining
+                }
+            }
         }
         .onDisappear { ringtone.stop() }
         .onChange(of: router.showAfterCallForMessageId) { mid in

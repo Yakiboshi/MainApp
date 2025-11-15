@@ -67,6 +67,7 @@ struct PlannedListPage: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor<RecordingEntity>(\.recordedAt, order: .forward)])
     private var records: [RecordingEntity]
+    @State private var mainBaseDate: Date? = nil
     fileprivate let sortMode: SortMode
     fileprivate let query: String
     fileprivate init(sortMode: SortMode, query: String) { self.sortMode = sortMode; self.query = query }
@@ -91,7 +92,7 @@ struct PlannedListPage: View {
                             Button {
                                 NotificationRouter.shared.presentPlannedEditor(for: rec.id)
                             } label: {
-                                PlannedRowView(entity: rec)
+                                PlannedRowView(entity: rec, isHazard: isHazard(rec))
                             }
                             .buttonStyle(.plain)
                             .disabled(isWithinOneMinute(rec))
@@ -112,6 +113,7 @@ struct PlannedListPage: View {
                 // 直接NavigationLink(destination:)を使用し、型ベース遷移に依存しない
             }
         }
+        .onAppear { updateMainBaseDate() }
     }
 
     private func scheduledUpcoming() -> [RecordingEntity] {
@@ -150,6 +152,8 @@ struct PlannedListPage: View {
             context.delete(rec)
             try? context.save()
         }
+        // キューを更新
+        LocalNotificationManager.shared.handleNotificationFinished(for: rec.id.uuidString, in: context)
     }
 
     private func isWithinOneMinute(_ rec: RecordingEntity) -> Bool {
@@ -160,6 +164,7 @@ struct PlannedListPage: View {
 
 private struct PlannedRowView: View {
     let entity: RecordingEntity
+    var isHazard: Bool = false
     var body: some View {
         HStack(spacing: 12) {
             if let data = entity.iconImageData, let ui = UIImage(data: data) {
@@ -178,10 +183,16 @@ private struct PlannedRowView: View {
                     .foregroundStyle(.white)
                     .font(.title3)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(savedDateText(entity))
+                Text(scheduledDateText(entity))
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(isHazard ? Color.yellow : Color.white.opacity(0.8))
                     .frame(maxWidth: .infinity, alignment: .trailing)
+                if isHazard {
+                    Text("前の着信に埋もれて発信されない可能性があります。")
+                        .font(.caption2)
+                        .foregroundStyle(Color.gray)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
         }
         .padding(.vertical, 8)
@@ -198,9 +209,39 @@ private struct PlannedRowView: View {
         return "\(f.string(from: rec.recordedAt)) からの電話"
     }
 
-    private func savedDateText(_ rec: RecordingEntity) -> String {
+    private func scheduledDateText(_ rec: RecordingEntity) -> String {
         let f = DateFormatter(); f.dateFormat = "yyyy/MM/dd HH:mm"
-        if let d = rec.savedAt { return f.string(from: d) }
         return f.string(from: rec.recordedAt)
+    }
+}
+
+// MARK: - Main base date / hazard
+private extension PlannedListPage {
+    private func updateMainBaseDate() {
+        LocalNotificationManager.shared.fetchPendingSummary { summary in
+            guard let firstId = summary.mainMessageIds.first,
+                  let uuid = UUID(uuidString: firstId) else {
+                self.mainBaseDate = nil
+                return
+            }
+            do {
+                let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == uuid })
+                if let rec = try context.fetch(fd).first {
+                    self.mainBaseDate = rec.recordedAt
+                } else {
+                    self.mainBaseDate = nil
+                }
+            } catch {
+                self.mainBaseDate = nil
+            }
+        }
+    }
+
+    private func isHazard(_ rec: RecordingEntity) -> Bool {
+        guard let base = mainBaseDate else { return false }
+        let delta = rec.recordedAt.timeIntervalSince(base)
+        let windows: [TimeInterval] = [60, 120, 180]
+        // 1,2,3分差を ±1秒の誤差内で判定
+        return windows.contains(where: { abs(delta - $0) <= 1 })
     }
 }
