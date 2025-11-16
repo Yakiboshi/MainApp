@@ -20,6 +20,9 @@ struct HistoryPlaceholderView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .onAppear {
+            sortMode = SortMode.fromPreference()
+        }
     }
 }
 
@@ -37,8 +40,8 @@ private struct TopBarPlaceholder_History: View {
                     .padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.lightBlue))
                 Button(action: { cycleSort() }) { Text(labelForSort(sortMode)) }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.white)
             }
             .padding(.horizontal)
             .padding(.top, 8)
@@ -48,7 +51,11 @@ private struct TopBarPlaceholder_History: View {
     }
     private func cycleSort() {
         let all = SortMode.allCases
-        if let idx = all.firstIndex(of: sortMode) { sortMode = all[(idx+1) % all.count] }
+        if let idx = all.firstIndex(of: sortMode) {
+            let next = all[(idx+1) % all.count]
+            sortMode = next
+            SortPreference.saveHistory(next.toPreference())
+        }
     }
     private func labelForSort(_ mode: SortMode) -> String {
         switch mode {
@@ -58,7 +65,25 @@ private struct TopBarPlaceholder_History: View {
         }
     }
 }
-private enum SortMode: CaseIterable { case sentOldest, sentNewest, receivedOldest }
+private enum SortMode: CaseIterable {
+    case sentOldest, sentNewest, receivedOldest
+
+    static func fromPreference() -> SortMode {
+        switch SortPreference.loadHistory() {
+        case .sentOldest: return .sentOldest
+        case .sentNewest: return .sentNewest
+        case .receivedOldest: return .receivedOldest
+        }
+    }
+
+    func toPreference() -> SortPreference.History {
+        switch self {
+        case .sentOldest: return .sentOldest
+        case .sentNewest: return .sentNewest
+        case .receivedOldest: return .receivedOldest
+        }
+    }
+}
 
 struct HistoryListPage: View {
     @Environment(\.modelContext) private var context
@@ -80,17 +105,33 @@ struct HistoryListPage: View {
                     List {
                         ForEach(historyItemsSorted(), id: \.id) { rec in
                             Button {
+                                SoundManager.shared.play("list", ext: "mp3")
                                 NotificationRouter.shared.presentHistoryDetail(for: rec.id)
                             } label: {
-                            HistoryRowView(entity: rec)
+                                HistoryRowView(entity: rec)
                             }
                             .buttonStyle(.plain)
                             .listRowBackground(Color.clear)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    delete(rec)
-                                } label: {
-                                    Label("削除", systemImage: "trash")
+                            .swipeActions(edge: .trailing, allowsFullSwipe: canDelete(rec)) {
+                                if canDelete(rec) {
+                                    Button(role: .destructive) {
+                                        SoundManager.shared.play("trush", ext: "mp3")
+                                        delete(rec)
+                                    } label: {
+                                        Label("削除", systemImage: "trash")
+                                    }
+                                } else if !rec.tasks.isEmpty {
+                                    Button {} label: {
+                                        Text("タスク未完了")
+                                    }
+                                    .tint(.gray)
+                                } else {
+                                    Button(role: .destructive) {
+                                        SoundManager.shared.play("trush", ext: "mp3")
+                                        delete(rec)
+                                    } label: {
+                                        Label("削除", systemImage: "trash")
+                                    }
                                 }
                             }
                         }
@@ -138,11 +179,60 @@ struct HistoryListPage: View {
             try? context.save()
         }
     }
+
+    private func hasDeadline(_ rec: RecordingEntity) -> Bool {
+        if let d = rec.deadlineDays, d > 0 { return true }
+        if let h = rec.deadlineHours, h > 0 { return true }
+        if let m = rec.deadlineMinutes, m > 0 { return true }
+        return false
+    }
+
+    private func remainingTasks(_ rec: RecordingEntity) -> Int {
+        rec.tasks.filter { !$0.isDone }.count
+    }
+
+    private func computeDeadline(for rec: RecordingEntity) -> Date? {
+        let base = rec.deadlineBaseAt ?? rec.answeredAt ?? rec.recordedAt
+        if let d = rec.deadlineDays, d > 0 {
+            var comp = Calendar.current.dateComponents([.year, .month, .day], from: base)
+            let startOfDay = Calendar.current.date(from: comp) ?? base
+            guard let plus = Calendar.current.date(byAdding: .day, value: d, to: startOfDay) else { return nil }
+            var c = Calendar.current.dateComponents([.year, .month, .day], from: plus)
+            c.hour = 23; c.minute = 59; c.second = 0
+            return Calendar.current.date(from: c)
+        }
+        if (rec.deadlineHours ?? 0) > 0 || (rec.deadlineMinutes ?? 0) > 0 {
+            var sec = 0
+            if let h = rec.deadlineHours { sec += max(0, h) * 3600 }
+            if let m = rec.deadlineMinutes { sec += max(0, m) * 60 }
+            return base.addingTimeInterval(TimeInterval(sec))
+        }
+        return nil
+    }
+
+    private func isDeadlineExpired(_ rec: RecordingEntity) -> Bool {
+        guard let deadline = computeDeadline(for: rec) else { return false }
+        return Date() >= deadline
+    }
+
+    private func canDelete(_ rec: RecordingEntity) -> Bool {
+        // タスクなし → 削除可
+        guard !rec.tasks.isEmpty else { return true }
+        // タスクあり: 全タスク完了なら締切に関係なく削除可
+        if remainingTasks(rec) == 0 { return true }
+        // それ以外（タスク未完了）は削除不可
+        return false
+    }
 }
 
 private struct HistoryRowView: View {
     let entity: RecordingEntity
     var body: some View {
+        let remaining = entity.tasks.filter { !$0.isDone }.count
+        let hasTasks = !entity.tasks.isEmpty
+        let deadline = computeDeadline()
+        let expired = isDeadlineExpired(deadline: deadline)
+
         HStack(spacing: 12) {
             // 左: 丸型アイコン（保存画像）
             if let data = entity.iconImageData, let ui = UIImage(data: data) {
@@ -159,7 +249,7 @@ private struct HistoryRowView: View {
                     .overlay(Image(systemName: "person.fill").foregroundStyle(.white.opacity(0.7)))
             }
 
-            // 右: タイトル（左揃え）/ 保存日時（右揃え）
+            // 中央: タイトル / 保存日時
             VStack(alignment: .leading, spacing: 4) {
                 Text(title())
                     .foregroundStyle(.white)
@@ -168,7 +258,44 @@ private struct HistoryRowView: View {
                 Text(savedDateText())
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.8))
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            // 右: タスク/締切ステータス
+            if hasTasks {
+                VStack(alignment: .trailing, spacing: 4) {
+                    if expired && remaining > 0 {
+                        Text("タスク未完了")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(.red)
+                    } else if remaining == 0 {
+                        Text("全タスク完了")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
+                    } else {
+                        HStack(spacing: 2) {
+                            Text("残りタスク")
+                                .font(.caption)
+                                .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
+                            Text("\(remaining)個")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
+                        }
+                    }
+
+                    if let d = deadline {
+                        if expired && remaining > 0 {
+                            Text("期限超過")
+                                .font(.caption2)
+                                .foregroundStyle(.red)
+                        } else if remaining > 0 {
+                            Text(deadlineLabel(for: d))
+                                .font(.caption2)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+                .frame(minWidth: 80)
             }
         }
         .padding(.vertical, 8)
@@ -185,5 +312,39 @@ private struct HistoryRowView: View {
         let f = DateFormatter(); f.dateFormat = "yyyy/MM/dd HH:mm"
         if let d = entity.savedAt { return f.string(from: d) }
         return f.string(from: entity.recordedAt)
+    }
+
+    private func computeDeadline() -> Date? {
+        let base = entity.deadlineBaseAt ?? entity.answeredAt ?? entity.recordedAt
+        if let d = entity.deadlineDays, d > 0 {
+            var comp = Calendar.current.dateComponents([.year, .month, .day], from: base)
+            let startOfDay = Calendar.current.date(from: comp) ?? base
+            guard let plus = Calendar.current.date(byAdding: .day, value: d, to: startOfDay) else { return nil }
+            var c = Calendar.current.dateComponents([.year, .month, .day], from: plus)
+            c.hour = 23; c.minute = 59; c.second = 0
+            return Calendar.current.date(from: c)
+        }
+        if (entity.deadlineHours ?? 0) > 0 || (entity.deadlineMinutes ?? 0) > 0 {
+            var sec = 0
+            if let h = entity.deadlineHours { sec += max(0, h) * 3600 }
+            if let m = entity.deadlineMinutes { sec += max(0, m) * 60 }
+            return base.addingTimeInterval(TimeInterval(sec))
+        }
+        return nil
+    }
+
+    private func isDeadlineExpired(deadline: Date?) -> Bool {
+        guard let d = deadline else { return false }
+        return Date() >= d
+    }
+
+    private func deadlineLabel(for date: Date) -> String {
+        let f = DateFormatter()
+        if entity.deadlineDays != nil {
+            f.dateFormat = "yyyy/MM/dd"
+        } else {
+            f.dateFormat = "yyyy/MM/dd HH:mm"
+        }
+        return f.string(from: date)
     }
 }

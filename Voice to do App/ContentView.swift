@@ -23,6 +23,8 @@ struct ContentView: View {
                 VoicemailMigrator.migrateIfNeeded(context: modelContext)
                 // 起動時に本体アラームの順番待ちキューも更新
                 LocalNotificationManager.shared.refreshQueue(in: modelContext)
+                // 起動時の履歴タスク／留守電数からバッジを再計算
+                _ = AppBadgeManager.refresh(using: modelContext)
             }
             // ディープリンク（URLスキーム）受け取り
             .onOpenURL { url in
@@ -80,6 +82,9 @@ struct ContentView: View {
                 if phase == .active {
                     VoicemailMigrator.migrateIfNeeded(context: modelContext)
                     LocalNotificationManager.shared.refreshQueue(in: modelContext)
+                    Task { @MainActor in
+                        _ = AppBadgeManager.refresh(using: modelContext)
+                    }
                 }
             }
     }

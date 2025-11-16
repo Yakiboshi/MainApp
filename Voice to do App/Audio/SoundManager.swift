@@ -3,7 +3,6 @@ import AVFoundation
 final class SoundManager: NSObject {
     static let shared = SoundManager()
     private var players: [String: AVAudioPlayer] = [:]
-    private var sessionConfigured = false
 
     override init() {
         super.init()
@@ -11,22 +10,41 @@ final class SoundManager: NSObject {
     }
 
     private func configureAudioSession() {
-        guard !sessionConfigured else { return }
         do {
-            // .ambient respects the Silent switch (no sound in silent mode) and mixes with other audio
-            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [])
-            try AVAudioSession.sharedInstance().setActive(true, options: [])
-            sessionConfigured = true
+            let session = AVAudioSession.sharedInstance()
+            // 録音中などで .playAndRecord が設定されている場合はカテゴリを上書きしない
+            if session.category != .playAndRecord {
+                // .ambient respects the Silent switch (no sound in silent mode) and mixes with other audio
+                try session.setCategory(.ambient, mode: .default, options: [])
+            }
+            try session.setActive(true, options: [])
         } catch {
             // If configuration fails, fallback is default which also typically respects silent switch
         }
     }
 
+    private func isKeypadSound(_ name: String) -> Bool {
+        if name == "kleft" || name == "kright" || name == "ke" { return true }
+        if name.count == 2, name.first == "k", let digit = name.last, ("0"..."9").contains(String(digit)) {
+            return true
+        }
+        return false
+    }
+
     func play(_ name: String, ext: String = "wav") {
         configureAudioSession()
+        let volume: Float
+        if isKeypadSound(name) {
+            volume = 0.4
+        } else if ["start", "ichiziteisi", "kettei", "nutural", "cancell", "list", "trush", "syuuryou"].contains(name) {
+            volume = 0.5
+        } else {
+            volume = 1.0
+        }
         // Try cache
         if let p = players[name] {
             p.currentTime = 0
+            p.volume = volume
             p.play()
             return
         }
@@ -37,6 +55,7 @@ final class SoundManager: NSObject {
         do {
             let player = try AVAudioPlayer(contentsOf: url)
             player.prepareToPlay()
+            player.volume = volume
             players[name] = player
             player.play()
         } catch {

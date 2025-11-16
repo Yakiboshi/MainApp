@@ -77,6 +77,7 @@ struct CallConversationView: View {
                     VStack(spacing: 6) {
                         Button {
                     // 手動終了 → AfterCallをリクエスト
+                    SoundManager.shared.play("start", ext: "mp3")
                     player.stop()
                     stampDeadlineBaseIfNeeded()
                     NotificationRouter.shared.presentAfterCall(for: messageId)
@@ -123,6 +124,7 @@ struct CallConversationView: View {
                 elapsedTime = 0
                 player.playURL(url, loops: 0) {
                     // 自動終了 → AfterCallをリクエスト
+                    SoundManager.shared.play("syuuryou", ext: "mp3")
                     stampDeadlineBaseIfNeeded()
                     NotificationRouter.shared.presentAfterCall(for: messageId)
                 }

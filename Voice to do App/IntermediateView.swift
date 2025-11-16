@@ -85,7 +85,10 @@ private struct DetailCoreView: View {
                                     .foregroundStyle(.white.opacity(0.9))
                             }
                             VStack(spacing: 6) {
-                                Button { deleteAndGoBackToRecord() } label: {
+                                Button {
+                                    SoundManager.shared.play("nutural", ext: "mp3")
+                                    deleteAndGoBackToRecord()
+                                } label: {
                                     Circle()
                                         .fill(Color.white)
                                         .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
@@ -100,7 +103,10 @@ private struct DetailCoreView: View {
                                     .foregroundStyle(.white.opacity(0.9))
                             }
                             VStack(spacing: 6) {
-                                Button { saveAndContinue() } label: {
+                                Button {
+                                    SoundManager.shared.play("kettei", ext: "mp3")
+                                    saveAndContinue()
+                                } label: {
                                     Circle()
                                         .fill(Color.green.opacity(0.9))
                                         .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
@@ -194,7 +200,10 @@ private struct DetailCoreView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("プレビュー").font(.headline).foregroundStyle(.white)
             HStack(spacing: 12) {
-                Button { togglePlay() } label: {
+                Button {
+                    SoundManager.shared.play("cancell", ext: "mp3")
+                    togglePlay()
+                } label: {
                     Image(systemName: isPlaying ? "pause.fill" : "play.fill").foregroundStyle(.white).padding(10).background(Circle().fill(Color.accentColor))
                 }
                 Slider(value: $progress, in: 0...1) { editing in
@@ -211,8 +220,13 @@ private struct DetailCoreView: View {
     private var snoozeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("スヌーズ時間（分）").font(.headline).foregroundStyle(.white)
-            Stepper(value: Binding(get: { recording.snoozeMin ?? 10 }, set: { recording.snoozeMin = $0 }), in: 1...240) {
+            HStack {
                 Text("\(recording.snoozeMin ?? 10) 分").foregroundStyle(.white)
+                Spacer()
+                Stepper("", value: Binding(get: { recording.snoozeMin ?? 10 }, set: { recording.snoozeMin = $0 }), in: 1...240)
+                    .labelsHidden()
+                    .tint(.white)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
             }
         }
     }
@@ -312,15 +326,30 @@ private struct DetailCoreView: View {
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.12)))
 
                 if deadlineMode == .hoursMinutes {
-                    Stepper(value: Binding(get: { recording.deadlineHours ?? 0 }, set: { recording.deadlineHours = $0 }), in: 0...72) {
+                    HStack {
                         Text("\(recording.deadlineHours ?? 0) 時間").foregroundStyle(.white)
+                        Spacer()
+                        Stepper("", value: Binding(get: { recording.deadlineHours ?? 0 }, set: { recording.deadlineHours = $0 }), in: 0...72)
+                            .labelsHidden()
+                            .tint(.white)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
                     }
-                    Stepper(value: Binding(get: { recording.deadlineMinutes ?? 0 }, set: { recording.deadlineMinutes = $0 }), in: 0...59) {
+                    HStack {
                         Text("\(recording.deadlineMinutes ?? 0) 分").foregroundStyle(.white)
+                        Spacer()
+                        Stepper("", value: Binding(get: { recording.deadlineMinutes ?? 0 }, set: { recording.deadlineMinutes = $0 }), in: 0...59)
+                            .labelsHidden()
+                            .tint(.white)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
                     }
                 } else {
-                    Stepper(value: Binding(get: { recording.deadlineDays ?? 0 }, set: { recording.deadlineDays = $0 }), in: 0...60) {
+                    HStack {
                         Text("\(recording.deadlineDays ?? 0) 日後").foregroundStyle(.white)
+                        Spacer()
+                        Stepper("", value: Binding(get: { recording.deadlineDays ?? 0 }, set: { recording.deadlineDays = $0 }), in: 0...60)
+                            .labelsHidden()
+                            .tint(.white)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
                     }
                 }
             }

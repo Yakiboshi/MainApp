@@ -20,6 +20,9 @@ struct VoicemailPlaceholderView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .onAppear {
+            sortMode = SortMode.fromPreference()
+        }
     }
 }
 
@@ -37,8 +40,8 @@ private struct TopBarPlaceholder_Voicemail: View {
                     .padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.lightBlue))
                 Button(action: { cycleSort() }) { Text(labelForSort(sortMode)) }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.white)
             }
             .padding(.horizontal)
             .padding(.top, 8)
@@ -48,7 +51,11 @@ private struct TopBarPlaceholder_Voicemail: View {
     }
     private func cycleSort() {
         let all = SortMode.allCases
-        if let idx = all.firstIndex(of: sortMode) { sortMode = all[(idx+1) % all.count] }
+        if let idx = all.firstIndex(of: sortMode) {
+            let next = all[(idx+1) % all.count]
+            sortMode = next
+            SortPreference.saveVoicemail(next.toPreference())
+        }
     }
     private func labelForSort(_ mode: SortMode) -> String {
         switch mode {
@@ -59,7 +66,25 @@ private struct TopBarPlaceholder_Voicemail: View {
     }
 }
 
-private enum SortMode: CaseIterable { case sentOldest, sentNewest, receivedOldest }
+private enum SortMode: CaseIterable {
+    case sentOldest, sentNewest, receivedOldest
+
+    static func fromPreference() -> SortMode {
+        switch SortPreference.loadVoicemail() {
+        case .sentOldest: return .sentOldest
+        case .sentNewest: return .sentNewest
+        case .receivedOldest: return .receivedOldest
+        }
+    }
+
+    func toPreference() -> SortPreference.Voicemail {
+        switch self {
+        case .sentOldest: return .sentOldest
+        case .sentNewest: return .sentNewest
+        case .receivedOldest: return .receivedOldest
+        }
+    }
+}
 
 struct VoicemailListPage: View {
     @Environment(\.modelContext) private var context
@@ -82,19 +107,20 @@ struct VoicemailListPage: View {
                         ForEach(voicemailItemsSorted(), id: \.id) { rec in
                             Button {
                                 // 留守電起点で着信画面へ（拒否時スヌーズなし）
+                                SoundManager.shared.play("list", ext: "mp3")
                                 NotificationRouter.shared.openIncomingCall(messageId: rec.id.uuidString, fromVoicemail: true)
                             } label: {
                                 VoicemailRowView(entity: rec)
                             }
                             .buttonStyle(.plain)
-                        .listRowBackground(Color.clear)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button {
-                                moveToHistory(rec)
-                            } label: {
-                                Label("履歴へ", systemImage: "archivebox")
-                            }.tint(.blue)
-                        }
+                            .listRowBackground(Color.clear)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button {
+                                    moveToHistory(rec)
+                                } label: {
+                                    Label("履歴へ", systemImage: "archivebox")
+                                }.tint(.blue)
+                            }
                         }
                     }
                     .listStyle(.plain)

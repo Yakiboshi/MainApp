@@ -98,6 +98,7 @@ struct IncomingCallView: View {
                         // 拒否
                         VStack(spacing: 8) {
                             Button {
+                                SoundManager.shared.play("start", ext: "mp3")
                                 // 残通知キャンセル → 分岐
                                 if let mid = messageId, let uuid = UUID(uuidString: mid) {
                                     if !fromVoicemail {
@@ -188,6 +189,7 @@ struct IncomingCallView: View {
                         // 応答
                         VStack(spacing: 8) {
                             Button {
+                                SoundManager.shared.play("start", ext: "mp3")
                                 // ループ着信音停止 → 履歴反映 → 通話画面へ
                                 ringtone.stop()
                                 if let mid = messageId, !mid.isEmpty {

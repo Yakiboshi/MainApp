@@ -70,6 +70,10 @@ final class LocalNotificationManager: NSObject {
         let messageId = recording.id.uuidString
         let now = Date()
         let baseInterval = max(0.5, recording.recordedAt.timeIntervalSince(now))
+        // アプリ未起動時でも少なくとも「新しい留守電がある」ことが分かるよう、
+        // 最初の main 通知にだけバッジ値を付与する（合計は起動時に再計算）。
+        let baseBadge = AppBadgeManager.storedTotal()
+        let badgeValue = baseBadge + 1
 
         for i in 0..<25 {
             let content = UNMutableNotificationContent()
@@ -86,6 +90,10 @@ final class LocalNotificationManager: NSObject {
                 content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))
             } else {
                 content.sound = .default
+            }
+
+            if i == 0 {
+                content.badge = NSNumber(value: badgeValue)
             }
 
             let interval = baseInterval + TimeInterval(7 * i)
@@ -153,6 +161,9 @@ final class LocalNotificationManager: NSObject {
         recording.recordedAt = startDate
         try? context.save()
 
+        let baseBadge = AppBadgeManager.storedTotal()
+        let badgeValue = baseBadge + 1
+
         for i in 0..<9 {
             let content = UNMutableNotificationContent()
             content.title = "再通知: \(recording.title ?? "")"
@@ -168,6 +179,10 @@ final class LocalNotificationManager: NSObject {
                 content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))
             } else {
                 content.sound = .default
+            }
+
+            if i == 0 {
+                content.badge = NSNumber(value: badgeValue)
             }
 
             let interval = baseInterval + TimeInterval(7 * i)
@@ -215,15 +230,12 @@ final class LocalNotificationManager: NSObject {
                 let activeMainIds = summary.mainMessageIds
 
                 if let earliest = all.first {
-                    let earliestId = earliest.id.uuidString
-                    // 既存 main 通知は「最も早い1件」以外をすべてキャンセル
-                    for mid in activeMainIds where mid != earliestId {
+                    // 既存 main 通知を一度全て解除してから、最新の「最も早い1件」のみを再登録する。
+                    // これにより、予定日時を前倒し/後ろ倒しした場合も必ず新しい時刻で再スケジュールされる。
+                    for mid in activeMainIds {
                         self.cancelMainNotifications(for: mid, completion: nil)
                     }
-                    // もし最も早いレコードに main が付いていなければ、新たに登録する
-                    if !activeMainIds.contains(earliestId) {
-                        self.scheduleMainAlarm(for: earliest, in: context)
-                    }
+                    self.scheduleMainAlarm(for: earliest, in: context)
                 } else {
                     // 未来の予定が無ければ、既存 main 通知をすべて解除
                     for mid in activeMainIds {

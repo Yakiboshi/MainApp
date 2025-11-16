@@ -10,7 +10,6 @@ struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var recorder = AudioRecorderViewModel()
     @StateObject private var routeManager = AudioRouteManager()
-    @State private var showInputDialog = false
     // 二重保存防止ガード
     @State private var didFinalize: Bool = false
 
@@ -58,24 +57,26 @@ struct RecordingView: View {
                     Spacer()
                     VStack(spacing: 6) {
                         Button(action: {
-                            routeManager.refreshAvailableInputs()
-                            showInputDialog = true
+                            routeManager.toggleBuiltInOutput()
                         }) {
-                            Image(systemName: "waveform.circle")
+                            Image(systemName: routeManager.hasExternalOutput
+                                  ? "headphones.circle"
+                                  : (routeManager.isUsingSpeaker ? "speaker.wave.2.circle.fill" : "phone.circle.fill"))
                                 .font(.system(size: 24, weight: .semibold))
                                 .foregroundStyle(.black)
                                 .padding(14)
                                 .background(Color.white)
                                 .clipShape(Circle())
                         }
-                        .accessibilityLabel("入力切り替え")
-                        Text("切り替え")
-                            .font(.caption)
-                            .foregroundStyle(.white)
-                        if let current = routeManager.selectedInput {
-                            Text("現在の入力: \(current.portName)")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.85))
+                        .accessibilityLabel("出力切り替え")
+                        if routeManager.hasExternalOutput {
+                            Text(routeManager.externalOutputName ?? "外部機器")
+                                .font(Theme.circleButtonLabelFont)
+                                .foregroundStyle(.white)
+                        } else {
+                            Text(routeManager.isUsingSpeaker ? "スピーカー" : "受話口")
+                                .font(Theme.circleButtonLabelFont)
+                                .foregroundStyle(.white)
                         }
                     }
 
@@ -84,7 +85,10 @@ struct RecordingView: View {
                     // 下部 3 ボタン（基準スタイル）
                     HStack(spacing: Theme.circleButtonSpacing) {
                         VStack(spacing: 6) {
-                            Button(action: { cancelAndClose() }) {
+                            Button(action: {
+                                SoundManager.shared.play("cancell", ext: "mp3")
+                                cancelAndClose()
+                            }) {
                                 Circle()
                                     .fill(Color.red)
                                     .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
@@ -141,15 +145,9 @@ struct RecordingView: View {
                 }
             }
         }
-        // 入力切替ダイアログ
-        .confirmationDialog("入力デバイスを選択", isPresented: $showInputDialog) {
-            ForEach(routeManager.availableInputs, id: \.uid) { input in
-                Button(input.portName) { routeManager.select(input) }
-            }
-        }
         .onAppear {
             recorder.startRecording(for: date, maxDurationSec: 180)
-            routeManager.refreshAvailableInputs()
+            routeManager.refreshOutputState()
         }
         // タイムアップ等で自動停止したときのフォールバック（保存に進む）
         .onChange(of: recorder.isRecording) { isRec in

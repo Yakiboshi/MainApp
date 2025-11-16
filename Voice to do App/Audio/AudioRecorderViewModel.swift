@@ -18,6 +18,7 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
     private var secondTimer: Timer?
     private var maxDurationSec: Int = 180
     private var autoPausedByInterruption: Bool = false
+    private var pauseLoopPlayer: AVAudioPlayer?
 
     // MARK: - Lifecycle
     deinit {
@@ -56,8 +57,11 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
         do {
             // Use voiceChat for better echo cancellation and BT mic support
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker])
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .allowBluetoothA2DP])
             try session.setActive(true)
+
+            // 外部機器接続時は、入力を持たないデバイスなら内蔵マイクにフォールバック
+            AudioRouteManager.configureInputForRecording()
 
             let recorder = try AVAudioRecorder(url: fileURL, settings: settings)
             recorder.delegate = self
@@ -68,6 +72,9 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
 
             startTimers()
             observeSessionNotifications()
+
+            // 録音開始時の効果音
+            SoundManager.shared.play("start", ext: "mp3")
         } catch {
             // 録音開始失敗時はステータスのみ更新
             self.isRecording = false
@@ -79,10 +86,12 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
         audioRecorder?.pause()
         isPaused = true
         stopTimers(keepLevelZero: true)
+        startPauseLoop()
     }
 
     func resume() {
         guard isRecording, isPaused else { return }
+        stopPauseLoop()
         audioRecorder?.record()
         isPaused = false
         startTimers()
@@ -94,6 +103,7 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
         isRecording = false
         isPaused = false
         stopTimers(keepLevelZero: true)
+        stopPauseLoop()
         if let url = recordingURL {
             try? FileManager.default.removeItem(at: url)
         }
@@ -101,6 +111,8 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
         level = 0
         elapsedSec = 0
         remainingSec = 0
+        // 録音を終えたら内蔵出力のみの場合はスピーカーへ戻す
+        AudioRouteManager.restoreBuiltInSpeakerIfNeeded()
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
     }
 
@@ -137,6 +149,11 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
             duration = max(0, audioRecorder?.currentTime ?? 0)
         }
 
+        // 録音終了時の効果音
+        SoundManager.shared.play("start", ext: "mp3")
+
+        // 録音を終えたら内蔵出力のみの場合はスピーカーへ戻す
+        AudioRouteManager.restoreBuiltInSpeakerIfNeeded()
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         return (finalURL.lastPathComponent, duration)
     }
@@ -225,5 +242,26 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
     @objc private func handleMediaServicesReset(_ note: Notification) {
         // Media services crashed or reset -> cancel recording
         cancel()
+    }
+
+    // MARK: - Pause loop sound
+    private func startPauseLoop() {
+        stopPauseLoop()
+        guard let url = Bundle.main.url(forResource: "ichiziteisi", withExtension: "mp3") else { return }
+        do {
+            let player = try AVAudioPlayer(contentsOf: url)
+            player.numberOfLoops = -1
+            player.volume = 0.5
+            player.prepareToPlay()
+            player.play()
+            pauseLoopPlayer = player
+        } catch {
+            pauseLoopPlayer = nil
+        }
+    }
+
+    private func stopPauseLoop() {
+        pauseLoopPlayer?.stop()
+        pauseLoopPlayer = nil
     }
 }

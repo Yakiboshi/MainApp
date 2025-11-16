@@ -126,7 +126,10 @@ struct AfterCallView: View {
             HStack {
                 // 左: 聞き直し
                 VStack(spacing: 6) {
-                    Button { showReListen = true } label: {
+                    Button {
+                        SoundManager.shared.play("cancell", ext: "mp3")
+                        showReListen = true
+                    } label: {
                         Circle()
                             .fill(Color.white)
                             .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
@@ -145,7 +148,10 @@ struct AfterCallView: View {
                 // 中央: ショートカット（有効な https:// のみ）
                 if let url = shortcutURL(), isHTTPS(url) {
                     VStack(spacing: 6) {
-                        Button { openShortcut(url) } label: {
+                        Button {
+                            SoundManager.shared.play("nutural", ext: "mp3")
+                            openShortcut(url)
+                        } label: {
                             Circle()
                                 .fill(Color(red: 0.52, green: 0.85, blue: 0.22))
                                 .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
@@ -164,7 +170,10 @@ struct AfterCallView: View {
 
                 // 右: 完了
                 VStack(spacing: 6) {
-                    Button { completeAndClose() } label: {
+                    Button {
+                        SoundManager.shared.play("kettei", ext: "mp3")
+                        completeAndClose()
+                    } label: {
                         Circle()
                             .fill(Color.white)
                             .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)

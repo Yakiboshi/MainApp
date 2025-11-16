@@ -61,6 +61,7 @@ struct AudioPlayView: View {
                             // 閉じる（赤い×丸ボタン）+ ラベル
                             VStack(spacing: 6) {
                                 Button {
+                                    SoundManager.shared.play("cancell", ext: "mp3")
                                     player.stop()
                                     dismiss()
                                 } label: {
@@ -92,6 +93,8 @@ struct AudioPlayView: View {
         .onAppear {
             guard !started else { return }
             started = true
+            // 通信画面へ遷移したタイミングで、録音向けのオーディオセッションと受話口出力に切り替える
+            AudioRouteManager.configureForPreCall()
             // 画面表示と同時に音源再生（ファイル名は差し替え可能）
             player.playSound(fileName: soundName, fileExtension: soundExt) {
                 // 再生完了/エラー時のフォールバックで録音へ

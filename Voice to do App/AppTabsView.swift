@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import SwiftData
+import UIKit
 
 // 下部ナビゲーション（UIのみ）＋中央キーパッド（UIのみ）
 struct AppTabsView: View {
@@ -114,7 +115,13 @@ struct AppTabsView: View {
         .coordinateSpace(name: "AppRoot")
         // safeAreaInset でナビ上端＝コンテンツ下端を定義
         .safeAreaInset(edge: .bottom) {
-            BottomNavBar(items: items, selectedIndex: $selectedIndex, onAnyTap: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet = false } })
+            BottomNavBar(
+                items: items,
+                selectedIndex: $selectedIndex,
+                historyBadgeCount: historyBadgeCount(),
+                voicemailBadgeCount: voicemailBadgeCount(),
+                onAnyTap: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet = false } }
+            )
                 .background(
                     GeometryReader { p in
                         Color.clear.preference(key: BottomBarHeightPreferenceKey.self, value: p.size.height)
@@ -138,6 +145,16 @@ struct AppTabsView: View {
         .onReceive(timer) { now = $0 }
         .onPreferenceChange(KeypadTopPreferenceKey.self) { keypadTopY = $0 }
         .onPreferenceChange(BottomBarHeightPreferenceKey.self) { bottomBarHeight = $0 }
+        .onAppear {
+            if selectedIndex == 2 {
+                applyAutoYearMonthIfNeeded()
+            }
+        }
+        .onChange(of: selectedIndex) { newValue in
+            if newValue == 2 {
+                applyAutoYearMonthIfNeeded()
+            }
+        }
         .onChange(of: notifRouter.requestedTabIndex) { idx in
             if let i = idx { selectedIndex = i; NotificationRouter.shared.requestedTabIndex = nil }
         }
@@ -148,11 +165,14 @@ private struct NavItem: Identifiable {
     let id = UUID()
     let title: String
     let system: String
+    var badgeColor: Color? = nil
 }
 
 private struct BottomNavBar: View {
     let items: [NavItem]
     @Binding var selectedIndex: Int
+    var historyBadgeCount: Int = 0
+    var voicemailBadgeCount: Int = 0
     var onAnyTap: (() -> Void)? = nil
 
     var body: some View {
@@ -164,11 +184,36 @@ private struct BottomNavBar: View {
                         onAnyTap?()
                         selectedIndex = idx
                     }) {
-                        VStack(spacing: 3) {
-                            Image(systemName: item.system)
-                                .font(.system(size: 18, weight: .semibold))
-                            Text(item.title)
-                                .font(.caption2)
+                        ZStack(alignment: .topTrailing) {
+                            VStack(spacing: 3) {
+                                Image(systemName: item.system)
+                                    .font(.system(size: 18, weight: .semibold))
+                                Text(item.title)
+                                    .font(.caption2)
+                            }
+                            // Badges for 履歴(1) / 留守電(4)
+                            if idx == 1, historyBadgeCount > 0 {
+                                Text("\(historyBadgeCount)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(4)
+                                    .background(
+                                        Circle()
+                                            .fill(Color(red: 0.65, green: 0.95, blue: 0.35))
+                                    )
+                                    .offset(x: 12, y: -4)
+                            }
+                            if idx == 4, voicemailBadgeCount > 0 {
+                                Text("\(voicemailBadgeCount)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(4)
+                                    .background(
+                                        Circle()
+                                            .fill(Color.blue)
+                                    )
+                                    .offset(x: 12, y: -4)
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
@@ -282,7 +327,7 @@ private struct AuxSheetPlaceholder: View {
     enum Mode { case preset, calendar }
     enum SortMode: CaseIterable { case newest, oldest, nearest, recentUsed }
     @State private var mode: Mode = .preset
-    @State private var sortMode: SortMode = .newest
+    @State private var sortMode: SortMode = AuxSheetPlaceholder.defaultSortMode()
     @Namespace private var underlineNS
     var now: Date
     var onApplyDate: (Date) -> Void
@@ -373,7 +418,11 @@ private struct AuxSheetPlaceholder: View {
 
     private func cycleSort() {
         let all = SortMode.allCases
-        if let idx = all.firstIndex(of: sortMode) { sortMode = all[(idx+1) % all.count] }
+        if let idx = all.firstIndex(of: sortMode) {
+            let next = all[(idx+1) % all.count]
+            sortMode = next
+            saveSortPreference(next)
+        }
     }
 
     private func labelForSort(_ mode: SortMode) -> String {
@@ -384,7 +433,28 @@ private struct AuxSheetPlaceholder: View {
         case .recentUsed: return "使用順"
         }
     }
+
+    private static func defaultSortMode() -> SortMode {
+        switch SortPreference.loadPreset() {
+        case .newest: return .newest
+        case .oldest: return .oldest
+        case .nearest: return .nearest
+        case .recentUsed: return .recentUsed
+        }
+    }
+
+    private func saveSortPreference(_ mode: SortMode) {
+        let value: SortPreference.Preset
+        switch mode {
+        case .newest: value = .newest
+        case .oldest: value = .oldest
+        case .nearest: value = .nearest
+        case .recentUsed: value = .recentUsed
+        }
+        SortPreference.savePreset(value)
+    }
 }
+
 
     
 
@@ -536,7 +606,10 @@ private struct PresetPane: View {
                             }
                             .buttonStyle(.plain)
 
-                            Button(action: { withAnimation { context.delete(p) } }) {
+                            Button(action: {
+                                SoundManager.shared.play("trush", ext: "mp3")
+                                withAnimation { context.delete(p) }
+                            }) {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 12, weight: .bold))
                                     .foregroundStyle(.white)
@@ -549,6 +622,7 @@ private struct PresetPane: View {
                     .padding(.vertical, 8)
                     .contentShape(Rectangle())
                     .onTapGesture {
+                        SoundManager.shared.play("list", ext: "mp3")
                         onApplyPreset(date(for: p, from: now))
                         p.lastUsedAt = Date()
                     }
@@ -822,6 +896,14 @@ private extension AppTabsView {
         }
     }
 
+    func historyBadgeCount() -> Int {
+        AppBadgeManager.refresh(using: modelContext).history
+    }
+
+    func voicemailBadgeCount() -> Int {
+        AppBadgeManager.refresh(using: modelContext).voicemail
+    }
+
     func applyDate(_ date: Date) {
         let cal = Calendar.current
         // カレンダーからは年月日のみ更新。HOUR/MINは既存値を維持（空欄は空欄のまま）。
@@ -847,6 +929,36 @@ private extension AppTabsView {
         destination.minute = String(format: "%02d", cal.component(.minute, from: date))
         // プリセットは完全な日時を入力する想定。削除開始位置はMIN
         destination.focus(.minute)
+    }
+
+    func applyAutoYearMonthIfNeeded(now: Date = Date()) {
+        let autoYearEnabled = SortPreference.loadAutoYear()
+        let autoMonthEnabled = SortPreference.loadAutoMonth()
+
+        // どちらもオフなら何もしない
+        if !autoYearEnabled && !autoMonthEnabled { return }
+
+        let cal = Calendar.current
+        if autoYearEnabled, destination.year.isEmpty {
+            destination.year = String(format: "%04d", cal.component(.year, from: now))
+        }
+        if autoMonthEnabled, destination.month.isEmpty {
+            destination.month = String(format: "%02d", cal.component(.month, from: now))
+        }
+
+        // 自動入力された場合、次のキー入力が「最初の空欄」から入るようにフォーカスを調整
+        let fields: [(DestinationTime.Field, String, Int)] = [
+            (.year, destination.year, 4),
+            (.month, destination.month, 2),
+            (.day, destination.day, 2),
+            (.hour, destination.hour, 2),
+            (.minute, destination.minute, 2)
+        ]
+        if let firstIncomplete = fields.first(where: { $0.1.count < $0.2 }) {
+            destination.focus(firstIncomplete.0)
+        } else {
+            destination.focus(.minute)
+        }
     }
 }
 // Simple segmented header (プリセット｜カレンダー)
