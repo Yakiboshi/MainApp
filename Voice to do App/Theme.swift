@@ -1,6 +1,6 @@
 import SwiftUI
 
-    enum Theme {
+enum Theme {
     // Base brand blue
     // sRGB: #1B1E63 (27, 30, 99)
     static let appBlue = Color(red: 27/255, green: 30/255, blue: 99/255)
@@ -43,4 +43,10 @@ import SwiftUI
     // Aux sheet background for Preset (yellow-green tone)
     static let auxPresetBackground = Color(red: 0.52, green: 0.85, blue: 0.22, opacity: 0.85)
     static let auxPresetBackgroundDark = Color(red: 0.36, green: 0.66, blue: 0.14, opacity: 0.90)
+
+    // 共通の丸ボタンスタイル
+    static let circleButtonSize: CGFloat = 64
+    static let circleButtonSpacing: CGFloat = 40
+    static let circleButtonIconFont: Font = .system(size: 22, weight: .bold, design: .default)
+    static let circleButtonLabelFont: Font = .system(size: 12, weight: .medium, design: .rounded)
 }

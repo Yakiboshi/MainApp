@@ -127,10 +127,18 @@ struct AfterCallView: View {
                 // 左: 聞き直し
                 VStack(spacing: 6) {
                     Button { showReListen = true } label: {
-                        Circle().fill(Color.white).frame(width: 70, height: 70)
-                            .overlay(Image(systemName: "arrow.uturn.left").foregroundStyle(.black).font(.system(size: 30)))
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                            .overlay(
+                                Image(systemName: "arrow.uturn.left")
+                                    .foregroundStyle(.black)
+                                    .font(Theme.circleButtonIconFont)
+                            )
                     }
-                    Text("聞き直し").foregroundStyle(.white).font(.footnote)
+                    Text("聞き直し")
+                        .foregroundStyle(.white)
+                        .font(Theme.circleButtonLabelFont)
                 }
                 Spacer()
 
@@ -138,10 +146,18 @@ struct AfterCallView: View {
                 if let url = shortcutURL(), isHTTPS(url) {
                     VStack(spacing: 6) {
                         Button { openShortcut(url) } label: {
-                            Circle().fill(Color(red: 0.52, green: 0.85, blue: 0.22)).frame(width: 70, height: 70)
-                                .overlay(Image(systemName: "link").foregroundStyle(.white).font(.system(size: 28)))
+                            Circle()
+                                .fill(Color(red: 0.52, green: 0.85, blue: 0.22))
+                                .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                .overlay(
+                                    Image(systemName: "link")
+                                        .foregroundStyle(.white)
+                                        .font(Theme.circleButtonIconFont)
+                                )
                         }
-                        Text("ショートカット").foregroundStyle(.white).font(.footnote)
+                        Text("ショートカット")
+                            .foregroundStyle(.white)
+                            .font(Theme.circleButtonLabelFont)
                     }
                     Spacer()
                 }
@@ -149,10 +165,18 @@ struct AfterCallView: View {
                 // 右: 完了
                 VStack(spacing: 6) {
                     Button { completeAndClose() } label: {
-                        Circle().fill(Color.white).frame(width: 70, height: 70)
-                            .overlay(Image(systemName: "checkmark").foregroundStyle(.black).font(.system(size: 28)))
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                            .overlay(
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.black)
+                                    .font(Theme.circleButtonIconFont)
+                            )
                     }
-                    Text("完了").foregroundStyle(.white).font(.footnote)
+                    Text("完了")
+                        .foregroundStyle(.white)
+                        .font(Theme.circleButtonLabelFont)
                 }
             }
             .padding(.horizontal, 40)
@@ -396,9 +420,18 @@ private struct ReListenPlayerView: View {
                 Spacer()
                 VStack(spacing: 8) {
                     Button(action: { dismiss() }) {
-                        ZStack { Circle().fill(Color.red).frame(width: 80, height: 80); Image(systemName: "xmark").foregroundStyle(.white).font(.system(size: 28)) }
+                        ZStack {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                            Image(systemName: "xmark")
+                                .foregroundStyle(.white)
+                                .font(Theme.circleButtonIconFont)
+                        }
                     }
-                    Text("閉じる").foregroundStyle(.white).font(.footnote)
+                    Text("閉じる")
+                        .foregroundStyle(.white)
+                        .font(Theme.circleButtonLabelFont)
                 }
                 .padding(.bottom, 48)
             }

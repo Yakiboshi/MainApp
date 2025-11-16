@@ -11,6 +11,7 @@ import SwiftData
 struct ContentView: View {
     @StateObject private var notifRouter = NotificationRouter.shared
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     var body: some View {
         AppTabsView()
             .task {
@@ -20,6 +21,8 @@ struct ContentView: View {
                 DataSanitizer.runIfNeeded(context: modelContext)
                 // 起動時に留守電移行の監査を実行（既存のモデルコンテキストを使用）
                 VoicemailMigrator.migrateIfNeeded(context: modelContext)
+                // 起動時に本体アラームの順番待ちキューも更新
+                LocalNotificationManager.shared.refreshQueue(in: modelContext)
             }
             // ディープリンク（URLスキーム）受け取り
             .onOpenURL { url in
@@ -72,6 +75,13 @@ struct ContentView: View {
                 }
             }
             .transaction { $0.disablesAnimations = true }
+            // アプリのフォアグラウンド復帰時にもキューと留守電状態を更新
+            .onChange(of: scenePhase) { phase in
+                if phase == .active {
+                    VoicemailMigrator.migrateIfNeeded(context: modelContext)
+                    LocalNotificationManager.shared.refreshQueue(in: modelContext)
+                }
+            }
     }
 }
 

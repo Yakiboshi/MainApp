@@ -73,8 +73,8 @@ struct CallConversationView: View {
 
                     Spacer()
 
-                    // 通話終了ボタン
-                    VStack(spacing: 8) {
+                    // 通話終了ボタン（録音画面に合わせたスタイル）
+                    VStack(spacing: 6) {
                         Button {
                     // 手動終了 → AfterCallをリクエスト
                     player.stop()
@@ -84,15 +84,15 @@ struct CallConversationView: View {
                             ZStack {
                                 Circle()
                                     .fill(Color.red)
-                                    .frame(width: 80, height: 80)
+                                    .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
                                 Image(systemName: "phone.down.fill")
                                     .foregroundStyle(.white)
-                                    .font(.system(size: 30))
+                                    .font(Theme.circleButtonIconFont)
                             }
                         }
                         Text("通話終了")
                             .foregroundStyle(.white)
-                            .font(.footnote)
+                            .font(Theme.circleButtonLabelFont)
                     }
                     .padding(.bottom, proxy.size.height * 0.10)
                 }

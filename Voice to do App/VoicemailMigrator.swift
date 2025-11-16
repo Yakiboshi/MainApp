@@ -19,8 +19,11 @@ enum VoicemailMigrator {
                         // 予定時刻が少し過ぎている
                         if now.timeIntervalSince(rec.recordedAt) >= graceSeconds {
                             // 保留通知にこのIDが含まれていなければ、未応答と見なす
-                            let prefix = rec.id.uuidString + "_"
-                            let hasAnyPending = allIds.contains(where: { $0.hasPrefix(prefix) || $0 == rec.id.uuidString })
+                            let id = rec.id.uuidString
+                            // 新形式: "<id>-main-*" / "<id>-snooze-*"
+                            let hasAnyPending = allIds.contains {
+                                $0.contains("\(id)-main-") || $0.contains("\(id)-snooze-") || $0 == id
+                            }
                             if !hasAnyPending {
                                 rec.status = "missed"
                                 rec.inVoicemailInbox = true

@@ -67,10 +67,10 @@ struct AudioPlayView: View {
                                     ZStack {
                                         Circle()
                                             .fill(Color.red)
-                                            .frame(width: 72, height: 72)
+                                            .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
                                             .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4)
                                         Image(systemName: "xmark")
-                                            .font(.system(size: 28, weight: .bold))
+                                            .font(Theme.circleButtonIconFont)
                                             .foregroundStyle(.white)
                                     }
                                 }
@@ -78,7 +78,7 @@ struct AudioPlayView: View {
                                 .accessibilityLabel("通信を終了")
 
                                 Text("キャンセル")
-                                    .font(.caption)
+                                    .font(Theme.circleButtonLabelFont)
                                     .foregroundStyle(.white.opacity(0.9))
                                     .accessibilityHidden(true)
                             }

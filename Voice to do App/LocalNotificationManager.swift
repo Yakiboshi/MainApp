@@ -129,7 +129,7 @@ final class LocalNotificationManager: NSObject {
                 completion?(false, remaining)
                 return
             }
-            self?.enqueueSnoozeNotifications(for: recording) {
+            self?.enqueueSnoozeNotifications(for: recording, in: context) {
                 // スヌーズ登録後の残枠を再計算して返す
                 self?.fetchPendingSummary { summary in
                     let activeCount = summary.snoozeMessageIds.count
@@ -141,12 +141,17 @@ final class LocalNotificationManager: NSObject {
     }
 
     private func enqueueSnoozeNotifications(for recording: RecordingEntity,
+                                            in context: ModelContext,
                                             completion: (() -> Void)? = nil) {
         let messageId = recording.id.uuidString
         let now = Date()
         let snoozeMinutes = recording.snoozeMin ?? 10
         let startDate = now.addingTimeInterval(TimeInterval(snoozeMinutes * 60))
         let baseInterval = max(0.5, startDate.timeIntervalSince(now))
+
+        // 着信予定日時をスヌーズ開始時刻に更新して保存
+        recording.recordedAt = startDate
+        try? context.save()
 
         for i in 0..<9 {
             let content = UNMutableNotificationContent()
@@ -200,33 +205,29 @@ final class LocalNotificationManager: NSObject {
                 // scheduled かつ 未来のものだけを対象
                 let now = Date()
                 all = all.filter { ($0.status ?? "scheduled") == "scheduled" && $0.recordedAt > now }
+                // スヌーズ中のものは本体アラームの順番待ちから除外
+                if !summary.snoozeMessageIds.isEmpty {
+                    let snoozed = summary.snoozeMessageIds
+                    all = all.filter { !snoozed.contains($0.id.uuidString) }
+                }
                 all.sort { $0.recordedAt < $1.recordedAt }
 
-                // 既に main がある場合は最も早い1件だけ残し、それ以外の main をキャンセル
-                var activeMainIds = summary.mainMessageIds
-                if !activeMainIds.isEmpty {
-                    // DBに存在するIDだけに絞る
-                    let validIds = Set(all.map { $0.id.uuidString })
-                    activeMainIds = activeMainIds.intersection(validIds)
-                }
+                let activeMainIds = summary.mainMessageIds
 
-                if activeMainIds.count > 1 {
-                    // 最も早い recordedAt のものだけを残し、それ以外は main をキャンセル
-                    let idToRecording: [String: RecordingEntity] = Dictionary(uniqueKeysWithValues: all.map { ($0.id.uuidString, $0) })
-                    let sorted = activeMainIds.compactMap { idToRecording[$0] }.sorted { $0.recordedAt < $1.recordedAt }
-                    if let keep = sorted.first {
-                        let keepId = keep.id.uuidString
-                        for mid in activeMainIds where mid != keepId {
-                            self.cancelMainNotifications(for: mid, completion: nil)
-                        }
-                        return
+                if let earliest = all.first {
+                    let earliestId = earliest.id.uuidString
+                    // 既存 main 通知は「最も早い1件」以外をすべてキャンセル
+                    for mid in activeMainIds where mid != earliestId {
+                        self.cancelMainNotifications(for: mid, completion: nil)
                     }
-                }
-
-                if activeMainIds.isEmpty {
-                    // main が無ければ、最も早い1件だけ main を新規予約
-                    if let next = all.first {
-                        self.scheduleMainAlarm(for: next, in: context)
+                    // もし最も早いレコードに main が付いていなければ、新たに登録する
+                    if !activeMainIds.contains(earliestId) {
+                        self.scheduleMainAlarm(for: earliest, in: context)
+                    }
+                } else {
+                    // 未来の予定が無ければ、既存 main 通知をすべて解除
+                    for mid in activeMainIds {
+                        self.cancelMainNotifications(for: mid, completion: nil)
                     }
                 }
             } catch {
@@ -248,4 +249,3 @@ final class LocalNotificationManager: NSObject {
         refreshQueue(in: context)
     }
 }
-

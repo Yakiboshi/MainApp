@@ -68,24 +68,51 @@ private struct DetailCoreView: View {
                 LinearGradient(colors: [Color.black.opacity(0.55), Color.black.opacity(0)], startPoint: .bottom, endPoint: .top)
                     .frame(height: actionBarHeight)
                     .overlay(
-                        HStack(spacing: 28) {
+                        HStack(spacing: Theme.circleButtonSpacing) {
                             VStack(spacing: 6) {
                                 Button { deleteAndExit() } label: {
-                                    Circle().fill(Color.red).frame(width: 64, height: 64).overlay(Image(systemName: "xmark").foregroundStyle(.white).font(.title2))
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                        .overlay(
+                                            Image(systemName: "xmark")
+                                                .foregroundStyle(.white)
+                                                .font(Theme.circleButtonIconFont)
+                                        )
                                 }
-                                Text("キャンセル").font(.caption).foregroundStyle(.white.opacity(0.9))
+                                Text("キャンセル")
+                                    .font(Theme.circleButtonLabelFont)
+                                    .foregroundStyle(.white.opacity(0.9))
                             }
                             VStack(spacing: 6) {
                                 Button { deleteAndGoBackToRecord() } label: {
-                                    Circle().fill(Color.white).frame(width: 64, height: 64).overlay(Image(systemName: "arrow.uturn.left").foregroundStyle(.black).font(.title2))
+                                    Circle()
+                                        .fill(Color.white)
+                                        .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                        .overlay(
+                                            Image(systemName: "arrow.uturn.left")
+                                                .foregroundStyle(.black)
+                                                .font(Theme.circleButtonIconFont)
+                                        )
                                 }
-                                Text("かけ直し").font(.caption).foregroundStyle(.white.opacity(0.9))
+                                Text("かけ直し")
+                                    .font(Theme.circleButtonLabelFont)
+                                    .foregroundStyle(.white.opacity(0.9))
                             }
                             VStack(spacing: 6) {
                                 Button { saveAndContinue() } label: {
-                                    Circle().fill(Color.green.opacity(0.9)).frame(width: 64, height: 64).overlay(Image(systemName: "checkmark").foregroundStyle(.white).font(.title2))
+                                    Circle()
+                                        .fill(Color.green.opacity(0.9))
+                                        .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                        .overlay(
+                                            Image(systemName: "checkmark")
+                                                .foregroundStyle(.white)
+                                                .font(Theme.circleButtonIconFont)
+                                        )
                                 }
-                                Text("確定").font(.caption).foregroundStyle(.white.opacity(0.9))
+                                Text("確定")
+                                    .font(Theme.circleButtonLabelFont)
+                                    .foregroundStyle(.white.opacity(0.9))
                             }
                         }
                         .padding(.bottom, 28)

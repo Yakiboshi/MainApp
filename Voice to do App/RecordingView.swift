@@ -81,42 +81,60 @@ struct RecordingView: View {
 
                     Spacer()
 
-                    // 下部 3 ボタン
-                    HStack(spacing: 40) {
+                    // 下部 3 ボタン（基準スタイル）
+                    HStack(spacing: Theme.circleButtonSpacing) {
                         VStack(spacing: 6) {
                             Button(action: { cancelAndClose() }) {
                                 Circle()
                                     .fill(Color.red)
-                                    .frame(width: 64, height: 64)
-                                    .overlay(Image(systemName: "xmark").font(.system(size: 22, weight: .bold)).foregroundStyle(.white))
+                                    .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                    .overlay(
+                                        Image(systemName: "xmark")
+                                            .font(Theme.circleButtonIconFont)
+                                            .foregroundStyle(.white)
+                                    )
                                     .shadow(color: .black.opacity(0.35), radius: 6, x: 0, y: 3)
                             }
                             .accessibilityLabel("キャンセル")
-                            Text("キャンセル").font(.caption).foregroundStyle(.white)
+                            Text("キャンセル")
+                                .font(Theme.circleButtonLabelFont)
+                                .foregroundStyle(.white)
                         }
 
                         VStack(spacing: 6) {
                             Button(action: { togglePause() }) {
                                 Circle()
                                     .fill(Color.white)
-                                    .frame(width: 64, height: 64)
-                                    .overlay(Image(systemName: recorder.isPaused ? "play.fill" : "pause.fill").font(.system(size: 22, weight: .bold)).foregroundStyle(.black))
+                                    .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                    .overlay(
+                                        Image(systemName: recorder.isPaused ? "play.fill" : "pause.fill")
+                                            .font(Theme.circleButtonIconFont)
+                                            .foregroundStyle(.black)
+                                    )
                                     .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
                             }
                             .accessibilityLabel(recorder.isPaused ? "再開" : "一時停止")
-                            Text(recorder.isPaused ? "再開" : "一時停止").font(.caption).foregroundStyle(.white)
+                            Text(recorder.isPaused ? "再開" : "一時停止")
+                                .font(Theme.circleButtonLabelFont)
+                                .foregroundStyle(.white)
                         }
 
                         VStack(spacing: 6) {
                             Button(action: { finishAndProceed() }) {
                                 Circle()
                                     .fill(Color.green)
-                                    .frame(width: 64, height: 64)
-                                    .overlay(Image(systemName: "phone.down.fill").font(.system(size: 22, weight: .bold)).foregroundStyle(.white))
+                                    .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                    .overlay(
+                                        Image(systemName: "phone.down.fill")
+                                            .font(Theme.circleButtonIconFont)
+                                            .foregroundStyle(.white)
+                                    )
                                     .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
                             }
                             .accessibilityLabel("終了")
-                            Text("終了").font(.caption).foregroundStyle(.white)
+                            Text("終了")
+                                .font(Theme.circleButtonLabelFont)
+                                .foregroundStyle(.white)
                         }
                     }
                     .padding(.bottom, h/12)

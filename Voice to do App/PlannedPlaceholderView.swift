@@ -65,9 +65,11 @@ private enum SortMode: CaseIterable { case sentOldest, sentNewest, receivedOldes
 
 struct PlannedListPage: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: [SortDescriptor<RecordingEntity>(\.recordedAt, order: .forward)])
     private var records: [RecordingEntity]
     @State private var mainBaseDate: Date? = nil
+    @State private var snoozedIds: Set<String> = []
     fileprivate let sortMode: SortMode
     fileprivate let query: String
     fileprivate init(sortMode: SortMode, query: String) { self.sortMode = sortMode; self.query = query }
@@ -89,13 +91,23 @@ struct PlannedListPage: View {
                 ZStack {
                     List {
                         ForEach(sortedPlanned(), id: \.id) { rec in
-                            Button {
-                                NotificationRouter.shared.presentPlannedEditor(for: rec.id)
-                            } label: {
-                                PlannedRowView(entity: rec, isHazard: isHazard(rec))
+                            let row = PlannedRowView(entity: rec,
+                                                     isHazard: isHazard(rec),
+                                                     isSnoozed: isSnoozed(rec))
+                            Group {
+                                if isSnoozed(rec) {
+                                    // スヌーズ中: 編集不可、行タップ無効（削除のみ）
+                                    row
+                                } else {
+                                    Button {
+                                        NotificationRouter.shared.presentPlannedEditor(for: rec.id)
+                                    } label: {
+                                        row
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(isWithinOneMinute(rec))
+                                }
                             }
-                            .buttonStyle(.plain)
-                            .disabled(isWithinOneMinute(rec))
                             .listRowBackground(Color.clear)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
@@ -114,6 +126,16 @@ struct PlannedListPage: View {
             }
         }
         .onAppear { updateMainBaseDate() }
+        // 予定の追加・削除・日時変更のたびに main ベースと黄色表示を更新
+        .onChange(of: records.map { $0.recordedAt }) { _ in
+            updateMainBaseDate()
+        }
+        // アプリがフォアグラウンドに戻ったタイミングでも更新
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                updateMainBaseDate()
+            }
+        }
     }
 
     private func scheduledUpcoming() -> [RecordingEntity] {
@@ -154,6 +176,7 @@ struct PlannedListPage: View {
         }
         // キューを更新
         LocalNotificationManager.shared.handleNotificationFinished(for: rec.id.uuidString, in: context)
+        updateMainBaseDate()
     }
 
     private func isWithinOneMinute(_ rec: RecordingEntity) -> Bool {
@@ -165,6 +188,7 @@ struct PlannedListPage: View {
 private struct PlannedRowView: View {
     let entity: RecordingEntity
     var isHazard: Bool = false
+    var isSnoozed: Bool = false
     var body: some View {
         HStack(spacing: 12) {
             if let data = entity.iconImageData, let ui = UIImage(data: data) {
@@ -183,10 +207,22 @@ private struct PlannedRowView: View {
                     .foregroundStyle(.white)
                     .font(.title3)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                if isSnoozed {
+                    Text("スヌーズ中")
+                        .font(.caption2)
+                        .foregroundStyle(Color.green.opacity(0.8))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 Text(scheduledDateText(entity))
                     .font(.caption)
                     .foregroundStyle(isHazard ? Color.yellow : Color.white.opacity(0.8))
                     .frame(maxWidth: .infinity, alignment: .trailing)
+                if isSnoozed {
+                    Text("スヌーズ")
+                        .font(.caption2)
+                        .foregroundStyle(Color.green.opacity(0.9))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
                 if isHazard {
                     Text("前の着信に埋もれて発信されない可能性があります。")
                         .font(.caption2)
@@ -219,18 +255,19 @@ private struct PlannedRowView: View {
 private extension PlannedListPage {
     private func updateMainBaseDate() {
         LocalNotificationManager.shared.fetchPendingSummary { summary in
-            guard let firstId = summary.mainMessageIds.first,
-                  let uuid = UUID(uuidString: firstId) else {
-                self.mainBaseDate = nil
-                return
-            }
+            self.snoozedIds = summary.snoozeMessageIds
+
+            // DB 上の scheduled レコードを基準に「最も早い本体アラーム候補」を決定する。
+            // LocalNotificationManager.refreshQueue も同じルール（最も早い scheduled 1件に本体通知）なので、
+            // 実際の通知キューと黄色表示の基準が揃う。
             do {
-                let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == uuid })
-                if let rec = try context.fetch(fd).first {
-                    self.mainBaseDate = rec.recordedAt
-                } else {
-                    self.mainBaseDate = nil
-                }
+                let now = Date()
+                let all = try context.fetch(FetchDescriptor<RecordingEntity>())
+                let candidates = all
+                    .filter { ($0.status ?? "scheduled") == "scheduled" && $0.recordedAt > now }
+                    .filter { !self.snoozedIds.contains($0.id.uuidString) } // スヌーズ中は本体キューから除外
+                    .sorted { $0.recordedAt < $1.recordedAt }
+                self.mainBaseDate = candidates.first?.recordedAt
             } catch {
                 self.mainBaseDate = nil
             }
@@ -243,5 +280,9 @@ private extension PlannedListPage {
         let windows: [TimeInterval] = [60, 120, 180]
         // 1,2,3分差を ±1秒の誤差内で判定
         return windows.contains(where: { abs(delta - $0) <= 1 })
+    }
+
+    private func isSnoozed(_ rec: RecordingEntity) -> Bool {
+        snoozedIds.contains(rec.id.uuidString)
     }
 }
