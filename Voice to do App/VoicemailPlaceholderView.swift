@@ -161,6 +161,7 @@ struct VoicemailListPage: View {
             rec.status = "answered"
             rec.answeredAt = Date()
             rec.inVoicemailInbox = false
+            rec.isSnoozed = false
             try? context.save()
         }
     }

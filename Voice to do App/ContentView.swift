@@ -19,10 +19,8 @@ struct ContentView: View {
                 PermissionManager.requestLaunchPermissions()
                 // 既存データのサニタイズ（初回のみ）
                 DataSanitizer.runIfNeeded(context: modelContext)
-                // 起動時に留守電移行の監査を実行（既存のモデルコンテキストを使用）
-                VoicemailMigrator.migrateIfNeeded(context: modelContext)
-                // 起動時に本体アラームの順番待ちキューも更新
-                LocalNotificationManager.shared.refreshQueue(in: modelContext)
+                // 起動時に留守電移行とローカル通知キューを更新
+                LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
                 // 起動時の履歴タスク／留守電数からバッジを再計算
                 _ = AppBadgeManager.refresh(using: modelContext)
             }
@@ -80,8 +78,7 @@ struct ContentView: View {
             // アプリのフォアグラウンド復帰時にもキューと留守電状態を更新
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
-                    VoicemailMigrator.migrateIfNeeded(context: modelContext)
-                    LocalNotificationManager.shared.refreshQueue(in: modelContext)
+                    LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
                     Task { @MainActor in
                         _ = AppBadgeManager.refresh(using: modelContext)
                     }

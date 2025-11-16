@@ -188,8 +188,8 @@ struct RecordingView: View {
         )
         modelContext.insert(entity)
         try? modelContext.save()
-        // 新しい予定をキューに反映
-        LocalNotificationManager.shared.refreshQueue(in: modelContext)
+        // 新しい予定を通知キューに反映
+        LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
         NotificationRouter.shared.presentIntermediate(for: entity.id)
         dismiss()
     }

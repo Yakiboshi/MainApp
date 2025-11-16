@@ -20,9 +20,6 @@ struct IncomingCallView: View {
 
     // 表示用データ（SwiftData から取得）
     @State private var recording: RecordingEntity? = nil
-    // スヌーズ関連表示
-    @State private var globalSnoozeRemaining: Int = 4
-    @State private var canSnooze: Bool = true
 
     // プレビュー判定（プレビュー時はサウンドを抑止）
     private var isPreview: Bool { ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" }
@@ -108,7 +105,9 @@ struct IncomingCallView: View {
                                             if let rec = try context.fetch(fd).first {
                                                 rec.status = "missed"
                                                 rec.inVoicemailInbox = true
+                                                rec.isSnoozed = false
                                                 try? context.save()
+                                                LocalNotificationManager.shared.refreshAllNotifications(in: context)
                                             }
                                         } catch { }
                                     }
@@ -142,18 +141,13 @@ struct IncomingCallView: View {
                         if !fromVoicemail {
                             VStack(spacing: 6) {
                                 Button {
-                                    guard canSnooze, let rec = recording else { return }
-                                    LocalNotificationManager.shared.scheduleSnooze(for: rec, in: context) { success, remaining in
-                                        if success {
-                                            globalSnoozeRemaining = remaining
-                                            canSnooze = remaining > 0
-                                            NotificationRouter.shared.switchToTab(2)
-                                            NotificationRouter.shared.dismissIncomingCall()
-                                            dismiss()
-                                        }
-                                    }
+                                    guard let rec = recording else { return }
+                                    LocalNotificationManager.shared.scheduleSnooze(for: rec, in: context)
+                                    NotificationRouter.shared.switchToTab(2)
+                                    NotificationRouter.shared.dismissIncomingCall()
+                                    dismiss()
                                 } label: {
-                                    ZStack(alignment: .bottomTrailing) {
+                                    ZStack {
                                         Circle()
                                             .fill(Color.white)
                                             .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
@@ -162,26 +156,13 @@ struct IncomingCallView: View {
                                                     .foregroundStyle(Color.black)
                                                     .font(Theme.circleButtonIconFont)
                                             )
-                                            .opacity(canSnooze ? 1.0 : 0.4)
-
-                                        // グローバル残枠表示
-                                        Text("残り \(globalSnoozeRemaining)")
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .padding(4)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                                    .fill(Color.black.opacity(0.7))
-                                            )
-                                            .foregroundStyle(Color.white)
-                                            .offset(x: 10, y: 10)
                                     }
                                 }
-                                .disabled(!canSnooze)
 
                                 VStack(spacing: 2) {
-                                        Text("スヌーズ")
-                                            .font(Theme.circleButtonLabelFont)
-                                            .foregroundStyle(Color.white)
+                                    Text("スヌーズ")
+                                        .font(Theme.circleButtonLabelFont)
+                                        .foregroundStyle(Color.white)
                                 }
                             }
                         }
@@ -200,7 +181,9 @@ struct IncomingCallView: View {
                                                 rec.status = "answered"
                                                 rec.answeredAt = Date()
                                                 rec.inVoicemailInbox = false
+                                                rec.isSnoozed = false
                                                 try? context.save()
+                                                LocalNotificationManager.shared.refreshAllNotifications(in: context)
                                             }
                                         } catch {}
                                     }
@@ -237,20 +220,10 @@ struct IncomingCallView: View {
 
             // 残りのローカル通知をキャンセル（着信画面表示中は鳴らさない）
             NotificationManager.shared.cancelAllNotifications(for: messageId)
-            // この時点で本体通知は無くなるので、順番待ちを更新
-            if let mid = messageId {
-                LocalNotificationManager.shared.handleNotificationFinished(for: mid, in: context)
-            }
             // ループ再生開始（プレビュー時は抑止）
             if !isPreview { ringtone.startLooping() }
 
-            // スヌーズ可能数を取得
-            if let rec = recording, !fromVoicemail {
-                LocalNotificationManager.shared.canScheduleSnooze(for: rec) { can, remaining in
-                    self.canSnooze = can
-                    self.globalSnoozeRemaining = remaining
-                }
-            }
+            // 新仕様ではスヌーズ回数制限は設けないため、事前チェックは不要
         }
         .onDisappear { ringtone.stop() }
         .onChange(of: router.showAfterCallForMessageId) { mid in

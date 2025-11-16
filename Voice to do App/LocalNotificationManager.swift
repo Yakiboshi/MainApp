@@ -8,256 +8,107 @@ final class LocalNotificationManager: NSObject {
 
     private let center = UNUserNotificationCenter.current()
 
-    // MARK: - Pending summary
+    // MARK: - Public API
 
-    struct PendingSummary {
-        var mainMessageIds: Set<String>
-        var snoozeMessageIds: Set<String>
-    }
+    /// すべての pending 通知を一度クリアし、現在の RecordingEntity から 64 件制限に収まるよう再スケジュールする
+    func refreshAllNotifications(in context: ModelContext) {
+        // 先に留守電への移行判定を実行（graceSeconds は後続で動的調整する）
+        VoicemailMigrator.migrateIfNeeded(context: context)
 
-    func fetchPendingSummary(completion: @escaping (PendingSummary) -> Void) {
-        center.getPendingNotificationRequests { requests in
-            var mainIds = Set<String>()
-            var snoozeIds = Set<String>()
+        // 既存 pending 通知を全削除
+        center.removeAllPendingNotificationRequests()
 
-            for req in requests {
-                let id = req.identifier
-                if id.contains("-main-") {
-                    if let mid = LocalNotificationManager.messageId(from: id) {
-                        mainIds.insert(mid)
+        do {
+            let fd = FetchDescriptor<RecordingEntity>()
+            let all = try context.fetch(fd)
+
+            let now = Date()
+            // 通知対象: 「未来の」scheduled かつ 留守電受信箱に入っていないもの
+            // 過去時刻の予定は新たに鳴らさず、VoicemailMigrator 側で未応答扱いにする
+            let scheduled = all.filter {
+                ($0.status ?? "scheduled") == "scheduled" && !$0.inVoicemailInbox && $0.recordedAt > now
+            }
+            let count = scheduled.count
+            guard count > 0 else { return }
+
+            let perCall: Int
+            if count == 1 || count == 2 {
+                perCall = 25
+            } else {
+                perCall = max(1, 64 / count)
+            }
+
+            for rec in scheduled {
+                let messageId = rec.id.uuidString
+                for i in 0..<perCall {
+                    let content = UNMutableNotificationContent()
+                    if let title = rec.title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        content.title = title
+                    } else {
+                        content.title = "着信予定があります"
                     }
-                } else if id.contains("-snooze-") {
-                    if let mid = LocalNotificationManager.messageId(from: id) {
-                        snoozeIds.insert(mid)
+                    content.body = "録音メッセージの再生時間です"
+                    content.categoryIdentifier = "CALL_INCOMING"
+                    content.userInfo = [
+                        "messageId": messageId
+                    ]
+
+                    if let sound = NotificationSoundProvider.currentNotificationSoundName() {
+                        content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))
+                    } else {
+                        content.sound = .default
                     }
-                } else if let mid = req.content.userInfo["messageId"] as? String {
-                    // 旧形式のIDでも userInfo から拾う
-                    if let kind = req.content.userInfo["kind"] as? String {
-                        if kind == "main" { mainIds.insert(mid) }
-                        if kind == "snooze" { snoozeIds.insert(mid) }
-                    }
+
+                    let baseTime = rec.recordedAt
+                    let triggerTime = baseTime.addingTimeInterval(TimeInterval(7 * i))
+                    let interval = max(triggerTime.timeIntervalSince(now), 1)
+                    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+                    let identifier = "call_\(messageId)_\(i)"
+                    let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+                    center.add(request, withCompletionHandler: nil)
                 }
             }
-
-            DispatchQueue.main.async {
-                completion(PendingSummary(mainMessageIds: mainIds, snoozeMessageIds: snoozeIds))
-            }
+        } catch {
+            // フェッチ失敗時は何もしない
         }
     }
 
-    private static func messageId(from identifier: String) -> String? {
-        // "<uuid>-main-0" / "<uuid>-snooze-0" を想定
-        if let range = identifier.range(of: "-main-") {
-            return String(identifier[..<range.lowerBound])
-        }
-        if let range = identifier.range(of: "-snooze-") {
-            return String(identifier[..<range.lowerBound])
-        }
-        return nil
-    }
-
-    // MARK: - Main alarm (25 notifications)
-
-    func scheduleMainAlarm(for recording: RecordingEntity, in context: ModelContext) {
-        let messageId = recording.id.uuidString
-        // まずこのIDに紐づく既存 main 通知を削除
-        cancelMainNotifications(for: messageId) { [weak self] in
-            self?.enqueueMainNotifications(for: recording)
-        }
-    }
-
-    private func enqueueMainNotifications(for recording: RecordingEntity) {
-        let messageId = recording.id.uuidString
-        let now = Date()
-        let baseInterval = max(0.5, recording.recordedAt.timeIntervalSince(now))
-        // アプリ未起動時でも少なくとも「新しい留守電がある」ことが分かるよう、
-        // 最初の main 通知にだけバッジ値を付与する（合計は起動時に再計算）。
-        let baseBadge = AppBadgeManager.storedTotal()
-        let badgeValue = baseBadge + 1
-
-        for i in 0..<25 {
-            let content = UNMutableNotificationContent()
-            content.title = "着信予定があります"
-            content.body = "録音メッセージの再生時間です"
-            content.categoryIdentifier = "CALL_INCOMING"
-            content.userInfo = [
-                "messageId": messageId,
-                "kind": "main",
-                "index": i
-            ]
-
-            if let sound = NotificationSoundProvider.currentNotificationSoundName() {
-                content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))
-            } else {
-                content.sound = .default
-            }
-
-            if i == 0 {
-                content.badge = NSNumber(value: badgeValue)
-            }
-
-            let interval = baseInterval + TimeInterval(7 * i)
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-            let identifier = "\(messageId)-main-\(i)"
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-            center.add(request, withCompletionHandler: nil)
-        }
-    }
-
-    private func cancelMainNotifications(for messageId: String, completion: (() -> Void)? = nil) {
-        center.getPendingNotificationRequests { requests in
-            let ids = requests
-                .map { $0.identifier }
-                .filter { $0.contains("\(messageId)-main-") }
-            self.center.removePendingNotificationRequests(withIdentifiers: ids)
-            DispatchQueue.main.async { completion?() }
-        }
-    }
-
-    // MARK: - Snooze (9 notifications, global max 4)
-
-    func canScheduleSnooze(for recording: RecordingEntity,
-                           completion: @escaping (Bool, Int) -> Void) {
-        let targetId = recording.id.uuidString
-        fetchPendingSummary { summary in
-            let activeSnoozeIds = summary.snoozeMessageIds
-            let alreadyForTarget = activeSnoozeIds.contains(targetId)
-            let activeCount = activeSnoozeIds.count
-            let remaining = max(0, 4 - activeCount)
-            let can = (!alreadyForTarget && remaining > 0)
-            completion(can, remaining)
-        }
-    }
-
-    func scheduleSnooze(for recording: RecordingEntity,
-                        in context: ModelContext,
-                        completion: ((Bool, Int) -> Void)? = nil) {
-        canScheduleSnooze(for: recording) { [weak self] can, remaining in
-            guard can else {
-                completion?(false, remaining)
-                return
-            }
-            self?.enqueueSnoozeNotifications(for: recording, in: context) {
-                // スヌーズ登録後の残枠を再計算して返す
-                self?.fetchPendingSummary { summary in
-                    let activeCount = summary.snoozeMessageIds.count
-                    let newRemaining = max(0, 4 - activeCount)
-                    completion?(true, newRemaining)
-                }
-            }
-        }
-    }
-
-    private func enqueueSnoozeNotifications(for recording: RecordingEntity,
-                                            in context: ModelContext,
-                                            completion: (() -> Void)? = nil) {
-        let messageId = recording.id.uuidString
-        let now = Date()
-        let snoozeMinutes = recording.snoozeMin ?? 10
-        let startDate = now.addingTimeInterval(TimeInterval(snoozeMinutes * 60))
-        let baseInterval = max(0.5, startDate.timeIntervalSince(now))
-
-        // 着信予定日時をスヌーズ開始時刻に更新して保存
-        recording.recordedAt = startDate
-        try? context.save()
-
-        let baseBadge = AppBadgeManager.storedTotal()
-        let badgeValue = baseBadge + 1
-
-        for i in 0..<9 {
-            let content = UNMutableNotificationContent()
-            content.title = "再通知: \(recording.title ?? "")"
-            content.body = "録音メッセージの再生時間です"
-            content.categoryIdentifier = "CALL_INCOMING"
-            content.userInfo = [
-                "messageId": messageId,
-                "kind": "snooze",
-                "index": i
-            ]
-
-            if let sound = NotificationSoundProvider.currentNotificationSoundName() {
-                content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))
-            } else {
-                content.sound = .default
-            }
-
-            if i == 0 {
-                content.badge = NSNumber(value: badgeValue)
-            }
-
-            let interval = baseInterval + TimeInterval(7 * i)
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-            let identifier = "\(messageId)-snooze-\(i)"
-            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-            center.add(request, withCompletionHandler: nil)
-        }
-        completion?()
-    }
-
+    /// 指定した messageId に紐づく pending/delivered 通知をすべて削除する
     func cancelAllNotifications(for messageId: String) {
         center.getPendingNotificationRequests { requests in
             let ids = requests
+                .filter {
+                    if let mid = $0.content.userInfo["messageId"] as? String, mid == messageId {
+                        return true
+                    }
+                    return $0.identifier.hasPrefix("call_\(messageId)_") || $0.identifier == messageId
+                }
                 .map { $0.identifier }
-                .filter { $0.contains("\(messageId)-main-") || $0.contains("\(messageId)-snooze-") || $0 == messageId }
             self.center.removePendingNotificationRequests(withIdentifiers: ids)
         }
+
         center.getDeliveredNotifications { notifications in
             let ids = notifications
+                .filter {
+                    if let mid = $0.request.content.userInfo["messageId"] as? String, mid == messageId {
+                        return true
+                    }
+                    let id = $0.request.identifier
+                    return id.hasPrefix("call_\(messageId)_") || id == messageId
+                }
                 .map { $0.request.identifier }
-                .filter { $0.contains("\(messageId)-main-") || $0.contains("\(messageId)-snooze-") || $0 == messageId }
             self.center.removeDeliveredNotifications(withIdentifiers: ids)
         }
     }
 
-    // MARK: - Queue management
-
-    func refreshQueue(in context: ModelContext) {
-        fetchPendingSummary { [weak self] summary in
-            guard let self else { return }
-            do {
-                let fd = FetchDescriptor<RecordingEntity>()
-                var all = try context.fetch(fd)
-                // scheduled かつ 未来のものだけを対象
-                let now = Date()
-                all = all.filter { ($0.status ?? "scheduled") == "scheduled" && $0.recordedAt > now }
-                // スヌーズ中のものは本体アラームの順番待ちから除外
-                if !summary.snoozeMessageIds.isEmpty {
-                    let snoozed = summary.snoozeMessageIds
-                    all = all.filter { !snoozed.contains($0.id.uuidString) }
-                }
-                all.sort { $0.recordedAt < $1.recordedAt }
-
-                let activeMainIds = summary.mainMessageIds
-
-                if let earliest = all.first {
-                    // 既存 main 通知を一度全て解除してから、最新の「最も早い1件」のみを再登録する。
-                    // これにより、予定日時を前倒し/後ろ倒しした場合も必ず新しい時刻で再スケジュールされる。
-                    for mid in activeMainIds {
-                        self.cancelMainNotifications(for: mid, completion: nil)
-                    }
-                    self.scheduleMainAlarm(for: earliest, in: context)
-                } else {
-                    // 未来の予定が無ければ、既存 main 通知をすべて解除
-                    for mid in activeMainIds {
-                        self.cancelMainNotifications(for: mid, completion: nil)
-                    }
-                }
-            } catch {
-                // 失敗時は何もしない
-            }
-        }
-    }
-
-    // MARK: - Voicemail migration + queue advance
-
-    func convertExpiredToVoicemail(in context: ModelContext,
-                                   graceSeconds: TimeInterval = 15) {
-        VoicemailMigrator.migrateIfNeeded(context: context, graceSeconds: graceSeconds)
-    }
-
-    func handleNotificationFinished(for messageId: String, in context: ModelContext) {
-        // main/snooze の通知を整理し、留守電移行 → 次の本体予約
-        convertExpiredToVoicemail(in: context)
-        refreshQueue(in: context)
+    /// スヌーズ: recordedAt を未来にずらし、isSnoozed を true にしてから全体を再スケジュール
+    func scheduleSnooze(for recording: RecordingEntity, in context: ModelContext) {
+        let now = Date()
+        let minutes = recording.snoozeMin ?? 10
+        let newDate = now.addingTimeInterval(TimeInterval(minutes * 60))
+        recording.recordedAt = newDate
+        recording.isSnoozed = true
+        try? context.save()
+        refreshAllNotifications(in: context)
     }
 }

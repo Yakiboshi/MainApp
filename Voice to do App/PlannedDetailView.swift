@@ -432,8 +432,9 @@ struct PlannedDetailView: View {
         // 予定日時
         if entity.recordedAt != scheduledAt {
             entity.recordedAt = scheduledAt
+            entity.isSnoozed = false
             NotificationManager.shared.cancelAllNotifications(for: entity.id.uuidString)
-            LocalNotificationManager.shared.refreshQueue(in: context)
+            LocalNotificationManager.shared.refreshAllNotifications(in: context)
         }
 
         // アイコン

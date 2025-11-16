@@ -93,8 +93,6 @@ struct PlannedListPage: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: [SortDescriptor<RecordingEntity>(\.recordedAt, order: .forward)])
     private var records: [RecordingEntity]
-    @State private var mainBaseDate: Date? = nil
-    @State private var snoozedIds: Set<String> = []
     fileprivate let sortMode: SortMode
     fileprivate let query: String
     fileprivate init(sortMode: SortMode, query: String) { self.sortMode = sortMode; self.query = query }
@@ -117,7 +115,6 @@ struct PlannedListPage: View {
                     List {
                         ForEach(sortedPlanned(), id: \.id) { rec in
                             let row = PlannedRowView(entity: rec,
-                                                     isHazard: isHazard(rec),
                                                      isSnoozed: isSnoozed(rec))
                             Group {
                                 if isSnoozed(rec) {
@@ -152,17 +149,7 @@ struct PlannedListPage: View {
                 // 直接NavigationLink(destination:)を使用し、型ベース遷移に依存しない
             }
         }
-        .onAppear { updateMainBaseDate() }
-        // 予定の追加・削除・日時変更のたびに main ベースと黄色表示を更新
-        .onChange(of: records.map { $0.recordedAt }) { _ in
-            updateMainBaseDate()
-        }
-        // アプリがフォアグラウンドに戻ったタイミングでも更新
-        .onChange(of: scenePhase) { phase in
-            if phase == .active {
-                updateMainBaseDate()
-            }
-        }
+        // 予定の追加・削除・日時変更は SwiftData のクエリ経由で常に最新が反映される
     }
 
     private func scheduledUpcoming() -> [RecordingEntity] {
@@ -201,9 +188,8 @@ struct PlannedListPage: View {
             context.delete(rec)
             try? context.save()
         }
-        // キューを更新
-        LocalNotificationManager.shared.handleNotificationFinished(for: rec.id.uuidString, in: context)
-        updateMainBaseDate()
+        // 通知キューを更新
+        LocalNotificationManager.shared.refreshAllNotifications(in: context)
     }
 
     private func isWithinOneMinute(_ rec: RecordingEntity) -> Bool {
@@ -214,7 +200,6 @@ struct PlannedListPage: View {
 
 private struct PlannedRowView: View {
     let entity: RecordingEntity
-    var isHazard: Bool = false
     var isSnoozed: Bool = false
     var body: some View {
         HStack(spacing: 12) {
@@ -242,18 +227,12 @@ private struct PlannedRowView: View {
                 }
                 Text(scheduledDateText(entity))
                     .font(.caption)
-                    .foregroundStyle(isHazard ? Color.yellow : Color.white.opacity(0.8))
+                    .foregroundStyle(Color.white.opacity(0.8))
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 if isSnoozed {
                     Text("スヌーズ")
                         .font(.caption2)
                         .foregroundStyle(Color.green.opacity(0.9))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                if isHazard {
-                    Text("前の着信に埋もれて発信されない可能性があります。")
-                        .font(.caption2)
-                        .foregroundStyle(Color.gray)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
@@ -280,36 +259,7 @@ private struct PlannedRowView: View {
 
 // MARK: - Main base date / hazard
 private extension PlannedListPage {
-    private func updateMainBaseDate() {
-        LocalNotificationManager.shared.fetchPendingSummary { summary in
-            self.snoozedIds = summary.snoozeMessageIds
-
-            // DB 上の scheduled レコードを基準に「最も早い本体アラーム候補」を決定する。
-            // LocalNotificationManager.refreshQueue も同じルール（最も早い scheduled 1件に本体通知）なので、
-            // 実際の通知キューと黄色表示の基準が揃う。
-            do {
-                let now = Date()
-                let all = try context.fetch(FetchDescriptor<RecordingEntity>())
-                let candidates = all
-                    .filter { ($0.status ?? "scheduled") == "scheduled" && $0.recordedAt > now }
-                    .filter { !self.snoozedIds.contains($0.id.uuidString) } // スヌーズ中は本体キューから除外
-                    .sorted { $0.recordedAt < $1.recordedAt }
-                self.mainBaseDate = candidates.first?.recordedAt
-            } catch {
-                self.mainBaseDate = nil
-            }
-        }
-    }
-
-    private func isHazard(_ rec: RecordingEntity) -> Bool {
-        guard let base = mainBaseDate else { return false }
-        let delta = rec.recordedAt.timeIntervalSince(base)
-        let windows: [TimeInterval] = [60, 120, 180]
-        // 1,2,3分差を ±1秒の誤差内で判定
-        return windows.contains(where: { abs(delta - $0) <= 1 })
-    }
-
     private func isSnoozed(_ rec: RecordingEntity) -> Bool {
-        snoozedIds.contains(rec.id.uuidString)
+        rec.isSnoozed
     }
 }

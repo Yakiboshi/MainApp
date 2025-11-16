@@ -33,6 +33,8 @@ final class RecordingEntity {
     var answeredAt: Date? = nil
     // 留守電受信箱に入っているか（missed との併用可）
     var inVoicemailInbox: Bool = false
+    // スヌーズ中かどうか（予定リストのラベル表示用）
+    var isSnoozed: Bool = false
 
     init(
         id: UUID = UUID(),
@@ -47,6 +49,7 @@ final class RecordingEntity {
         status: String = "scheduled",
         answeredAt: Date? = nil,
         inVoicemailInbox: Bool = false,
+        isSnoozed: Bool = false,
         linkURLString: String? = nil,
         iconImageData: Data? = nil,
         tasks: [RecordingTaskEntity] = [],
@@ -67,6 +70,7 @@ final class RecordingEntity {
         self.status = status
         self.answeredAt = answeredAt
         self.inVoicemailInbox = inVoicemailInbox
+        self.isSnoozed = isSnoozed
         self.linkURLString = linkURLString
         self.iconImageData = iconImageData
         self.tasks = tasks

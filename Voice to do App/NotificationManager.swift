@@ -9,7 +9,7 @@ final class NotificationManager {
 
     // 互換API（現在は未使用）：古い呼び出し元との互換のため残しているが、
     // 実際の通知スケジュールは RecordingView / PlannedDetailView から
-    // LocalNotificationManager.refreshQueue(...) を直接呼び出す。
+    // LocalNotificationManager.refreshAllNotifications(...) を直接呼び出す。
     func scheduleNotification(for date: Date, messageId: String? = nil) {
         // 新実装では何もしない
     }
