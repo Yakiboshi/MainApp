@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsPlaceholderView: View {
     @State private var autoYear: Bool = SortPreference.loadAutoYear()
     @State private var autoMonth: Bool = SortPreference.loadAutoMonth()
+    @State private var notificationVolume: Double = Double(SortPreference.loadNotificationVolume())
 
     var body: some View {
         ZStack {
@@ -34,6 +35,25 @@ struct SettingsPlaceholderView: View {
                             title: "固定 月 を追加",
                             isOn: $autoMonth
                         )
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("着メロ音量調整")
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Slider(value: $notificationVolume, in: 0...100, step: 1)
+                                .tint(.white)
+                            HStack {
+                                Spacer()
+                                Text("\(Int(notificationVolume))")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.white.opacity(0.8))
+                            }
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
+
                         Spacer(minLength: 24)
                     }
                     .padding(.horizontal, 16)
@@ -56,6 +76,9 @@ struct SettingsPlaceholderView: View {
                 autoYear = true
                 SortPreference.saveAutoYear(true)
             }
+        }
+        .onChange(of: notificationVolume) { newValue in
+            SortPreference.saveNotificationVolume(Int(newValue))
         }
     }
 }
