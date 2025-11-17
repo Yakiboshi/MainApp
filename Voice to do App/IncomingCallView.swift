@@ -107,6 +107,8 @@ struct IncomingCallView: View {
                                                 rec.inVoicemailInbox = true
                                                 rec.isSnoozed = false
                                                 try? context.save()
+                                                // 留守電数が変わるため、バッジベースを更新してから再スケジュール
+                                                _ = AppBadgeManager.refresh(using: context)
                                                 LocalNotificationManager.shared.refreshAllNotifications(in: context)
                                             }
                                         } catch { }
@@ -183,6 +185,8 @@ struct IncomingCallView: View {
                                                 rec.inVoicemailInbox = false
                                                 rec.isSnoozed = false
                                                 try? context.save()
+                                                // 履歴側の未完了タスク数が変わる可能性があるため、バッジベースを更新してから再スケジュール
+                                                _ = AppBadgeManager.refresh(using: context)
                                                 LocalNotificationManager.shared.refreshAllNotifications(in: context)
                                             }
                                         } catch {}

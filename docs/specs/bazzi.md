@@ -1,63 +1,117 @@
+🎯 タイトル
+
+「最後の通知にタスク数＋未達着信数を合算したバッジを付与し、フォアグラウンド時に再集計する機能を実装してください」
+
+🧠 概要説明
+
+SwiftUI + SwiftData で開発しているアプリにて、
+着信（ローカル通知）とタスクの未完了数を合算してアプリアイコンにバッジ表示したいです。
+
+ローカル通知は各着信に対して複数回（7秒間隔）登録されていますが、
+最後の通知だけ に、
+「現在のタスク数＋1（未達着信分）」の値をアプリアイコンバッジとして表示してください。
+
+また、アプリがフォアグラウンドに戻った時に、
+タスク数＋未達着信数 を再集計してバッジを更新するようにしてください。
+
+⚙️ 実装仕様
+1. バッジ設定ロジック
+
+通知登録関数内で、各着信の最後の通知だけにバッジを設定します。
+
+バッジ値は次のように決定します：
+
+バッジ数 = 現在のタスク数 + 1
 
 
-ローカル通知にバッジ機能を追加し、未達着信のみリセットできるようにしてください
+（タスクが3件ある場合 → 最後の通知で badge = 4）
 
----
+他の通知（途中の通知）にはバッジを付けません。
 
-### 🧠 要件説明：
+2. 再集計ロジック（アプリ起動／フォアグラウンド復帰時）
 
-SwiftUI + SwiftData で作成している擬似着信アプリに、
-**「各着信の最後の通知だけアプリアイコンにバッジを付ける」機能** を追加してください。
-また、アプリを開いたりバックグラウンドから復帰したときに、
-**他機能のバッジを消さずに未達着信のバッジだけをリセット** できるようにしてください。
+SwiftData からタスク・未達着信を再集計し、
+以下の関数でバッジを更新してください。
 
----
+💻 サンプルコード
+import SwiftUI
+import UserNotifications
 
-### 💡 具体的な仕様：
+// MARK: - 通知登録時の例
+func scheduleCallNotifications(callItem: CallItem, taskCount: Int) {
+    let center = UNUserNotificationCenter.current()
+    let perCall = 25
+    let interval: TimeInterval = 7
 
-1. **各着信データ（CallItem）**
+    for i in 0..<perCall {
+        let content = UNMutableNotificationContent()
+        content.title = callItem.title
+        content.sound = UNNotificationSound(named: .init("localsound.mp3"))
+        content.userInfo = ["id": callItem.id.uuidString]
 
-   * id: UUID
-   * fireDate: Date
-   * title: String
-   * isCompleted: Bool（応答済みかどうか）
+        // 最後の通知にのみバッジを設定
+        if i == perCall - 1 {
+            content.badge = NSNumber(value: taskCount + 1)
+        }
 
-2. **通知登録時（refreshAllNotifications関数内）**
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: callItem.fireDate.timeIntervalSinceNow + (interval * Double(i)),
+            repeats: false
+        )
 
-   * 各着信の最後のローカル通知（例：25回中の最後）にだけ
-     `content.badge = NSNumber(value: 1)` を設定する。
-   * 最後の通知を「未達着信」としてカウントし、
-     `UserDefaults.standard.set(unhandledCount, forKey: "CallBadgeCount")`
-     に保存する。
-   * 実際のバッジ数は `UIApplication.shared.applicationIconBadgeNumber += unhandledCount` で反映する。
+        let request = UNNotificationRequest(
+            identifier: "call_\(callItem.id)_\(i)",
+            content: content,
+            trigger: trigger
+        )
 
-3. **アプリ起動時・フォアグラウンド復帰時**
+        center.add(request)
+    }
+}
 
-   * ScenePhaseの `.active` で `resetCallBadgesOnly()` を呼び出す。
+// MARK: - バッジ再集計関数
+func updateAppBadge(taskCount: Int, unhandledCalls: Int) {
+    let totalBadge = taskCount + unhandledCalls
+    UIApplication.shared.applicationIconBadgeNumber = totalBadge
+    UserDefaults.standard.set(totalBadge, forKey: "AppBadgeCount")
+}
 
-   * 関数の内容は以下の通り：
+// MARK: - ScenePhase監視で再集計
+struct BadgeUpdater: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+    let taskCount: Int
+    let unhandledCalls: Int
 
-     ```swift
-     func resetCallBadgesOnly() {
-         let defaults = UserDefaults.standard
-         let callBadgeCount = defaults.integer(forKey: "CallBadgeCount")
-         let totalBadge = UIApplication.shared.applicationIconBadgeNumber
-         let remainingBadge = max(totalBadge - callBadgeCount, 0)
-         UIApplication.shared.applicationIconBadgeNumber = remainingBadge
-         defaults.set(0, forKey: "CallBadgeCount")
-     }
-     ```
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: scenePhase) { phase in
+                if phase == .active {
+                    updateAppBadge(taskCount: taskCount, unhandledCalls: unhandledCalls)
+                }
+            }
+    }
+}
 
-   * これにより、他機能のバッジ（例：別通知機能で付与されたもの）は残しつつ、
-     着信未対応バッジだけをリセットできるようにする。
+// MARK: - 使用例
+struct ContentView: View {
+    @State private var taskCount = 3
+    @State private var unhandledCalls = 1
 
----
+    var body: some View {
+        Text("Main App")
+            .modifier(BadgeUpdater(taskCount: taskCount, unhandledCalls: unhandledCalls))
+    }
+}
 
-### ✅ 期待する動作：
+✅ 期待する動作
 
-* 各着信の最後の通知だけバッジがつく
-* バッジは「未対応着信数」に応じて増加
-* アプリを開く／復帰した時に未達バッジのみ消える
-* 他機能のバッジには影響しない
+通知登録時に、最後の通知のみ badge = (タスク数 + 1) が設定される
+
+通知発火時にその合計バッジがアプリアイコンに反映される
+
+アプリをフォアグラウンドに戻した際に、
+SwiftData上の最新タスク数・未達着信数から再計算して更新される
+
+他機能のバッジとは干渉しない
 
 

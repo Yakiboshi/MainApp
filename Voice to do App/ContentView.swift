@@ -19,10 +19,10 @@ struct ContentView: View {
                 PermissionManager.requestLaunchPermissions()
                 // 既存データのサニタイズ（初回のみ）
                 DataSanitizer.runIfNeeded(context: modelContext)
-                // 起動時に留守電移行とローカル通知キューを更新
-                LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
                 // 起動時の履歴タスク／留守電数からバッジを再計算
                 _ = AppBadgeManager.refresh(using: modelContext)
+                // 起動時にローカル通知キューを更新（最後の通知のバッジもベースに合わせて再設定）
+                LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
             }
             // ディープリンク（URLスキーム）受け取り
             .onOpenURL { url in
@@ -78,9 +78,11 @@ struct ContentView: View {
             // アプリのフォアグラウンド復帰時にもキューと留守電状態を更新
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
-                    LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
                     Task { @MainActor in
+                        // フォアグラウンド復帰時にバッジベースを再計算し、
+                        // その値に合わせてローカル通知の最後のバッジも再設定する
                         _ = AppBadgeManager.refresh(using: modelContext)
+                        LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
                     }
                 }
             }

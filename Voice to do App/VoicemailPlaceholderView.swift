@@ -163,6 +163,8 @@ struct VoicemailListPage: View {
             rec.inVoicemailInbox = false
             rec.isSnoozed = false
             try? context.save()
+            // 留守電数・履歴バッジベースを更新
+            _ = AppBadgeManager.refresh(using: context)
         }
     }
 }

@@ -7,8 +7,8 @@ final class AppNotificationCenterDelegate: NSObject, UNUserNotificationCenterDel
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // フォアグラウンドでもバナー＋サウンドを許可
-        completionHandler([.banner, .list, .sound])
+        // フォアグラウンドでもバナー＋リスト＋サウンド＋バッジを許可
+        completionHandler([.banner, .list, .sound, .badge])
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter,

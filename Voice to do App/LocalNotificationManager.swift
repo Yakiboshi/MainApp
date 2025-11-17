@@ -38,7 +38,10 @@ final class LocalNotificationManager: NSObject {
                 perCall = max(1, 64 / count)
             }
 
-            for rec in scheduled {
+            // 履歴＋留守電由来のベースバッジ値（前回再計算時点）
+            let baseBadge = AppBadgeManager.storedTotal()
+
+            for (index, rec) in scheduled.enumerated() {
                 let messageId = rec.id.uuidString
                 for i in 0..<perCall {
                     let content = UNMutableNotificationContent()
@@ -64,6 +67,14 @@ final class LocalNotificationManager: NSObject {
                     let interval = max(triggerTime.timeIntervalSince(now), 1)
                     let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
                     let identifier = "call_\(messageId)_\(i)"
+
+                    // 各着信の「最後の通知」にだけバッジ値を付与する。
+                    // index は 0 始まりなので +1 し、ベース（履歴+留守電）に加算した値を設定する。
+                    if i == perCall - 1 {
+                        let badgeValue = baseBadge + (index + 1)
+                        content.badge = NSNumber(value: badgeValue)
+                    }
+
                     let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
                     center.add(request, withCompletionHandler: nil)
                 }
