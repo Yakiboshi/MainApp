@@ -82,31 +82,64 @@ struct AfterCallView: View {
 
                             // タスク見出し + 期限表示 + タスク一覧
                             if let rec = recording, !rec.tasks.isEmpty {
-                                // 見出し（数値を強調・文言変更）
-                                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                    Text("\(rec.tasks.count)")
-                                        .font(.system(size: 32, weight: .bold))
-                                        .foregroundStyle(.white)
-                                    Text("個のタスクがあります。")
-                                        .font(.title3)
-                                        .foregroundStyle(.white)
-                                    Spacer()
-                                }
-                                    .padding(.horizontal, 24)
+                                ZStack {
+                                    // 履歴詳細画面と同じタスク用ボックス背景
+                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.black.opacity(0.8),
+                                                    Color.black.opacity(0.4)
+                                                ],
+                                                startPoint: .top,
+                                                endPoint: .bottom
+                                            )
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                                .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                                        )
 
-                                if let deadline = computeDeadline(for: rec) {
-                                    deadlineSection(deadline: deadline)
-                                }
-
-                                VStack(spacing: 14) {
-                                    ForEach(rec.tasks.indices, id: \.self) { idx in
-                                        taskRow(task: rec.tasks[idx], isLocked: isExpired(for: rec))
-                                        if idx < rec.tasks.count - 1 {
-                                            Divider().background(Color.white.opacity(0.4)).frame(width: proxy.size.width * 0.6)
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        // 見出し（数値を強調・文言変更）
+                                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                            let totalText = "\(rec.tasks.count)"
+                                            let totalMask = String(repeating: "8", count: totalText.count)
+                                            ZStack {
+                                                Text(totalMask)
+                                                    .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 32))
+                                                    .foregroundStyle(.black)
+                                                Text(totalText)
+                                                    .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 32))
+                                                    .foregroundStyle(.white)
+                                            }
+                                            Text("個のタスクがあります。")
+                                                .font(.title3)
+                                                .foregroundStyle(.white)
+                                            Spacer()
                                         }
+
+                                        if let deadline = computeDeadline(for: rec) {
+                                            deadlineSection(deadline: deadline)
+                                        }
+
+                                        VStack(spacing: 14) {
+                                            ForEach(rec.tasks.indices, id: \.self) { idx in
+                                                taskRow(task: rec.tasks[idx], isLocked: isExpired(for: rec))
+                                                if idx < rec.tasks.count - 1 {
+                                                    Divider()
+                                                        .background(Color.white.opacity(0.4))
+                                                        .frame(width: proxy.size.width * 0.6)
+                                                }
+                                            }
+                                        }
+                                        .padding(.top, 8)
                                     }
+                                    .padding(.vertical, 16)
+                                    .padding(.horizontal, 20)
                                 }
-                                .padding(.top, 8)
+                                .frame(width: min(proxy.size.width - 40, 360))
+                                .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.bottom, 220) // ボタン干渉回避（余白増）
                             }
                         }
@@ -209,9 +242,16 @@ struct AfterCallView: View {
                 VStack(spacing: 4) {
                     HStack(spacing: 6) {
                         Text("目標まで").foregroundStyle(.white).font(.headline)
-                        Text("\(rec.deadlineDays ?? 0)")
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
+                        let daysText = "\(rec.deadlineDays ?? 0)"
+                        let daysMask = String(repeating: "8", count: daysText.count)
+                        ZStack {
+                            Text(daysMask)
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 32))
+                                .foregroundStyle(.black)
+                            Text(daysText)
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 32))
+                                .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
+                        }
                         Text("日後").foregroundStyle(.white).font(.headline)
                     }
                     Text("\(formatDateOnly(deadline)) まで")
@@ -223,9 +263,16 @@ struct AfterCallView: View {
                 VStack(spacing: 4) {
                     HStack(spacing: 6) {
                         Text("目標時刻まで").foregroundStyle(.white).font(.headline)
-                        Text(lessThan1h ? formatMMSS(remaining) : formatHHMM(remaining))
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundStyle(lessThan1h ? .red : Color(red: 0.65, green: 0.95, blue: 0.35))
+                        let timeText = lessThan1h ? formatMMSS(remaining) : formatHHMM(remaining)
+                        let timeMask = String(timeText.map { $0 == ":" ? ":" : "8" })
+                        ZStack {
+                            Text(timeMask)
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 32))
+                                .foregroundStyle(.black)
+                            Text(timeText)
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 32))
+                                .foregroundStyle(lessThan1h ? .red : Color(red: 0.65, green: 0.95, blue: 0.35))
+                        }
                     }
                     Text("\(formatDateTime(deadline)) まで")
                         .font(.footnote)

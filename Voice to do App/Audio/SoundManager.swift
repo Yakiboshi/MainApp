@@ -12,8 +12,8 @@ final class SoundManager: NSObject {
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            // 録音中などで .playAndRecord が設定されている場合はカテゴリを上書きしない
-            if session.category != .playAndRecord {
+            // 録音中などで .playAndRecord や着信用の .playback が設定されている場合はカテゴリを上書きしない
+            if session.category != .playAndRecord && session.category != .playback {
                 // .ambient respects the Silent switch (no sound in silent mode) and mixes with other audio
                 try session.setCategory(.ambient, mode: .default, options: [])
             }

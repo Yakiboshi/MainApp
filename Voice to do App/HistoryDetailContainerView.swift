@@ -2,26 +2,58 @@ import SwiftUI
 import AVFAudio
 import SwiftData
 import Combine
+import UIKit
+import CoreGraphics
 
 struct HistoryDetailContainerView: View {
     @Environment(\.modelContext) private var context
     let recordingId: UUID
 
+    @State private var dominantBackground: Color? = nil
+
     var body: some View {
-        Group {
-            if let state = buildState() {
-                HistoryDetailScreen(
-                    entity: state.current,
-                    previousId: state.previousId,
-                    nextId: state.nextId
+        ZStack(alignment: .bottom) {
+            // ベースのグラデーション
+            Theme.appGradient.ignoresSafeArea()
+
+            // アイコンから抽出した色があれば、その色で上からグラデーションを重ねる
+            if let bg = dominantBackground {
+                LinearGradient(
+                    colors: [
+                        bg.opacity(0.9),
+                        bg.opacity(0.6)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
-            } else {
-                ZStack {
-                    Theme.appGradient.ignoresSafeArea()
-                    Text("対象の履歴が見つかりません")
-                        .foregroundStyle(.white)
+                .ignoresSafeArea()
+            }
+
+            Group {
+                if let state = buildState() {
+                    HistoryDetailScreen(
+                        entity: state.current,
+                        previousId: state.previousId,
+                        nextId: state.nextId
+                    )
+                } else {
+                    ZStack {
+                        Theme.appGradient.ignoresSafeArea()
+                        Text("対象の履歴が見つかりません")
+                            .foregroundStyle(.white)
+                    }
                 }
             }
+        }
+        // recordingId ごとにビューを作り直し、@State を確実にリセット
+        .id(recordingId)
+        .onAppear {
+            // 初回表示時: 現在の履歴に合わせて背景色を設定（アニメーションなし）
+            updateBackground(for: recordingId, animated: false)
+        }
+        .onChange(of: recordingId) { newId in
+            // 履歴IDが変わったとき（次へ/前へなど）は、遷移先のデータに合わせてフェードしながら背景色を更新
+            updateBackground(for: newId, animated: true)
         }
     }
 
@@ -71,106 +103,134 @@ private struct HistoryDetailScreen: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Theme.appGradient.ignoresSafeArea()
-
             GeometryReader { proxy in
                 let h = proxy.size.height
-                let boxWidth = min(proxy.size.width - 40, 360) // 両端20ptの余白
+                let boxWidth = min(proxy.size.width - 32, 380) // 両端16pt程度の余白で少し拡大
                 let topSpacing = h * 0.12
+                let iconSize = min(boxWidth, 220)
 
                 VStack(spacing: 16) {
                     Spacer().frame(height: topSpacing)
 
-                    // タイトル + サブテキスト
-                    VStack(spacing: 6) {
-                        Text(title())
-                            .font(.title2).fontWeight(.semibold)
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-
-                        if let at = entity.answeredAt {
-                            Text(at.formatted(date: .abbreviated, time: .shortened))
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
-                    }
-
-                    // プレーヤーボックス（スライダー + 時刻 + 前/再生/次）
+                    // アイコン + タイトル + 再生ボックスをまとめて背面に丸型アイコンを配置
                     ZStack {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.black.opacity(0.6),
-                                        Color.black.opacity(0.3)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color.white.opacity(0.25), lineWidth: 1)
-                            )
-
-                        VStack(spacing: 12) {
-                            // 上部: 進捗スライダー
-                            VStack(spacing: 4) {
-                                Slider(
-                                    value: Binding(
-                                        get: { elapsed },
-                                        set: { newVal in
-                                            elapsed = newVal
-                                            player.seek(to: newVal)
-                                        }
-                                    ),
-                                    in: 0...max(duration, 1)
-                                )
-                                .tint(.white)
-
-                                HStack {
-                                    Text(timeString(elapsed))
-                                        .font(.caption)
-                                        .foregroundStyle(.white)
-                                    Spacer()
-                                    Text(timeString(duration))
-                                        .font(.caption)
-                                        .foregroundStyle(.white.opacity(0.8))
-                                }
-                            }
-
-                            HStack(spacing: 32) {
-                                // 前へ
-                                Button(action: { goToPrevious() }) {
-                                    Image(systemName: "chevron.left.circle.fill")
-                                        .font(.system(size: 28, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .opacity(previousId == nil ? 0.3 : 1.0)
-                                }
-                                .disabled(previousId == nil)
-
-                                // 再生 / 一時停止
-                                Button(action: { togglePlay() }) {
-                                    Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                        .font(.system(size: 40, weight: .bold))
-                                        .foregroundStyle(.white)
-                                }
-
-                                // 次へ
-                                Button(action: { goToNext() }) {
-                                    Image(systemName: "chevron.right.circle.fill")
-                                        .font(.system(size: 28, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .opacity(nextId == nil ? 0.3 : 1.0)
-                                }
-                                .disabled(nextId == nil)
-                            }
+                        // 背面の丸型アイコン
+                        if let data = entity.iconImageData, let ui = UIImage(data: data) {
+                            Image(uiImage: ui)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: iconSize, height: iconSize)
+                                .clipShape(Circle())
+                                .opacity(0.25)
+                                .offset(y: -10)
+                        } else {
+                            Circle()
+                                .fill(Color.white.opacity(0.12))
+                                .frame(width: iconSize, height: iconSize)
+                                .opacity(0.6)
+                                .offset(y: -10)
                         }
-                        .padding(.vertical, 16)
+
+                        VStack(spacing: 16) {
+                            // タイトル + サブテキスト
+                            VStack(spacing: 6) {
+                                Text(title())
+                                    .font(.title2).fontWeight(.semibold)
+                                    .foregroundStyle(.white)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 24)
+
+                                if let at = entity.answeredAt {
+                                    Text(at.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.white.opacity(0.9))
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color.black.opacity(0.35))
+                            )
+
+                            // プレーヤーボックス（スライダー + 時刻 + 前/再生/次）
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.black.opacity(0.6),
+                                                Color.black.opacity(0.3)
+                                            ],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                            .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                                    )
+
+                                VStack(spacing: 12) {
+                                    // 上部: 進捗スライダー
+                                    VStack(spacing: 4) {
+                                        Slider(
+                                            value: Binding(
+                                                get: { elapsed },
+                                                set: { newVal in
+                                                    elapsed = newVal
+                                                    player.seek(to: newVal)
+                                                }
+                                            ),
+                                            in: 0...max(duration, 1)
+                                        )
+                                        .tint(.white)
+
+                                        HStack {
+                                            Text(timeString(elapsed))
+                                                .font(.caption)
+                                                .foregroundStyle(.white)
+                                            Spacer()
+                                            Text(timeString(duration))
+                                                .font(.caption)
+                                                .foregroundStyle(.white.opacity(0.8))
+                                        }
+                                    }
+                                    .padding(.horizontal, 18) // バーの端とボックス枠の間に余白を確保
+
+                                    HStack(spacing: 32) {
+                                        // 前へ
+                                        Button(action: { goToPrevious() }) {
+                                            Image(systemName: "chevron.left.circle.fill")
+                                                .font(.system(size: 28, weight: .bold))
+                                                .foregroundStyle(.white)
+                                                .opacity(previousId == nil ? 0.3 : 1.0)
+                                        }
+                                        .disabled(previousId == nil)
+
+                                        // 再生 / 一時停止
+                                        Button(action: { togglePlay() }) {
+                                            Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                                .font(.system(size: 40, weight: .bold))
+                                                .foregroundStyle(.white)
+                                        }
+
+                                        // 次へ
+                                        Button(action: { goToNext() }) {
+                                            Image(systemName: "chevron.right.circle.fill")
+                                                .font(.system(size: 28, weight: .bold))
+                                                .foregroundStyle(.white)
+                                                .opacity(nextId == nil ? 0.3 : 1.0)
+                                        }
+                                        .disabled(nextId == nil)
+                                    }
+                                }
+                                .padding(.vertical, 16)
+                            }
+                            .frame(width: boxWidth, height: 150)
+                        }
                     }
-                    .frame(width: boxWidth, height: 150)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(maxWidth: .infinity)
 
                     // スクロール領域（メモ + タスク一式）
                     ScrollView {
@@ -190,6 +250,12 @@ private struct HistoryDetailScreen: View {
                         }
                         .padding(.bottom, 220) // 下部ボタンと被らないように十分な余白を確保
                     }
+                    // スクロール操作でキーボードを閉じる
+                    .simultaneousGesture(
+                        DragGesture().onChanged { _ in
+                            dismissKeyboard()
+                        }
+                    )
                 }
             }
 
@@ -249,11 +315,22 @@ private struct HistoryDetailScreen: View {
                 .padding(.bottom, 32)
             }
         }
+        // 背景タップでキーボードを閉じる
+        .contentShape(Rectangle())
+        .onTapGesture {
+            dismissKeyboard()
+        }
         .onDisappear {
             player.stop()
         }
         .onAppear {
             prepareDurationIfNeeded()
+            // 初回表示時は現在のエンティティに合わせて再生状態を初期化
+            resetAudioStateForCurrentEntity()
+        }
+        // 前へ/次へ で別の履歴に遷移したとき、バー・時間表示を新しいデータに合わせてリセット
+        .onChange(of: entity.id) { _ in
+            resetAudioStateForCurrentEntity()
         }
         .onReceive(tick) { _ in
             elapsed = player.currentTime()
@@ -284,6 +361,8 @@ private struct HistoryDetailScreen: View {
             player.pause()
             return
         }
+        // 再生開始時は現在のエンティティに合わせて状態を再構築
+        resetAudioStateForCurrentEntity()
         guard let url = audioURL() else { return }
         player.playURL(url, loops: 0) {
             // 再生終了時は自動で isPlaying が false になる
@@ -299,6 +378,15 @@ private struct HistoryDetailScreen: View {
         } catch {
             // ignore
         }
+    }
+
+    /// エンティティが切り替わったときに、再生状態・バー・時間表示をリセットし、新しい録音の総時間を読み込む
+    private func resetAudioStateForCurrentEntity() {
+        player.stop()
+        elapsed = 0
+        duration = 1
+        didLoadDuration = false
+        prepareDurationIfNeeded()
     }
 
     // MARK: - Prev/Next navigation
@@ -469,13 +557,22 @@ private struct HistoryDetailScreen: View {
                     }
                 } else {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("\(total)")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(.white)
+                        // 総タスク数: 背面に 8 を同フォントで配置
+                        let totalText = "\(total)"
+                        let totalMask = String(repeating: "8", count: totalText.count)
+                        ZStack {
+                            Text(totalMask)
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .foregroundStyle(.black)
+                            Text(totalText)
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .foregroundStyle(.white)
+                        }
                         Text("個のタスクがあります。")
                             .font(.headline)
                             .foregroundStyle(.white)
                         if remaining > 0 {
+                            // 残りタスク数は元のフォントに戻す
                             Text("残り \(remaining)")
                                 .font(.headline)
                                 .foregroundStyle(.red)
@@ -611,9 +708,16 @@ private struct HistoryDetailScreen: View {
                 VStack(spacing: 4) {
                     HStack(spacing: 6) {
                         Text("目標まで").foregroundStyle(.white).font(.headline)
-                        Text("\(entity.deadlineDays ?? 0)")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
+                        let daysText = "\(entity.deadlineDays ?? 0)"
+                        let daysMask = String(repeating: "8", count: daysText.count)
+                        ZStack {
+                            Text(daysMask)
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .foregroundStyle(.black)
+                            Text(daysText)
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
+                        }
                         Text("日後").foregroundStyle(.white).font(.headline)
                     }
                     Text(formatDateOnly(deadline))
@@ -627,9 +731,16 @@ private struct HistoryDetailScreen: View {
                 VStack(spacing: 4) {
                     HStack(spacing: 6) {
                         Text("目標時刻まで").foregroundStyle(.white).font(.headline)
-                        Text(lessThan1h ? formatMMSS(remaining) : formatHHMM(remaining))
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(lessThan1h ? .red : Color(red: 0.65, green: 0.95, blue: 0.35))
+                        let timeText = lessThan1h ? formatMMSS(remaining) : formatHHMM(remaining)
+                        let timeMask = String(timeText.map { $0 == ":" ? ":" : "8" })
+                        ZStack {
+                            Text(timeMask)
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .foregroundStyle(.black)
+                            Text(timeText)
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .foregroundStyle(lessThan1h ? .red : Color(red: 0.65, green: 0.95, blue: 0.35))
+                        }
                     }
                     Text(formatDateTime(deadline))
                         .font(.footnote)
@@ -726,5 +837,154 @@ private struct HistoryDetailScreen: View {
         }
         try? context.save()
         showRetrySheet = false
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
+    }
+
+}
+
+// MARK: - Icon dominant color helpers (container-level)
+private extension HistoryDetailContainerView {
+    /// 指定 ID の RecordingEntity から背景色を決定し、必要なら抽出して SwiftData にキャッシュしたうえで反映する
+    func updateBackground(for recordingId: UUID, animated: Bool) {
+        let newColor: Color?
+
+        do {
+            let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == recordingId })
+            if let rec = try context.fetch(fd).first {
+                newColor = dominantColor(for: rec)
+            } else {
+                newColor = nil
+            }
+        } catch {
+            newColor = nil
+        }
+
+        if animated {
+            withAnimation(.easeInOut(duration: 0.45)) {
+                dominantBackground = newColor
+            }
+        } else {
+            dominantBackground = newColor
+        }
+    }
+
+    /// 個々の RecordingEntity から Color? を得る（キャッシュがあれば利用、無ければ抽出して保存）
+    func dominantColor(for rec: RecordingEntity) -> Color? {
+        // 1. キャッシュ（iconDominantColorHex）があればそれを使う
+        if let hex = rec.iconDominantColorHex,
+           let ui = color(fromHex: hex) {
+            return Color(ui)
+        }
+
+        // 2. アイコン画像が無ければデフォルト背景（nil）を返す
+        guard let data = rec.iconImageData,
+              let uiImage = UIImage(data: data) else {
+            return nil
+        }
+
+        // 3. 平均色を計算してキャッシュ＆保存
+        guard let avg = averageColor(from: uiImage) else { return nil }
+        let hex = hexString(from: avg)
+        rec.iconDominantColorHex = hex
+        try? context.save()
+        return Color(avg)
+    }
+
+    func averageColor(from image: UIImage) -> UIColor? {
+        guard let cgImage = image.cgImage else { return nil }
+
+        // 小さくリサンプルして平均色を計算（パフォーマンス軽量）
+        let targetSize = CGSize(width: 32, height: 32)
+        let width = Int(targetSize.width)
+        let height = Int(targetSize.height)
+        let bytesPerPixel = 4
+        let bytesPerRow = bytesPerPixel * width
+        let bitsPerComponent = 8
+
+        guard let colorSpace = cgImage.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB) else {
+            return nil
+        }
+
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: bitsPerComponent,
+            bytesPerRow: bytesPerRow,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return nil
+        }
+
+        context.interpolationQuality = .low
+        context.draw(cgImage, in: CGRect(origin: .zero, size: targetSize))
+
+        guard let data = context.data else { return nil }
+        let ptr = data.bindMemory(to: UInt8.self, capacity: width * height * bytesPerPixel)
+
+        var totalR: Int = 0
+        var totalG: Int = 0
+        var totalB: Int = 0
+        var count: Int = 0
+
+        for y in 0..<height {
+            for x in 0..<width {
+                let offset = (y * bytesPerRow) + x * bytesPerPixel
+                let r = Int(ptr[offset])
+                let g = Int(ptr[offset + 1])
+                let b = Int(ptr[offset + 2])
+                let a = Int(ptr[offset + 3])
+
+                // 完全に透過なピクセルは無視
+                guard a > 0 else { continue }
+
+                totalR += r
+                totalG += g
+                totalB += b
+                count += 1
+            }
+        }
+
+        guard count > 0 else { return nil }
+
+        let avgR = CGFloat(totalR) / CGFloat(count) / 255.0
+        let avgG = CGFloat(totalG) / CGFloat(count) / 255.0
+        let avgB = CGFloat(totalB) / CGFloat(count) / 255.0
+
+        return UIColor(red: avgR, green: avgG, blue: avgB, alpha: 1.0)
+    }
+
+    func hexString(from color: UIColor) -> String {
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        color.getRed(&r, green: &g, blue: &b, alpha: &a)
+        let ri = Int(round(r * 255))
+        let gi = Int(round(g * 255))
+        let bi = Int(round(b * 255))
+        return String(format: "#%02X%02X%02X", ri, gi, bi)
+    }
+
+    func color(fromHex hex: String) -> UIColor? {
+        var cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if cleaned.hasPrefix("#") {
+            cleaned.removeFirst()
+        }
+        guard cleaned.count == 6,
+              let value = Int(cleaned, radix: 16) else { return nil }
+        let r = CGFloat((value >> 16) & 0xFF) / 255.0
+        let g = CGFloat((value >> 8) & 0xFF) / 255.0
+        let b = CGFloat(value & 0xFF) / 255.0
+        return UIColor(red: r, green: g, blue: b, alpha: 1.0)
     }
 }

@@ -8,6 +8,8 @@ struct IconCropperSheet: View {
     @State private var containerSize: CGSize = .zero
     @State private var circleCenter: CGPoint?
     @State private var circleRadius: CGFloat = 0
+    @State private var baseRadius: CGFloat = 0
+    @State private var pinchStartRadius: CGFloat?
     @State private var dragStartCenter: CGPoint?
     @State private var didInitializeLayout = false
 
@@ -59,6 +61,7 @@ struct IconCropperSheet: View {
                             .frame(width: circleRadius * 2, height: circleRadius * 2)
                             .position(currentCenter(in: size))
                             .contentShape(Circle())
+                            // 中心位置のドラッグ移動
                             .gesture(
                                 DragGesture()
                                     .onChanged { value in
@@ -76,6 +79,30 @@ struct IconCropperSheet: View {
                                         dragStartCenter = nil
                                     }
                             )
+                            // ピンチで円の大きさを変更（最小: 初期の0.5倍、最大: 画像からはみ出さない範囲）
+                            .simultaneousGesture(
+                                MagnificationGesture()
+                                    .onChanged { scale in
+                                        if pinchStartRadius == nil {
+                                            pinchStartRadius = circleRadius
+                                        }
+                                        guard let start = pinchStartRadius else { return }
+                                        let rect = imageRect(in: size)
+                                        let center = currentCenter(in: size)
+
+                                        let minR = baseRadius * 0.5
+                                        let maxR = maxRadius(for: center, in: size, imageRect: rect)
+
+                                        var newRadius = start * scale
+                                        newRadius = max(minR, min(newRadius, maxR))
+                                        circleRadius = newRadius
+                                        // 半径変更に応じて中心がはみ出さないように調整
+                                        circleCenter = clampCenter(center, in: size)
+                                    }
+                                    .onEnded { _ in
+                                        pinchStartRadius = nil
+                                    }
+                            )
                     }
                     .onAppear {
                         if didInitializeLayout == false {
@@ -84,6 +111,7 @@ struct IconCropperSheet: View {
                             let rect = imageRect(in: geo.size)
                             let radius = min(rect.width, rect.height) * 0.35
                             circleRadius = radius
+                            baseRadius = radius
                             circleCenter = CGPoint(x: rect.midX, y: rect.midY)
                         }
                     }
@@ -151,6 +179,13 @@ struct IconCropperSheet: View {
         let x = min(max(point.x, minX), maxX)
         let y = min(max(point.y, minY), maxY)
         return CGPoint(x: x, y: y)
+    }
+
+    private func maxRadius(for center: CGPoint, in container: CGSize, imageRect rect: CGRect) -> CGFloat {
+        // 現在の中心から画像内の各辺までの距離の最小値を上限とする
+        let dx = min(center.x - rect.minX, rect.maxX - center.x)
+        let dy = min(center.y - rect.minY, rect.maxY - center.y)
+        return max(0, min(dx, dy))
     }
 
     private func cropImage() -> UIImage? {

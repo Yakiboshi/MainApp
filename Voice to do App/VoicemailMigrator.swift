@@ -54,7 +54,11 @@ enum VoicemailMigrator {
                             }
                         }
                     }
-                    if changed { try? context.save() }
+                    if changed {
+                        try? context.save()
+                        // 留守電への移行に応じてアプリアイコンバッジも更新
+                        _ = AppBadgeManager.refresh(using: context)
+                    }
                 } catch { }
             }
         }

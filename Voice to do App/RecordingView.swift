@@ -188,7 +188,8 @@ struct RecordingView: View {
         )
         modelContext.insert(entity)
         try? modelContext.save()
-        // 新しい予定を通知キューに反映
+        // 新しい予定を通知キューに反映し、バッジベースも更新
+        _ = AppBadgeManager.refresh(using: modelContext)
         LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
         NotificationRouter.shared.presentIntermediate(for: entity.id)
         dismiss()

@@ -19,6 +19,8 @@ final class RecordingEntity {
     // 追加項目（詳細登録画面対応）
     var linkURLString: String? = nil           // https:// のみ
     var iconImageData: Data? = nil             // 円形アイコン画像（PNG/JPEGのバイト列）
+    // アイコンから抽出した支配的な背景色（ "#RRGGBB" 形式の文字列）。未抽出時は nil。
+    var iconDominantColorHex: String? = nil
     @Relationship(deleteRule: .cascade) var tasks: [RecordingTaskEntity] = [] // ToDo（子）
     // タスクの締切（相対指定・どちらかの概念）
     var deadlineHours: Int? = nil
@@ -52,6 +54,7 @@ final class RecordingEntity {
         isSnoozed: Bool = false,
         linkURLString: String? = nil,
         iconImageData: Data? = nil,
+        iconDominantColorHex: String? = nil,
         tasks: [RecordingTaskEntity] = [],
         deadlineHours: Int? = nil,
         deadlineMinutes: Int? = nil,
@@ -73,6 +76,7 @@ final class RecordingEntity {
         self.isSnoozed = isSnoozed
         self.linkURLString = linkURLString
         self.iconImageData = iconImageData
+        self.iconDominantColorHex = iconDominantColorHex
         self.tasks = tasks
         self.deadlineHours = deadlineHours
         self.deadlineMinutes = deadlineMinutes

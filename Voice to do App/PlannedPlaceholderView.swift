@@ -188,7 +188,8 @@ struct PlannedListPage: View {
             context.delete(rec)
             try? context.save()
         }
-        // 通知キューを更新
+        // 通知キューとバッジベースを更新
+        _ = AppBadgeManager.refresh(using: context)
         LocalNotificationManager.shared.refreshAllNotifications(in: context)
     }
 

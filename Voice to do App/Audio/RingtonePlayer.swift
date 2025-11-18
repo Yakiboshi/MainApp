@@ -7,8 +7,10 @@ final class RingtonePlayer: NSObject {
     func startLooping() {
         guard let url = RingtoneSourceProvider.currentOriginalURL() else { return }
         do {
-            try AVAudioSession.sharedInstance().setCategory(.ambient, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            let session = AVAudioSession.sharedInstance()
+            // サイレントスイッチに関係なく鳴らすため .playback を使用
+            try session.setCategory(.playback, mode: .default, options: [.duckOthers])
+            try session.setActive(true)
             let p = try AVAudioPlayer(contentsOf: url)
             p.numberOfLoops = -1
             p.prepareToPlay()
@@ -24,4 +26,3 @@ final class RingtonePlayer: NSObject {
         player = nil
     }
 }
-

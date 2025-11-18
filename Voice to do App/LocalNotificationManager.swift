@@ -38,8 +38,9 @@ final class LocalNotificationManager: NSObject {
                 perCall = max(1, 64 / count)
             }
 
-            // 履歴＋留守電由来のベースバッジ値（前回再計算時点）
-            let baseBadge = AppBadgeManager.storedTotal()
+            // 履歴＋留守電由来のベースバッジ値（現在の SwiftData 状態から算出）
+            let counts = AppBadgeManager.compute(using: context)
+            let baseBadge = counts.history + counts.voicemail
 
             for (index, rec) in scheduled.enumerated() {
                 let messageId = rec.id.uuidString
@@ -120,6 +121,8 @@ final class LocalNotificationManager: NSObject {
         recording.recordedAt = newDate
         recording.isSnoozed = true
         try? context.save()
+        // スヌーズ後の予定を反映し、バッジベースも更新
+        _ = AppBadgeManager.refresh(using: context)
         refreshAllNotifications(in: context)
     }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import UIKit
 import Combine
+import AVFoundation
 
 struct CallConversationView: View {
     let messageId: String
@@ -99,8 +100,14 @@ struct CallConversationView: View {
                 }
             }
         }
-        .onAppear { startPlayback() }
-        .onDisappear { player.stop() }
+        .onAppear {
+            // 通話開始時は録音時と同様のセッション設定に切り替え（サイレントスイッチ無視）
+            AudioRouteManager.configureForPreCall()
+            startPlayback()
+        }
+        .onDisappear {
+            player.stop()
+        }
         .onReceive(tick) { _ in
             // 再生時間の更新と波形の状態反映
             elapsedTime = player.currentTime()

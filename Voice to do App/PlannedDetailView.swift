@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import UIKit
 
 struct PlannedDetailView: View {
     @Environment(\.dismiss) private var dismiss
@@ -45,6 +46,12 @@ struct PlannedDetailView: View {
             Theme.appGradient.ignoresSafeArea()
             VStack(spacing: 0) {
                 ScrollView { contentStack }
+                    // スクロール時にキーボードを閉じる
+                    .simultaneousGesture(
+                        DragGesture().onChanged { _ in
+                            dismissKeyboard()
+                        }
+                    )
 
                 // 下部固定バー（キャンセル / 完了）
                 LinearGradient(colors: [Color.black.opacity(0.55), Color.black.opacity(0)], startPoint: .bottom, endPoint: .top)
@@ -94,6 +101,11 @@ struct PlannedDetailView: View {
                     )
             }
             .ignoresSafeArea(edges: .bottom)
+        }
+        // 背景タップでキーボードを閉じる
+        .contentShape(Rectangle())
+        .onTapGesture {
+            dismissKeyboard()
         }
         .onAppear { if !loaded { load() } }
         .navigationBarTitleDisplayMode(.inline)
@@ -186,6 +198,11 @@ struct PlannedDetailView: View {
             .datePickerStyle(.compact)
             .labelsHidden()
             .tint(.white)
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white.opacity(0.15))
+            )
             if !isFutureDate {
                 Text("未来の時刻を入力してください")
                     .font(.footnote)
@@ -434,6 +451,8 @@ struct PlannedDetailView: View {
             entity.recordedAt = scheduledAt
             entity.isSnoozed = false
             NotificationManager.shared.cancelAllNotifications(for: entity.id.uuidString)
+            // 予定変更に合わせてバッジベースと通知キューを再構築
+            _ = AppBadgeManager.refresh(using: context)
             LocalNotificationManager.shared.refreshAllNotifications(in: context)
         }
 
@@ -522,5 +541,14 @@ private extension PlannedDetailView {
         } catch {
             return true
         }
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
     }
 }
