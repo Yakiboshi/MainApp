@@ -26,6 +26,16 @@ enum SortPreference {
         case receivedOldest
     }
 
+    enum NotificationVolumePreset: Int, CaseIterable, Identifiable {
+        case small       = 0  // 小さめ
+        case semiSmall   = 1  // やや小さめ
+        case normal      = 2  // 普通
+        case semiBig     = 3  // やや大きめ
+        case big         = 4  // 大きめ
+
+        var id: Int { rawValue }
+    }
+
     private static let historyKey = "sort.history"
     private static let plannedKey = "sort.planned"
     private static let voicemailKey = "sort.voicemail"
@@ -98,17 +108,40 @@ enum SortPreference {
         UserDefaults.standard.set(flag, forKey: autoMonthKey)
     }
 
-    static func loadNotificationVolume() -> Int {
-        let v = UserDefaults.standard.integer(forKey: notificationVolumeKey)
-        if v == 0 && UserDefaults.standard.object(forKey: notificationVolumeKey) == nil {
-            // デフォルトは 50（元音源と同じ音量）
-            return 50
+    static func loadNotificationVolumePreset() -> NotificationVolumePreset {
+        let defaults = UserDefaults.standard
+        let stored = defaults.integer(forKey: notificationVolumeKey)
+
+        // キーが未設定ならデフォルト（普通）
+        guard defaults.object(forKey: notificationVolumeKey) != nil else {
+            return .normal
         }
-        return max(0, min(100, v))
+
+        // 0〜4 は新しいプリセット値として解釈
+        if let preset = NotificationVolumePreset(rawValue: stored) {
+            return preset
+        }
+
+        // 旧実装: 0〜100 のスライダー値が保存されている場合は 5 段階にマッピングして即座に移行
+        let clamped = max(0, min(100, stored))
+        let migrated: NotificationVolumePreset
+        switch clamped {
+        case 0..<20:
+            migrated = .small
+        case 20..<40:
+            migrated = .semiSmall
+        case 40..<60:
+            migrated = .normal
+        case 60..<80:
+            migrated = .semiBig
+        default:
+            migrated = .big
+        }
+        saveNotificationVolumePreset(migrated)
+        return migrated
     }
 
-    static func saveNotificationVolume(_ value: Int) {
-        let clamped = max(0, min(100, value))
-        UserDefaults.standard.set(clamped, forKey: notificationVolumeKey)
+    static func saveNotificationVolumePreset(_ preset: NotificationVolumePreset) {
+        UserDefaults.standard.set(preset.rawValue, forKey: notificationVolumeKey)
     }
 }

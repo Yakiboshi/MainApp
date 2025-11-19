@@ -22,6 +22,10 @@ final class LocalNotificationManager: NSObject {
             let fd = FetchDescriptor<RecordingEntity>()
             let all = try context.fetch(fd)
 
+            // 現在の設定に応じた通知音ファイル名を決定（ファイルが無ければ必要に応じて生成）
+            let preset = SortPreference.loadNotificationVolumePreset()
+            let soundName = NotificationSoundProvider.soundName(for: preset)
+
             let now = Date()
             // 通知対象: 「未来の」scheduled かつ 留守電受信箱に入っていないもの
             // 過去時刻の予定は新たに鳴らさず、VoicemailMigrator 側で未応答扱いにする
@@ -57,8 +61,11 @@ final class LocalNotificationManager: NSObject {
                         "messageId": messageId
                     ]
 
-                    if let sound = NotificationSoundProvider.currentNotificationSoundName() {
-                        content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))
+                    if let s = soundName {
+                        content.sound = UNNotificationSound(named: UNNotificationSoundName(s))
+                    } else if let fallback = NotificationSoundProvider.currentNotificationSoundName() {
+                        // 生成に失敗した場合などは元音源にフォールバック
+                        content.sound = UNNotificationSound(named: UNNotificationSoundName(fallback))
                     } else {
                         content.sound = .default
                     }

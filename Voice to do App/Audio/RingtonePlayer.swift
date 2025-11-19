@@ -11,6 +11,14 @@ final class RingtonePlayer: NSObject {
             // サイレントスイッチに関係なく鳴らすため .playback を使用
             try session.setCategory(.playback, mode: .default, options: [.duckOthers])
             try session.setActive(true)
+            // 録音中以外は基本スピーカー出力：外部機器が無い場合のみスピーカーへ
+            let outputs = session.currentRoute.outputs
+            let hasExternal = outputs.contains { output in
+                output.portType != .builtInSpeaker && output.portType != .builtInReceiver
+            }
+            if !hasExternal {
+                try? session.overrideOutputAudioPort(.speaker)
+            }
             let p = try AVAudioPlayer(contentsOf: url)
             p.numberOfLoops = -1
             p.prepareToPlay()

@@ -101,7 +101,7 @@ struct CallConversationView: View {
             }
         }
         .onAppear {
-            // 通話開始時は録音時と同様のセッション設定に切り替え（サイレントスイッチ無視）
+            // 通話開始時は通話向けセッション（.playAndRecord + defaultToSpeaker）に切り替え
             AudioRouteManager.configureForPreCall()
             startPlayback()
         }
@@ -129,7 +129,8 @@ struct CallConversationView: View {
                     self.photoImage = img
                 }
                 elapsedTime = 0
-                player.playURL(url, loops: 0) {
+                // 通話画面の音声再生は通常より大きめ（3倍イメージ）で再生する
+                player.playURL(url, loops: 0, volume: 1.0) {
                     // 自動終了 → AfterCallをリクエスト
                     SoundManager.shared.play("syuuryou", ext: "mp3")
                     stampDeadlineBaseIfNeeded()

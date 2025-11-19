@@ -1,9 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct SettingsPlaceholderView: View {
+    @Environment(\.modelContext) private var modelContext
+
     @State private var autoYear: Bool = SortPreference.loadAutoYear()
     @State private var autoMonth: Bool = SortPreference.loadAutoMonth()
-    @State private var notificationVolume: Double = Double(SortPreference.loadNotificationVolume())
+    @State private var volumePreset: SortPreference.NotificationVolumePreset = SortPreference.loadNotificationVolumePreset()
+    @State private var isUpdatingVolume: Bool = false
 
     var body: some View {
         ZStack {
@@ -39,13 +43,22 @@ struct SettingsPlaceholderView: View {
                             Text("着メロ音量調整")
                                 .foregroundStyle(Color.white)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            Slider(value: $notificationVolume, in: 0...100, step: 1)
-                                .tint(.white)
-                            HStack {
-                                Spacer()
-                                Text("\(Int(notificationVolume))")
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.white.opacity(0.8))
+                            Picker("", selection: $volumePreset) {
+                                Text("小さめ").tag(SortPreference.NotificationVolumePreset.small)
+                                Text("やや小さめ").tag(SortPreference.NotificationVolumePreset.semiSmall)
+                                Text("普通").tag(SortPreference.NotificationVolumePreset.normal)
+                                Text("やや大きめ").tag(SortPreference.NotificationVolumePreset.semiBig)
+                                Text("大きめ").tag(SortPreference.NotificationVolumePreset.big)
+                            }
+                            .pickerStyle(.segmented)
+                            .disabled(isUpdatingVolume)
+                            if isUpdatingVolume {
+                                HStack {
+                                    Spacer()
+                                    Text("変更中")
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.white.opacity(0.8))
+                                }
                             }
                         }
                         .padding()
@@ -77,8 +90,14 @@ struct SettingsPlaceholderView: View {
                 SortPreference.saveAutoYear(true)
             }
         }
-        .onChange(of: notificationVolume) { newValue in
-            SortPreference.saveNotificationVolume(Int(newValue))
+        .onChange(of: volumePreset) { newPreset in
+            isUpdatingVolume = true
+            SortPreference.saveNotificationVolumePreset(newPreset)
+            Task { @MainActor in
+                _ = NotificationSoundProvider.soundName(for: newPreset)
+                LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
+                isUpdatingVolume = false
+            }
         }
     }
 }

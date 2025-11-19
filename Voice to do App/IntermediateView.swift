@@ -132,6 +132,8 @@ private struct DetailCoreView: View {
         .contentShape(Rectangle())
         .onTapGesture { dismissKeyboard() }
         .onAppear {
+            // 録音後の詳細画面では再生用セッション＋スピーカーに切り替えておく
+            AudioRouteManager.configurePlaybackSession()
             if linkInput.isEmpty { linkInput = recording.linkURLString ?? "" }
             if (recording.deadlineDays ?? 0) > 0 { deadlineMode = .days } else { deadlineMode = .hoursMinutes }
         }

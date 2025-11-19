@@ -503,7 +503,10 @@ private struct ReListenPlayerView: View {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let url = docs.appendingPathComponent(recording.fileName)
         didFinish = false
-        player.playURL(url, loops: 0) { didFinish = true }
+        // 再生前に再生用セッション（.playback + スピーカー）を構成
+        AudioRouteManager.configurePlaybackSession()
+        // 通話後画面の聞き直しも大きめ（3倍イメージ）で再生
+        player.playURL(url, loops: 0, volume: 1.0) { didFinish = true }
         duration = max(player.duration(), 1)
     }
     private func restart() {

@@ -102,20 +102,44 @@ final class AudioRouteManager: ObservableObject {
         }
     }
 
-    // 通信画面に遷移したタイミングで、録音用のセッション＋受話口出力に切り替える
+    // 再生用: カテゴリを .playback に設定し、外部機器が無ければスピーカー出力をデフォルトにする
+    static func configurePlaybackSession() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, mode: .default, options: [.defaultToSpeaker])
+            try session.setActive(true)
+        } catch {
+            // ignore
+        }
+    }
+
+    // 録音以外の画面用: 既存セッションのまま、可能ならスピーカー出力に固定（外部機器があればそのまま）
+    static func forceSpeakerIfPossible() {
+        let session = AVAudioSession.sharedInstance()
+        let outputs = session.currentRoute.outputs
+        let hasExternal = outputs.contains { output in
+            output.portType != .builtInSpeaker && output.portType != .builtInReceiver
+        }
+        guard !hasExternal else { return }
+        do {
+            try session.overrideOutputAudioPort(.speaker)
+        } catch {
+            // ignore
+        }
+    }
+
+    // 通信画面に遷移したタイミングで、録音向けセッションを構成し、
+    // 外部機器が無ければスピーカー出力をデフォルトにする
     static func configureForPreCall() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .allowBluetoothA2DP])
+            // .defaultToSpeaker を付けて、内蔵出力時は必ずスピーカーを使う
+            try session.setCategory(
+                .playAndRecord,
+                mode: .voiceChat,
+                options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker]
+            )
             try session.setActive(true)
-            let outputs = session.currentRoute.outputs
-            let hasExternal = outputs.contains { output in
-                output.portType != .builtInSpeaker && output.portType != .builtInReceiver
-            }
-            // 外部機器が無い場合のみ受話口へ（phoneモードっぽく）
-            if !hasExternal {
-                try session.overrideOutputAudioPort(.none)
-            }
         } catch {
             // ignore
         }

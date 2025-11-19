@@ -361,10 +361,13 @@ private struct HistoryDetailScreen: View {
             player.pause()
             return
         }
+        // 再生前に再生用セッション（.playback + スピーカー）を構成
+        AudioRouteManager.configurePlaybackSession()
         // 再生開始時は現在のエンティティに合わせて状態を再構築
         resetAudioStateForCurrentEntity()
         guard let url = audioURL() else { return }
-        player.playURL(url, loops: 0) {
+        // 履歴詳細の再生音声も大きめ（3倍イメージ）で再生
+        player.playURL(url, loops: 0, volume: 1.0) {
             // 再生終了時は自動で isPlaying が false になる
         }
     }

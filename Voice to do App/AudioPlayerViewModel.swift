@@ -10,7 +10,7 @@ final class AudioPlayerViewModel: NSObject, ObservableObject, AVAudioPlayerDeleg
     @Published var isPlaying: Bool = false
 
     // 指定名の音源をバンドルから再生。見つからない/失敗時は onFinish を即時呼び出し
-    func playSound(fileName: String, fileExtension: String = "mp3", onFinish: @escaping () -> Void) {
+    func playSound(fileName: String, fileExtension: String = "mp3", volume: Float = 1.0, onFinish: @escaping () -> Void) {
         self.onFinish = onFinish
 
         guard let url = Bundle.main.url(forResource: fileName, withExtension: fileExtension) else {
@@ -23,6 +23,7 @@ final class AudioPlayerViewModel: NSObject, ObservableObject, AVAudioPlayerDeleg
             // ここでは既存設定（SoundManagerなど）を尊重し、個別設定は行わない。
             let p = try AVAudioPlayer(contentsOf: url)
             p.delegate = self
+            p.volume = max(0.0, min(volume, 1.0))
             p.prepareToPlay()
             p.play()
             self.player = p
@@ -40,12 +41,13 @@ final class AudioPlayerViewModel: NSObject, ObservableObject, AVAudioPlayerDeleg
     }
 
     // ドキュメント等の任意URLから再生（任意ループ）
-    func playURL(_ url: URL, loops: Int = 0, onFinish: @escaping () -> Void) {
+    func playURL(_ url: URL, loops: Int = 0, volume: Float = 1.0, onFinish: @escaping () -> Void) {
         self.onFinish = onFinish
         do {
             let p = try AVAudioPlayer(contentsOf: url)
             p.delegate = self
             p.numberOfLoops = loops
+            p.volume = max(0.0, min(volume, 1.0))
             p.prepareToPlay()
             p.play()
             self.player = p

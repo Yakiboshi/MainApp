@@ -60,6 +60,13 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
             try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .allowBluetoothA2DP])
             try session.setActive(true)
 
+            // 録音の入力ゲインを強める（可能なデバイスのみ）。デフォルトの約2倍を目安に、上限1.0でクリップ。
+            if session.isInputGainSettable {
+                let currentGain = session.inputGain
+                let targetGain = min(1.0, max(0.0, currentGain * 2.0))
+                try? session.setInputGain(targetGain)
+            }
+
             // 外部機器接続時は、入力を持たないデバイスなら内蔵マイクにフォールバック
             AudioRouteManager.configureInputForRecording()
 
