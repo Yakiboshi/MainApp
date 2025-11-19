@@ -4,6 +4,13 @@ enum RingtoneSourceProvider {
     // ユーザーが指定した“原音”があれば最新を返す。無ければバンドルのデフォルトを返す。
     // ユーザー原音の保存場所: Documents/Sounds/Original/
     static func currentOriginalURL() -> URL? {
+        // 1. カスタム通知音（Library/Sounds/notification.wav）があればそれを最優先で使用
+        if let custom = NotificationSoundProvider.customSoundFileURL(),
+           FileManager.default.fileExists(atPath: custom.path) {
+            return custom
+        }
+
+        // 2. 既存仕様: Documents/Sounds/Original 内の最新ファイル
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let dir = docs.appendingPathComponent("Sounds/Original", isDirectory: true)
         guard let items = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]),

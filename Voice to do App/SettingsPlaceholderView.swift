@@ -6,8 +6,9 @@ struct SettingsPlaceholderView: View {
 
     @State private var autoYear: Bool = SortPreference.loadAutoYear()
     @State private var autoMonth: Bool = SortPreference.loadAutoMonth()
-    @State private var volumePreset: SortPreference.NotificationVolumePreset = SortPreference.loadNotificationVolumePreset()
-    @State private var isUpdatingVolume: Bool = false
+    @State private var isShowingSoundSheet: Bool = false
+
+    @Query private var soundEntities: [NotificationSoundEntity]
 
     var body: some View {
         ZStack {
@@ -40,26 +41,17 @@ struct SettingsPlaceholderView: View {
                             isOn: $autoMonth
                         )
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("着メロ音量調整")
+                            Text("着信音")
                                 .foregroundStyle(Color.white)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            Picker("", selection: $volumePreset) {
-                                Text("小さめ").tag(SortPreference.NotificationVolumePreset.small)
-                                Text("やや小さめ").tag(SortPreference.NotificationVolumePreset.semiSmall)
-                                Text("普通").tag(SortPreference.NotificationVolumePreset.normal)
-                                Text("やや大きめ").tag(SortPreference.NotificationVolumePreset.semiBig)
-                                Text("大きめ").tag(SortPreference.NotificationVolumePreset.big)
+                            Text(currentSoundDisplayName)
+                                .foregroundStyle(Color.white.opacity(0.9))
+                                .font(.subheadline)
+                            Button("着信音を変更") {
+                                isShowingSoundSheet = true
                             }
-                            .pickerStyle(.segmented)
-                            .disabled(isUpdatingVolume)
-                            if isUpdatingVolume {
-                                HStack {
-                                    Spacer()
-                                    Text("変更中")
-                                        .font(.caption2)
-                                        .foregroundStyle(Color.white.opacity(0.8))
-                                }
-                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.white.opacity(0.15))
                         }
                         .padding()
                         .background(
@@ -90,14 +82,8 @@ struct SettingsPlaceholderView: View {
                 SortPreference.saveAutoYear(true)
             }
         }
-        .onChange(of: volumePreset) { newPreset in
-            isUpdatingVolume = true
-            SortPreference.saveNotificationVolumePreset(newPreset)
-            Task { @MainActor in
-                _ = NotificationSoundProvider.soundName(for: newPreset)
-                LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
-                isUpdatingVolume = false
-            }
+        .sheet(isPresented: $isShowingSoundSheet) {
+            SoundSettingSheet()
         }
     }
 }
@@ -132,5 +118,20 @@ private extension Binding {
                 handler(newValue)
             }
         )
+    }
+}
+
+private extension SettingsPlaceholderView {
+    var currentSoundDisplayName: String {
+        if let entity = soundEntities.first {
+            if entity.isDefault {
+                return "デフォルト"
+            } else if let name = entity.displayName, !name.isEmpty {
+                return name
+            } else if let path = entity.soundURL, let url = URL(string: path) {
+                return url.lastPathComponent
+            }
+        }
+        return "デフォルト"
     }
 }

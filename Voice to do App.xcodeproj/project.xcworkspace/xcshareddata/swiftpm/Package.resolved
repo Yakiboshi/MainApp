@@ -1,6 +1,33 @@
 {
-  "originHash" : "0b3ee28867b351bf339d165ccf9fe70752b4170327cf2f4678bbf33b6e30286e",
+  "originHash" : "da58d3a16f04cfba10725379c4a7b5d3e347c687bc7bbcbf64cbdbfa32990b9f",
   "pins" : [
+    {
+      "identity" : "audioeditorkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Lakr233/AudioEditorKit.git",
+      "state" : {
+        "revision" : "f20666af43928548f6abc4a6806bc9cb45561cc6",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "progresshud",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/relatedcode/ProgressHUD.git",
+      "state" : {
+        "revision" : "4aa638a88450d6d48a6620070722e875e7a179ef",
+        "version" : "14.1.4"
+      }
+    },
+    {
+      "identity" : "swift-atomics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-atomics.git",
+      "state" : {
+        "revision" : "b601256eab081c0f92f059e12818ac1d4f178ff7",
+        "version" : "1.3.0"
+      }
+    },
     {
       "identity" : "swiftycrop",
       "kind" : "remoteSourceControl",

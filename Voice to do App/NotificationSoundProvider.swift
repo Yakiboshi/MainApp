@@ -7,24 +7,20 @@ enum NotificationSoundProvider {
     private static let defaultName = "ks035"
     private static let defaultExt = "wav"
     private static let maxDuration: TimeInterval = 7.0 // 要件: 通知音は7秒以内（終端でフェードアウト）
+    private static let customFileName = "notification.wav"
 
     // MARK: - 公開 API
 
-    /// 現在のプリセットに応じた通知音ファイル名（"name.ext"）を返す。
-    /// - Parameter preset: 音量プリセット
-    /// - Returns: UNNotificationSoundName に渡すファイル名。使用不可の場合は nil。
-    static func soundName(for preset: SortPreference.NotificationVolumePreset) -> String? {
-        switch preset {
-        case .normal:
-            // 通常はバンドル内の元音源をそのまま利用
-            return currentNotificationSoundName()
-        default:
-            return ensureScaledFile(for: preset)
-        }
-    }
-
-    /// 既存実装との互換用: 通常音量の通知音ファイル名を返す。
+    /// 現在有効な通知音ファイル名（"name.ext"）を返す。
+    /// - 優先: Library/Sounds/notification.wav（カスタム/デフォルト変換済み）
+    /// - フォールバック: バンドル内 ks035.wav（7秒以内の場合）
     static func currentNotificationSoundName() -> String? {
+        // 1. カスタム（Library/Sounds/notification.wav）があればそれを優先
+        if let url = customSoundFileURL(), FileManager.default.fileExists(atPath: url.path) {
+            return customFileName
+        }
+
+        // 2. 旧仕様: バンドル内デフォルト音源
         guard let url = Bundle.main.url(forResource: defaultName, withExtension: defaultExt) else {
             return nil
         }
@@ -33,6 +29,20 @@ enum NotificationSoundProvider {
             return "\(defaultName).\(defaultExt)"
         }
         return nil
+    }
+
+    /// Library/Sounds/notification.wav の URL
+    static func customSoundFileURL() -> URL? {
+        guard let dir = librarySoundsDirectory() else { return nil }
+        return dir.appendingPathComponent(customFileName)
+    }
+
+    /// Library/Sounds ディレクトリ
+    static func librarySoundsDirectory() -> URL? {
+        guard let lib = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        return lib.appendingPathComponent("Sounds", isDirectory: true)
     }
 
     // MARK: - プリセット別ファイル生成
@@ -83,13 +93,6 @@ enum NotificationSoundProvider {
     private static func audioDuration(at url: URL) -> TimeInterval? {
         let asset = AVURLAsset(url: url)
         return CMTimeGetSeconds(asset.duration)
-    }
-
-    private static func librarySoundsDirectory() -> URL? {
-        guard let lib = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first else {
-            return nil
-        }
-        return lib.appendingPathComponent("Sounds", isDirectory: true)
     }
 
     /// 元音源のサンプルにゲインを掛けて別ファイルとして書き出す。
