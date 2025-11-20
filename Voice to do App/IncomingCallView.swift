@@ -52,7 +52,8 @@ struct IncomingCallView: View {
 
                     // 丸型写真（なければプレースホルダ）
                     Group {
-                        if let data = recording?.iconImageData, let ui = UIImage(data: data) {
+                        if let data = recording?.iconImageData ?? DefaultIconStore.load(),
+                           let ui = UIImage(data: data) {
                             Image(uiImage: ui)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)

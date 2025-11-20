@@ -37,6 +37,8 @@ final class RecordingEntity {
     var inVoicemailInbox: Bool = false
     // スヌーズ中かどうか（予定リストのラベル表示用）
     var isSnoozed: Bool = false
+    // 予定時刻を過ぎてから保存された録音かどうか（履歴の特別表示用）
+    var isExpired: Bool = false
 
     init(
         id: UUID = UUID(),
@@ -52,6 +54,7 @@ final class RecordingEntity {
         answeredAt: Date? = nil,
         inVoicemailInbox: Bool = false,
         isSnoozed: Bool = false,
+        isExpired: Bool = false,
         linkURLString: String? = nil,
         iconImageData: Data? = nil,
         iconDominantColorHex: String? = nil,
@@ -74,6 +77,7 @@ final class RecordingEntity {
         self.answeredAt = answeredAt
         self.inVoicemailInbox = inVoicemailInbox
         self.isSnoozed = isSnoozed
+        self.isExpired = isExpired
         self.linkURLString = linkURLString
         self.iconImageData = iconImageData
         self.iconDominantColorHex = iconDominantColorHex

@@ -51,6 +51,18 @@ struct ContentView: View {
                 }
             }
             .transaction { $0.disablesAnimations = true }
+            // 予定時刻超過時の録音用画面
+            .fullScreenCover(isPresented: Binding(get: {
+                notifRouter.showExpiredRecordingId != nil
+            }, set: { newVal in
+                if !newVal { notifRouter.dismissExpiredRecording() }
+            })) {
+                if let rid = notifRouter.showExpiredRecordingId {
+                    ExpiredRecordingContainerView(recordingId: rid)
+                        .ignoresSafeArea()
+                }
+            }
+            .transaction { $0.disablesAnimations = true }
             // 詳細設定（中間画面）をルート提示
             .fullScreenCover(isPresented: Binding(get: {
                 notifRouter.showIntermediateForRecordingId != nil

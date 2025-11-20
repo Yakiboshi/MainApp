@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct HistoryPlaceholderView: View {
     @State private var page: Int = 0
@@ -235,7 +236,8 @@ private struct HistoryRowView: View {
 
         HStack(spacing: 12) {
             // 左: 丸型アイコン（保存画像）
-            if let data = entity.iconImageData, let ui = UIImage(data: data) {
+            if let data = entity.iconImageData ?? DefaultIconStore.load(),
+               let ui = UIImage(data: data) {
                 Image(uiImage: ui)
                     .resizable()
                     .aspectRatio(contentMode: .fill)

@@ -321,7 +321,10 @@ struct AfterCallView: View {
             let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == uuid })
             if let rec = try context.fetch(fd).first {
                 recording = rec
-                if let data = rec.iconImageData, let ui = UIImage(data: data) { iconImage = ui }
+                if let data = rec.iconImageData ?? DefaultIconStore.load(),
+                   let ui = UIImage(data: data) {
+                    iconImage = ui
+                }
                 // デッドライン起点が無い場合は安全に埋める
                 if rec.deadlineBaseAt == nil { rec.deadlineBaseAt = Date(); try? context.save() }
             }
@@ -435,11 +438,25 @@ private struct ReListenPlayerView: View {
             Theme.appGradient.ignoresSafeArea()
             VStack {
                 Spacer().frame(height: 80)
-                if let data = recording.iconImageData, let ui = UIImage(data: data) {
-                    Image(uiImage: ui).resizable().aspectRatio(contentMode: .fill).frame(width: 160, height: 160).clipShape(Circle()).shadow(radius: 10)
+                if let data = recording.iconImageData ?? DefaultIconStore.load(),
+                   let ui = UIImage(data: data) {
+                    Image(uiImage: ui)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 160, height: 160)
+                        .clipShape(Circle())
+                        .shadow(radius: 10)
                 } else {
-                    Circle().fill(Color.white.opacity(0.15)).frame(width: 160, height: 160)
-                        .overlay(Image(systemName: "person.crop.circle.fill").resizable().scaledToFit().foregroundStyle(.white.opacity(0.7)).padding(24))
+                    Circle()
+                        .fill(Color.white.opacity(0.15))
+                        .frame(width: 160, height: 160)
+                        .overlay(
+                            Image(systemName: "person.crop.circle.fill")
+                                .resizable()
+                                .scaledToFit()
+                                .foregroundStyle(.white.opacity(0.7))
+                                .padding(24)
+                        )
                 }
                 Text(timeString(elapsed)).font(.system(size: 36, weight: .bold, design: .monospaced)).foregroundStyle(.white).padding(.top, 16)
                 // 波形（再生中のみアニメ）

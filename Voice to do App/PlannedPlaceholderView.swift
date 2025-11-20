@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct PlannedPlaceholderView: View {
     @State private var page: Int = 0
@@ -204,7 +205,8 @@ private struct PlannedRowView: View {
     var isSnoozed: Bool = false
     var body: some View {
         HStack(spacing: 12) {
-            if let data = entity.iconImageData, let ui = UIImage(data: data) {
+            if let data = entity.iconImageData ?? DefaultIconStore.load(),
+               let ui = UIImage(data: data) {
                 Image(uiImage: ui)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -212,8 +214,13 @@ private struct PlannedRowView: View {
                     .clipShape(Circle())
                     .shadow(radius: 2)
             } else {
-                Circle().fill(Color.white.opacity(0.2)).frame(width: 44, height: 44)
-                    .overlay(Image(systemName: "person.fill").foregroundStyle(.white.opacity(0.7)))
+                Circle()
+                    .fill(Color.white.opacity(0.2))
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .foregroundStyle(.white.opacity(0.7))
+                    )
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(displayTitle(entity))

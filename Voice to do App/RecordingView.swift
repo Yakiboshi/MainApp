@@ -179,20 +179,32 @@ struct RecordingView: View {
             didFinalize = false
             return
         }
+        let now = Date()
+        let isExpired = now > date
+
         // 保存日時は現在時刻（録音完了時）。予定日時は recordedAt（既存フィールド）
         let entity = RecordingEntity(
             id: newId,
             recordedAt: date,
-            savedAt: Date(),
+            savedAt: now,
             fileName: res.fileName,
-            duration: res.duration
+            duration: res.duration,
+            status: isExpired ? "answered" : "scheduled",
+            answeredAt: isExpired ? now : nil,
+            isExpired: isExpired
         )
         modelContext.insert(entity)
         try? modelContext.save()
-        // 新しい予定を通知キューに反映し、バッジベースも更新
-        _ = AppBadgeManager.refresh(using: modelContext)
-        LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
-        NotificationRouter.shared.presentIntermediate(for: entity.id)
+
+        if isExpired {
+            // 予定時刻超過時は簡易画面を表示し、詳細登録や通知登録は行わない
+            NotificationRouter.shared.presentExpiredRecording(for: entity.id)
+        } else {
+            // 新しい予定を通知キューに反映し、バッジベースも更新
+            _ = AppBadgeManager.refresh(using: modelContext)
+            LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
+            NotificationRouter.shared.presentIntermediate(for: entity.id)
+        }
         dismiss()
     }
 

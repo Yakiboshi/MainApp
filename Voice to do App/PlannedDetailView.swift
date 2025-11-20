@@ -117,6 +117,7 @@ struct PlannedDetailView: View {
         VStack(spacing: 20) {
             iconSection
             timeSection
+            snoozeSection
             titleSection
             afterMemoSection
             urlSection
@@ -133,7 +134,8 @@ struct PlannedDetailView: View {
         VStack(alignment: .center, spacing: 12) {
             ZStack {
                 Circle().fill(Color.white.opacity(0.08)).frame(width: 120, height: 120)
-                if let data = iconImageData, let ui = UIImage(data: data) {
+                if let data = iconImageData ?? DefaultIconStore.load(),
+                   let ui = UIImage(data: data) {
                     Image(uiImage: ui)
                         .resizable()
                         .scaledToFill()
@@ -211,6 +213,104 @@ struct PlannedDetailView: View {
                 Text("別の予定と同じ時刻は登録できません")
                     .font(.footnote)
                     .foregroundStyle(Color.red)
+            }
+        }
+    }
+
+    private var snoozeSection: some View {
+        let total = max(entity.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes(), 0)
+        let days = max(0, min(7, total / (24 * 60)))
+        let hours = max(0, min(23, (total % (24 * 60)) / 60))
+        let mins = max(0, min(59, total % 60))
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("スヌーズ時間")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text("この予定のスヌーズ時間（日・時間・分）")
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.7))
+            HStack(alignment: .center, spacing: 16) {
+                VStack {
+                    Text("日")
+                        .foregroundStyle(.white.opacity(0.8))
+                        .font(.caption)
+                    Picker(
+                        "",
+                        selection: Binding(
+                            get: { days },
+                            set: { newValue in
+                                let clamped = max(0, min(7, newValue))
+                                let current = entity.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes()
+                                let currentHours = max(0, min(23, (current % (24 * 60)) / 60))
+                                let currentMins = max(0, min(59, current % 60))
+                                entity.snoozeMin = clamped * 24 * 60 + currentHours * 60 + currentMins
+                            }
+                        )
+                    ) {
+                        ForEach(0...7, id: \.self) { v in
+                            Text("\(v)").foregroundStyle(.white).tag(v)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.wheel)
+                    .frame(maxHeight: 100)
+                }
+                VStack {
+                    Text("時間")
+                        .foregroundStyle(.white.opacity(0.8))
+                        .font(.caption)
+                    Picker(
+                        "",
+                        selection: Binding(
+                            get: {
+                                let current = entity.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes()
+                                return max(0, min(23, (current % (24 * 60)) / 60))
+                            },
+                            set: { newValue in
+                                let clamped = max(0, min(23, newValue))
+                                let current = entity.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes()
+                                let currentDays = max(0, min(7, current / (24 * 60)))
+                                let currentMins = max(0, min(59, current % 60))
+                                entity.snoozeMin = currentDays * 24 * 60 + clamped * 60 + currentMins
+                            }
+                        )
+                    ) {
+                        ForEach(0...23, id: \.self) { v in
+                            Text("\(v)").foregroundStyle(.white).tag(v)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.wheel)
+                    .frame(maxHeight: 100)
+                }
+                VStack {
+                    Text("分")
+                        .foregroundStyle(.white.opacity(0.8))
+                        .font(.caption)
+                    Picker(
+                        "",
+                        selection: Binding(
+                            get: {
+                                let current = entity.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes()
+                                return max(0, min(59, current % 60))
+                            },
+                            set: { newValue in
+                                let clamped = max(0, min(59, newValue))
+                                let current = entity.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes()
+                                let currentDays = max(0, min(7, current / (24 * 60)))
+                                let currentHours = max(0, min(23, (current % (24 * 60)) / 60))
+                                entity.snoozeMin = currentDays * 24 * 60 + currentHours * 60 + clamped
+                            }
+                        )
+                    ) {
+                        ForEach(0...59, id: \.self) { v in
+                            Text("\(v)").foregroundStyle(.white).tag(v)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.wheel)
+                    .frame(maxHeight: 100)
+                }
             }
         }
     }

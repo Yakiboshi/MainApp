@@ -648,6 +648,15 @@ private struct PresetPane: View {
     }
 
     private func date(for p: QuickPresetEntity, from base: Date) -> Date {
+        if p.isRelative {
+            // 日数 + 相対時間の両方を現在時刻からのオフセットとして解釈
+            let days = p.daysOffset
+            let hours = p.relativeHours ?? 0
+            let afterDays = base.addingTimeInterval(Double(days) * 24 * 3600)
+            return afterDays.addingTimeInterval(hours * 3600)
+        }
+
+        // 絶対日時プリセット: 今日（またはN日後）の特定時刻として計算
         let cal = Calendar.current
         let dayBase = cal.startOfDay(for: base)
         let plus = cal.date(byAdding: .day, value: p.daysOffset, to: dayBase) ?? base
@@ -662,6 +671,8 @@ private struct PresetPane: View {
     }
 }
 
+/// 相対日時プリセット（「1時間後」「◯日後」など）を表示するセクション。
+/// 内蔵の「1時間後」と、ユーザーが設定画面から追加した RelativeDatePresetEntity を並べる。
 private struct CalendarPane: View {
     var now: Date
     var onApplyDate: (Date) -> Void

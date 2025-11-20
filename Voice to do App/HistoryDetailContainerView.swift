@@ -115,8 +115,8 @@ private struct HistoryDetailScreen: View {
                     // アイコン + タイトル + 再生ボックスをまとめて背面に丸型アイコンを配置
                     ZStack {
                         // 背面の丸型アイコン
-                        if let data = entity.iconImageData, let ui = UIImage(data: data) {
-                            Image(uiImage: ui)
+                        if let image = historyIconImage(for: entity) {
+                            Image(uiImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: iconSize, height: iconSize)
@@ -864,7 +864,15 @@ private extension HistoryDetailContainerView {
         do {
             let fd = FetchDescriptor<RecordingEntity>(predicate: #Predicate { $0.id == recordingId })
             if let rec = try context.fetch(fd).first {
-                newColor = dominantColor(for: rec)
+                if rec.isExpired {
+                    // 時刻超過録音は暗い黄色系の背景を使用
+                    newColor = Color(red: 0.45, green: 0.36, blue: 0.05)
+                } else if rec.iconImageData == nil, DefaultIconStore.load() != nil {
+                    // デフォルトアイコン使用時はベースの青グラデーションのまま
+                    newColor = nil
+                } else {
+                    newColor = dominantColor(for: rec)
+                }
             } else {
                 newColor = nil
             }
@@ -992,4 +1000,15 @@ private extension HistoryDetailContainerView {
         let b = CGFloat(value & 0xFF) / 255.0
         return UIColor(red: r, green: g, blue: b, alpha: 1.0)
     }
+}
+
+// MARK: - Default icon helpers
+private func historyIconImage(for entity: RecordingEntity) -> UIImage? {
+    if let data = entity.iconImageData, let ui = UIImage(data: data) {
+        return ui
+    }
+    if let data = DefaultIconStore.load(), let ui = UIImage(data: data) {
+        return ui
+    }
+    return nil
 }

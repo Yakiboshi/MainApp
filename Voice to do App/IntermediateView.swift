@@ -49,14 +49,19 @@ private struct DetailCoreView: View {
     // URL
     @State private var linkInput: String = ""
     @State private var linkIsValidHTTPS: Bool = true
+    @State private var showUrlPresetPicker: Bool = false
 
     // タスク締切
     enum DeadlineMode: String, CaseIterable { case hoursMinutes = "時間・分後", days = "日後" }
     @State private var deadlineMode: DeadlineMode = .hoursMinutes
+    @State private var showTaskPresetPicker: Bool = false
 
     private let actionBarHeight: CGFloat = 120
     private let titleLimit = 30
     private let memoLimit = 140
+
+    @Query private var urlPresets: [UrlPresetEntity]
+    @Query private var taskPresets: [TaskPresetEntity]
 
     var body: some View {
         ZStack {
@@ -141,6 +146,75 @@ private struct DetailCoreView: View {
             if newMode == .days { recording.deadlineHours = nil; recording.deadlineMinutes = nil }
             else { recording.deadlineDays = nil }
         }
+        // URL / タスクプリセット選択用の小ウィンドウ（シート）
+        .sheet(isPresented: $showUrlPresetPicker) {
+            NavigationStack {
+                ZStack {
+                    Theme.appGradient.ignoresSafeArea()
+                    List {
+                        ForEach(urlPresets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
+                            Button {
+                                applyUrlPreset(preset)
+                                showUrlPresetPicker = false
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(preset.title)
+                                        .foregroundStyle(.white)
+                                    Text(preset.urlString)
+                                        .font(.caption)
+                                        .foregroundStyle(.white.opacity(0.8))
+                                }
+                            }
+                            .listRowBackground(Color.clear)
+                        }
+                    }
+                    .scrollContentBackground(.hidden)
+                }
+                .navigationTitle("URLプリセット")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("閉じる") { showUrlPresetPicker = false }
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showTaskPresetPicker) {
+            NavigationStack {
+                ZStack {
+                    Theme.appGradient.ignoresSafeArea()
+                    List {
+                        ForEach(taskPresets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
+                            Button {
+                                applyTaskPreset(preset)
+                                showTaskPresetPicker = false
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(preset.title)
+                                        .foregroundStyle(.white)
+                                    if !preset.items.isEmpty {
+                                        Text("\(preset.items.count) 件のタスク")
+                                            .font(.caption)
+                                            .foregroundStyle(.white.opacity(0.8))
+                                    }
+                                }
+                            }
+                            .listRowBackground(Color.clear)
+                        }
+                    }
+                    .scrollContentBackground(.hidden)
+                }
+                .navigationTitle("タスクプリセット")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("閉じる") { showTaskPresetPicker = false }
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Sections
@@ -165,10 +239,19 @@ private struct DetailCoreView: View {
         VStack(alignment: .center, spacing: 12) {
             ZStack {
                 Circle().fill(Color.white.opacity(0.08)).frame(width: 120, height: 120)
-                if let data = recording.iconImageData, let ui = UIImage(data: data) {
-                    Image(uiImage: ui).resizable().scaledToFill().frame(width: 120, height: 120).clipShape(Circle())
+                if let data = recording.iconImageData ?? DefaultIconStore.load(),
+                   let ui = UIImage(data: data) {
+                    Image(uiImage: ui)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 120, height: 120)
+                        .clipShape(Circle())
                 } else {
-                    Image(systemName: "person.crop.circle").resizable().scaledToFit().frame(width: 110, height: 110).foregroundStyle(.white.opacity(0.6))
+                    Image(systemName: "person.crop.circle")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 110, height: 110)
+                        .foregroundStyle(.white.opacity(0.6))
                 }
                 Button { showPhotoPicker = true } label: {
                     Image(systemName: "arrow.2.circlepath.circle.fill").font(.system(size: 32)).foregroundStyle(.white).shadow(radius: 2).offset(x: 40, y: 40)
@@ -221,22 +304,81 @@ private struct DetailCoreView: View {
 
     private var snoozeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("スヌーズ時間（分）").font(.headline).foregroundStyle(.white)
-            HStack {
-                let initial = SortPreference.loadDefaultSnoozeMinutes()
-                Text("\(recording.snoozeMin ?? initial) 分").foregroundStyle(.white)
-                Spacer()
-                Stepper(
-                    "",
-                    value: Binding(
-                        get: { recording.snoozeMin ?? initial },
-                        set: { recording.snoozeMin = $0 }
-                    ),
-                    in: 1...10080
-                )
+            Text("スヌーズ時間").font(.headline).foregroundStyle(.white)
+            let total = recording.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes()
+            let days = max(0, min(7, total / (24 * 60)))
+            let hours = max(0, min(23, (total % (24 * 60)) / 60))
+            let mins = max(0, min(59, total % 60))
+            HStack(alignment: .center, spacing: 16) {
+                VStack {
+                    Text("日").foregroundStyle(.white.opacity(0.8)).font(.caption)
+                    Picker(
+                        "",
+                        selection: Binding(
+                            get: { days },
+                            set: { newValue in
+                                let clamped = max(0, min(7, newValue))
+                                let current = recording.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes()
+                                let currentHours = max(0, min(23, (current % (24 * 60)) / 60))
+                                let currentMins = max(0, min(59, current % 60))
+                                recording.snoozeMin = clamped * 24 * 60 + currentHours * 60 + currentMins
+                            }
+                        )
+                    ) {
+                        ForEach(0...7, id: \.self) { v in
+                            Text("\(v)").foregroundStyle(.white).tag(v)
+                        }
+                    }
                     .labelsHidden()
-                    .tint(.white)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
+                    .pickerStyle(.wheel)
+                    .frame(maxHeight: 100)
+                }
+                VStack {
+                    Text("時間").foregroundStyle(.white.opacity(0.8)).font(.caption)
+                    Picker(
+                        "",
+                        selection: Binding(
+                            get: { hours },
+                            set: { newValue in
+                                let clamped = max(0, min(23, newValue))
+                                let current = recording.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes()
+                                let currentDays = max(0, min(7, current / (24 * 60)))
+                                let currentMins = max(0, min(59, current % 60))
+                                recording.snoozeMin = currentDays * 24 * 60 + clamped * 60 + currentMins
+                            }
+                        )
+                    ) {
+                        ForEach(0...23, id: \.self) { v in
+                            Text("\(v)").foregroundStyle(.white).tag(v)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.wheel)
+                    .frame(maxHeight: 100)
+                }
+                VStack {
+                    Text("分").foregroundStyle(.white.opacity(0.8)).font(.caption)
+                    Picker(
+                        "",
+                        selection: Binding(
+                            get: { mins },
+                            set: { newValue in
+                                let clamped = max(0, min(59, newValue))
+                                let current = recording.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes()
+                                let currentDays = max(0, min(7, current / (24 * 60)))
+                                let currentHours = max(0, min(23, (current % (24 * 60)) / 60))
+                                recording.snoozeMin = currentDays * 24 * 60 + currentHours * 60 + clamped
+                            }
+                        )
+                    ) {
+                        ForEach(0...59, id: \.self) { v in
+                            Text("\(v)").foregroundStyle(.white).tag(v)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.wheel)
+                    .frame(maxHeight: 100)
+                }
             }
         }
     }
@@ -278,7 +420,21 @@ private struct DetailCoreView: View {
 
     private var urlSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("URL（任意・https:// のみ）").font(.headline).foregroundStyle(.white)
+            HStack {
+                Text("URL（任意・https:// のみ）")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Spacer()
+                if !urlPresets.isEmpty {
+                    Button {
+                        showUrlPresetPicker = true
+                    } label: {
+                        Image(systemName: "list.bullet")
+                            .foregroundStyle(.white)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
             TextField(
                 text: Binding(get: { linkInput.isEmpty ? (recording.linkURLString ?? "") : linkInput }, set: { newVal in
                     linkInput = newVal
@@ -293,7 +449,19 @@ private struct DetailCoreView: View {
 
     private var tasksSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("ToDo").font(.headline).foregroundStyle(.white)
+            HStack {
+                Text("ToDo").font(.headline).foregroundStyle(.white)
+                Spacer()
+                if !taskPresets.isEmpty {
+                    Button {
+                        showTaskPresetPicker = true
+                    } label: {
+                        Image(systemName: "list.bullet")
+                            .foregroundStyle(.white)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
             if recording.tasks.isEmpty {
                 Button(action: { addTask() }) {
                     HStack(spacing: 8) { Image(systemName: "plus.circle"); Text("タスクを追加") }
@@ -409,6 +577,32 @@ private struct DetailCoreView: View {
                 context.delete(removed)
             }
         }
+    }
+
+    private func applyUrlPreset(_ preset: UrlPresetEntity) {
+        let url = preset.urlString
+        linkInput = url
+        linkIsValidHTTPS = url.trimmingCharacters(in: .whitespaces).isEmpty || url.hasPrefix("https://")
+        recording.linkURLString = url
+    }
+
+    private func applyTaskPreset(_ preset: TaskPresetEntity) {
+        // 既存タスクを削除
+        for task in recording.tasks {
+            context.delete(task)
+        }
+        recording.tasks.removeAll()
+
+        // プリセットのタスクをコピー
+        for item in preset.items {
+            let newTask = RecordingTaskEntity(text: item.text, isDone: false)
+            recording.tasks.append(newTask)
+        }
+
+        // 締切もあれば適用（任意）
+        recording.deadlineHours = preset.deadlineHours
+        recording.deadlineMinutes = preset.deadlineMinutes
+        recording.deadlineDays = preset.deadlineDays
     }
 
     // MARK: Save/Delete

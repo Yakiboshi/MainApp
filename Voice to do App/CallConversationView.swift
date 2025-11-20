@@ -125,7 +125,8 @@ struct CallConversationView: View {
             if let rec = try context.fetch(descriptor).first {
                 let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                 let url = docs.appendingPathComponent(rec.fileName)
-                if let data = rec.iconImageData, let img = UIImage(data: data) {
+                if let data = rec.iconImageData ?? DefaultIconStore.load(),
+                   let img = UIImage(data: data) {
                     self.photoImage = img
                 }
                 elapsedTime = 0

@@ -13,6 +13,7 @@ final class NotificationRouter: ObservableObject {
     @Published var callMessageId: String? = nil
     @Published var showPlannedEditorForRecordingId: UUID? = nil
     @Published var showHistoryDetailForRecordingId: UUID? = nil
+    @Published var showExpiredRecordingId: UUID? = nil
     // AudioPlay（通信中→録音）を外部から要求するためのルート
     @Published var audioPlayDate: Date? = nil
 
@@ -94,6 +95,18 @@ final class NotificationRouter: ObservableObject {
     func dismissHistoryDetail() {
         DispatchQueue.main.async {
             withAnimation(nil) { self.showHistoryDetailForRecordingId = nil }
+        }
+    }
+
+    func presentExpiredRecording(for recordingId: UUID) {
+        DispatchQueue.main.async {
+            withAnimation(nil) { self.showExpiredRecordingId = recordingId }
+        }
+    }
+
+    func dismissExpiredRecording() {
+        DispatchQueue.main.async {
+            withAnimation(nil) { self.showExpiredRecordingId = nil }
         }
     }
 
