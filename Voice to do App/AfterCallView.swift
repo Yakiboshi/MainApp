@@ -505,8 +505,10 @@ private struct ReListenPlayerView: View {
         didFinish = false
         // 再生前に再生用セッション（.playback + スピーカー）を構成
         AudioRouteManager.configurePlaybackSession()
-        // 通話後画面の聞き直しも大きめ（3倍イメージ）で再生
-        player.playURL(url, loops: 0, volume: 1.0) { didFinish = true }
+        let baseGain: Float = 1.0
+        let userGain = PlaybackVolume.currentGain()
+        let volume = baseGain * userGain
+        player.playURL(url, loops: 0, volume: volume) { didFinish = true }
         duration = max(player.duration(), 1)
     }
     private func restart() {

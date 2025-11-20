@@ -126,6 +126,24 @@ enum NotificationSoundExporter {
     }
 }
 
+/// 既存仕様との互換用グローバル関数。
+/// AudioEditKit からの呼び出しなどではこの関数名を使う。
+func exportTrimmedFadeOutWAV(
+    inputURL: URL,
+    outputURL: URL,
+    trimStart: Double,
+    volume: VolumeLevel,
+    completion: @escaping (Error?) -> Void
+) {
+    NotificationSoundExporter.exportTrimmedFadeOutWAV(
+        inputURL: inputURL,
+        outputURL: outputURL,
+        trimStart: trimStart,
+        volume: volume,
+        completion: completion
+    )
+}
+
 /// 5 段階の音量レベル（スケーリング値）
 enum VolumeLevel: Float, CaseIterable, Identifiable {
     case small = 0.3
@@ -169,4 +187,3 @@ extension VolumeLevel {
         }
     }
 }
-

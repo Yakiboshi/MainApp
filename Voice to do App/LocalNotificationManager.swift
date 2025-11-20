@@ -22,8 +22,16 @@ final class LocalNotificationManager: NSObject {
             let fd = FetchDescriptor<RecordingEntity>()
             let all = try context.fetch(fd)
 
-            // 現在の通知音ファイル名を決定（Library/Sounds/notification.wav 優先）
-            let soundName = NotificationSoundProvider.currentNotificationSoundName()
+            // ローカル通知音は常にバンドル内の固定サウンドを使用する
+            // （ユーザー音源はアプリ内の擬似着信音としてのみ利用）
+            let soundName: String?
+            if Bundle.main.url(forResource: "localsound", withExtension: "mp3") != nil {
+                soundName = "localsound.mp3"
+            } else if Bundle.main.url(forResource: "ks035", withExtension: "wav") != nil {
+                soundName = "ks035.wav"
+            } else {
+                soundName = nil
+            }
 
             let now = Date()
             // 通知対象: 「未来の」scheduled かつ 留守電受信箱に入っていないもの

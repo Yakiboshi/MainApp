@@ -129,8 +129,10 @@ struct CallConversationView: View {
                     self.photoImage = img
                 }
                 elapsedTime = 0
-                // 通話画面の音声再生は通常より大きめ（3倍イメージ）で再生する
-                player.playURL(url, loops: 0, volume: 1.0) {
+                let baseGain: Float = 1.0
+                let userGain = PlaybackVolume.currentGain()
+                let volume = baseGain * userGain
+                player.playURL(url, loops: 0, volume: volume) {
                     // 自動終了 → AfterCallをリクエスト
                     SoundManager.shared.play("syuuryou", ext: "mp3")
                     stampDeadlineBaseIfNeeded()

@@ -62,12 +62,12 @@ struct DestinationTime: Equatable {
         guard let date = toDate(in: calendar) else { return false }
         // Future at least 1 minute
         if date < calendar.date(byAdding: .minute, value: 1, to: now)! { return false }
-        // Within 1 year
-        if date > calendar.date(byAdding: .year, value: 1, to: now)! { return false }
+        // Within configured max years (default 1, min 1, max 10)
+        let maxYears = SortPreference.loadMaxFutureYears()
+        if let upper = calendar.date(byAdding: .year, value: maxYears, to: now), date > upper { return false }
         // Check date validity (e.g., Feb 30)
         let comps = calendar.dateComponents([.year,.month,.day], from: date)
         if comps.year != Int(year) || comps.month != Int(month) || comps.day != Int(day) { return false }
         return true
     }
 }
-

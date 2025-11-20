@@ -7,8 +7,12 @@ struct SettingsPlaceholderView: View {
     @State private var autoYear: Bool = SortPreference.loadAutoYear()
     @State private var autoMonth: Bool = SortPreference.loadAutoMonth()
     @State private var isShowingSoundSheet: Bool = false
+    @State private var defaultSnoozeMinutes: Int = SortPreference.loadDefaultSnoozeMinutes()
+    @State private var recordingMaxMinutes: Int = SortPreference.loadRecordingMaxMinutes()
+    @State private var maxFutureYears: Int = SortPreference.loadMaxFutureYears()
+    @State private var playbackVolumeSlider: Double = Double(SortPreference.loadPlaybackVolumeSlider())
 
-    @Query private var soundEntities: [NotificationSoundEntity]
+    @Query(sort: \SoundFile.createdAt, order: .reverse) private var soundFiles: [SoundFile]
 
     var body: some View {
         ZStack {
@@ -59,6 +63,111 @@ struct SettingsPlaceholderView: View {
                                 .fill(Color.white.opacity(0.08))
                         )
 
+                        // デフォルトスヌーズ時間
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("デフォルトスヌーズ時間")
+                                .foregroundStyle(Color.white)
+                            Text("詳細設定画面のスヌーズ初期値（最大1週間）")
+                                .foregroundStyle(Color.white.opacity(0.7))
+                                .font(.footnote)
+                            HStack {
+                                Stepper(
+                                    value: $defaultSnoozeMinutes,
+                                    in: 1...10080,
+                                    step: 1
+                                ) {
+                                    Text("\(defaultSnoozeMinutes) 分")
+                                        .foregroundStyle(Color.white)
+                                }
+                                .tint(.white)
+                            }
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
+
+                        // 録音上限時間
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("録音上限時間")
+                                .foregroundStyle(Color.white)
+                            Text("録音画面の最大録音時間（1〜60分）")
+                                .foregroundStyle(Color.white.opacity(0.7))
+                                .font(.footnote)
+                            HStack {
+                                Stepper(
+                                    value: $recordingMaxMinutes,
+                                    in: 1...60,
+                                    step: 1
+                                ) {
+                                    Text("\(recordingMaxMinutes) 分")
+                                        .foregroundStyle(Color.white)
+                                }
+                                .tint(.white)
+                            }
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
+
+                        // 最高未来時刻
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("最高未来時刻")
+                                .foregroundStyle(Color.white)
+                            Text("登録できる未来の上限（1〜10年）")
+                                .foregroundStyle(Color.white.opacity(0.7))
+                                .font(.footnote)
+                            HStack {
+                                Stepper(
+                                    value: $maxFutureYears,
+                                    in: 1...10,
+                                    step: 1
+                                ) {
+                                    Text("\(maxFutureYears) 年先まで")
+                                        .foregroundStyle(Color.white)
+                                }
+                                .tint(.white)
+                            }
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
+
+                        // 録音音声再生時の音量
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("録音音声再生時の音量")
+                                .foregroundStyle(Color.white)
+                            Text("詳細プレビュー・通話・通話後・履歴再生の音量")
+                                .foregroundStyle(Color.white.opacity(0.7))
+                                .font(.footnote)
+                            HStack {
+                                Slider(
+                                    value: $playbackVolumeSlider,
+                                    in: 0...100,
+                                    step: 1
+                                ) { editing in
+                                    if !editing {
+                                        let intValue = Int(playbackVolumeSlider.rounded())
+                                        SortPreference.savePlaybackVolumeSlider(intValue)
+                                    }
+                                }
+                                .tint(.white)
+                                Text("\(Int(playbackVolumeSlider))")
+                                    .foregroundStyle(Color.white)
+                                    .frame(width: 44, alignment: .trailing)
+                            }
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
+
                         Spacer(minLength: 24)
                     }
                     .padding(.horizontal, 16)
@@ -81,6 +190,15 @@ struct SettingsPlaceholderView: View {
                 autoYear = true
                 SortPreference.saveAutoYear(true)
             }
+        }
+        .onChange(of: defaultSnoozeMinutes) { newValue in
+            SortPreference.saveDefaultSnoozeMinutes(newValue)
+        }
+        .onChange(of: recordingMaxMinutes) { newValue in
+            SortPreference.saveRecordingMaxMinutes(newValue)
+        }
+        .onChange(of: maxFutureYears) { newValue in
+            SortPreference.saveMaxFutureYears(newValue)
         }
         .sheet(isPresented: $isShowingSoundSheet) {
             SoundSettingSheet()
@@ -123,14 +241,8 @@ private extension Binding {
 
 private extension SettingsPlaceholderView {
     var currentSoundDisplayName: String {
-        if let entity = soundEntities.first {
-            if entity.isDefault {
-                return "デフォルト"
-            } else if let name = entity.displayName, !name.isEmpty {
-                return name
-            } else if let path = entity.soundURL, let url = URL(string: path) {
-                return url.lastPathComponent
-            }
+        if let sound = soundFiles.first {
+            return sound.fileName
         }
         return "デフォルト"
     }

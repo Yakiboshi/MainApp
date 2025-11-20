@@ -43,6 +43,10 @@ enum SortPreference {
     private static let autoYearKey = "settings.autoYear"
     private static let autoMonthKey = "settings.autoMonth"
     private static let notificationVolumeKey = "settings.notificationVolume"
+    private static let defaultSnoozeMinutesKey = "settings.defaultSnoozeMinutes"
+    private static let recordingMaxMinutesKey = "settings.recordingMaxMinutes"
+    private static let maxFutureYearsKey = "settings.maxFutureYears"
+    private static let playbackVolumeSliderKey = "settings.playbackVolumeSlider"
 
     static func loadHistory() -> History {
         if let raw = UserDefaults.standard.string(forKey: historyKey),
@@ -143,5 +147,61 @@ enum SortPreference {
 
     static func saveNotificationVolumePreset(_ preset: NotificationVolumePreset) {
         UserDefaults.standard.set(preset.rawValue, forKey: notificationVolumeKey)
+    }
+
+    // MARK: - Default snooze minutes (1...10080, initial 10)
+    static func loadDefaultSnoozeMinutes() -> Int {
+        let stored = UserDefaults.standard.integer(forKey: defaultSnoozeMinutesKey)
+        if UserDefaults.standard.object(forKey: defaultSnoozeMinutesKey) == nil {
+            return 10
+        }
+        return max(1, min(10080, stored))
+    }
+
+    static func saveDefaultSnoozeMinutes(_ minutes: Int) {
+        let clamped = max(1, min(10080, minutes))
+        UserDefaults.standard.set(clamped, forKey: defaultSnoozeMinutesKey)
+    }
+
+    // MARK: - Recording max minutes (1...60, initial 3)
+    static func loadRecordingMaxMinutes() -> Int {
+        let stored = UserDefaults.standard.integer(forKey: recordingMaxMinutesKey)
+        if UserDefaults.standard.object(forKey: recordingMaxMinutesKey) == nil {
+            return 3
+        }
+        return max(1, min(60, stored))
+    }
+
+    static func saveRecordingMaxMinutes(_ minutes: Int) {
+        let clamped = max(1, min(60, minutes))
+        UserDefaults.standard.set(clamped, forKey: recordingMaxMinutesKey)
+    }
+
+    // MARK: - Max future years (1...10, initial 1)
+    static func loadMaxFutureYears() -> Int {
+        let stored = UserDefaults.standard.integer(forKey: maxFutureYearsKey)
+        if UserDefaults.standard.object(forKey: maxFutureYearsKey) == nil {
+            return 1
+        }
+        return max(1, min(10, stored))
+    }
+
+    static func saveMaxFutureYears(_ years: Int) {
+        let clamped = max(1, min(10, years))
+        UserDefaults.standard.set(clamped, forKey: maxFutureYearsKey)
+    }
+
+    // MARK: - Playback volume slider (0...100, initial 50)
+    static func loadPlaybackVolumeSlider() -> Int {
+        let stored = UserDefaults.standard.integer(forKey: playbackVolumeSliderKey)
+        if UserDefaults.standard.object(forKey: playbackVolumeSliderKey) == nil {
+            return 50
+        }
+        return max(0, min(100, stored))
+    }
+
+    static func savePlaybackVolumeSlider(_ value: Int) {
+        let clamped = max(0, min(100, value))
+        UserDefaults.standard.set(clamped, forKey: playbackVolumeSliderKey)
     }
 }

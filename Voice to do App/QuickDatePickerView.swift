@@ -7,7 +7,10 @@ struct QuickDatePickerView: View {
     @State private var date: Date = Date().addingTimeInterval(60)
 
     private var minDate: Date { Date().addingTimeInterval(60) }
-    private var maxDate: Date { Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date().addingTimeInterval(60) }
+    private var maxDate: Date {
+        let years = SortPreference.loadMaxFutureYears()
+        return Calendar.current.date(byAdding: .year, value: years, to: Date()) ?? Date().addingTimeInterval(60)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

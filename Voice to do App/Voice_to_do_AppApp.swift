@@ -80,6 +80,6 @@ struct Voice_to_do_AppApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [QuickPresetEntity.self, RecordingEntity.self, NotificationSoundEntity.self])
+        .modelContainer(for: [QuickPresetEntity.self, RecordingEntity.self, SoundFile.self])
     }
 }

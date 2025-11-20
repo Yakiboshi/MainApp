@@ -4,8 +4,8 @@ import AVFoundation
 final class RingtonePlayer: NSObject {
     private var player: AVAudioPlayer?
 
-    func startLooping() {
-        guard let url = RingtoneSourceProvider.currentOriginalURL() else { return }
+    func startLooping(with url: URL?) {
+        guard let url else { return }
         do {
             let session = AVAudioSession.sharedInstance()
             // サイレントスイッチに関係なく鳴らすため .playback を使用

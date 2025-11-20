@@ -146,7 +146,8 @@ struct RecordingView: View {
             }
         }
         .onAppear {
-            recorder.startRecording(for: date, maxDurationSec: 180)
+            let maxMinutes = SortPreference.loadRecordingMaxMinutes()
+            recorder.startRecording(for: date, maxDurationSec: maxMinutes * 60)
             routeManager.refreshOutputState()
         }
         // タイムアップ等で自動停止したときのフォールバック（保存に進む）

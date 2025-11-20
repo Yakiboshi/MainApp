@@ -224,8 +224,11 @@ struct IncomingCallView: View {
 
             // 残りのローカル通知をキャンセル（着信画面表示中は鳴らさない）
             NotificationManager.shared.cancelAllNotifications(for: messageId)
-            // ループ再生開始（プレビュー時は抑止）
-            if !isPreview { ringtone.startLooping() }
+            // 擬似着信音ループ再生（プレビュー時は抑止）
+            if !isPreview {
+                let url = CustomRingtoneManager.currentRingtoneURL()
+                ringtone.startLooping(with: url)
+            }
 
             // 新仕様ではスヌーズ回数制限は設けないため、事前チェックは不要
         }

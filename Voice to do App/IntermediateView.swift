@@ -223,9 +223,17 @@ private struct DetailCoreView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("スヌーズ時間（分）").font(.headline).foregroundStyle(.white)
             HStack {
-                Text("\(recording.snoozeMin ?? 10) 分").foregroundStyle(.white)
+                let initial = SortPreference.loadDefaultSnoozeMinutes()
+                Text("\(recording.snoozeMin ?? initial) 分").foregroundStyle(.white)
                 Spacer()
-                Stepper("", value: Binding(get: { recording.snoozeMin ?? 10 }, set: { recording.snoozeMin = $0 }), in: 1...240)
+                Stepper(
+                    "",
+                    value: Binding(
+                        get: { recording.snoozeMin ?? initial },
+                        set: { recording.snoozeMin = $0 }
+                    ),
+                    in: 1...10080
+                )
                     .labelsHidden()
                     .tint(.white)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
@@ -363,7 +371,18 @@ private struct DetailCoreView: View {
         guard player == nil else { return }
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let url = docs.appendingPathComponent(recording.fileName)
-        do { let p = try AVAudioPlayer(contentsOf: url); p.prepareToPlay(); player = p; startProgressTimer() } catch { print("Audio load error:", error) }
+        do {
+            let baseGain: Float = 1.0
+            let userGain = PlaybackVolume.currentGain()
+            let volume = baseGain * userGain
+            let p = try AVAudioPlayer(contentsOf: url)
+            p.volume = volume
+            p.prepareToPlay()
+            player = p
+            startProgressTimer()
+        } catch {
+            print("Audio load error:", error)
+        }
     }
     private func startProgressTimer() {
         timer?.invalidate(); guard let player else { return }

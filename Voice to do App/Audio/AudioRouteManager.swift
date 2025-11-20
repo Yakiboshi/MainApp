@@ -128,17 +128,13 @@ final class AudioRouteManager: ObservableObject {
         }
     }
 
-    // 通信画面に遷移したタイミングで、録音向けセッションを構成し、
-    // 外部機器が無ければスピーカー出力をデフォルトにする
+    // 通信画面/通話画面に遷移したタイミングで、
+    // 再生専用セッションを構成し、外部機器が無ければスピーカー出力をデフォルトにする
     static func configureForPreCall() {
         let session = AVAudioSession.sharedInstance()
         do {
-            // .defaultToSpeaker を付けて、内蔵出力時は必ずスピーカーを使う
-            try session.setCategory(
-                .playAndRecord,
-                mode: .voiceChat,
-                options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker]
-            )
+            // 録音時以外はマイク入力を使わず、スピーカー再生を前提とする
+            try session.setCategory(.playback, mode: .default, options: [.defaultToSpeaker])
             try session.setActive(true)
         } catch {
             // ignore
