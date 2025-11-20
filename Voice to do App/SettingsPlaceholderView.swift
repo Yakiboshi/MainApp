@@ -235,6 +235,7 @@ struct SettingsPlaceholderView: View {
                             }
                         }
                         .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .fill(Color.white.opacity(0.08))
@@ -260,6 +261,7 @@ struct SettingsPlaceholderView: View {
                             }
                         }
                         .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .fill(Color.white.opacity(0.08))
@@ -290,10 +292,11 @@ struct SettingsPlaceholderView: View {
                             }
                         }
                         .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.white.opacity(0.08))
-                    )
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
 
                         // プリセット・日付の追加選択肢
                         VStack(alignment: .leading, spacing: 8) {
@@ -304,7 +307,9 @@ struct SettingsPlaceholderView: View {
                                 .font(.footnote)
                             HStack(spacing: 12) {
                                 Button {
-                                    showPresetDateOptionSheet = true
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                        showPresetDateOptionSheet = true
+                                    }
                                 } label: {
                                     Text("選択肢を追加…")
                                         .font(.system(size: 15, weight: .semibold))
@@ -319,7 +324,9 @@ struct SettingsPlaceholderView: View {
                                 .buttonStyle(.plain)
 
                                 Button {
-                                    showPresetDateDeleteSheet = true
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                        showPresetDateDeleteSheet = true
+                                    }
                                 } label: {
                                     Text("削除…")
                                         .font(.system(size: 15, weight: .semibold))
@@ -335,6 +342,7 @@ struct SettingsPlaceholderView: View {
                             }
                         }
                         .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .fill(Color.white.opacity(0.08))
@@ -349,7 +357,9 @@ struct SettingsPlaceholderView: View {
                                 .font(.footnote)
                             HStack(spacing: 12) {
                                 Button {
-                                    showUrlPresetSheet = true
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                        showUrlPresetSheet = true
+                                    }
                                 } label: {
                                     Text("URLを追加…")
                                         .font(.system(size: 15, weight: .semibold))
@@ -364,7 +374,9 @@ struct SettingsPlaceholderView: View {
                                 .buttonStyle(.plain)
 
                                 Button {
-                                    showUrlPresetDeleteSheet = true
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                        showUrlPresetDeleteSheet = true
+                                    }
                                 } label: {
                                     Text("削除…")
                                         .font(.system(size: 15, weight: .semibold))
@@ -380,6 +392,7 @@ struct SettingsPlaceholderView: View {
                             }
                         }
                         .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .fill(Color.white.opacity(0.08))
@@ -394,7 +407,9 @@ struct SettingsPlaceholderView: View {
                                 .font(.footnote)
                             HStack(spacing: 12) {
                                 Button {
-                                    showTaskPresetSheet = true
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                        showTaskPresetSheet = true
+                                    }
                                 } label: {
                                     Text("タスクを追加…")
                                         .font(.system(size: 15, weight: .semibold))
@@ -409,7 +424,9 @@ struct SettingsPlaceholderView: View {
                                 .buttonStyle(.plain)
 
                                 Button {
-                                    showTaskPresetDeleteSheet = true
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                        showTaskPresetDeleteSheet = true
+                                    }
                                 } label: {
                                     Text("削除…")
                                         .font(.system(size: 15, weight: .semibold))
@@ -425,6 +442,7 @@ struct SettingsPlaceholderView: View {
                             }
                         }
                         .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .fill(Color.white.opacity(0.08))
@@ -438,6 +456,56 @@ struct SettingsPlaceholderView: View {
                 }
             }
             .ignoresSafeArea(edges: .bottom)
+
+            // URL / タスク / 日付プリセット関連の小ウィンドウ（オーバーレイ）
+            if showPresetDateOptionSheet {
+                PresetDateOptionSheet(onClose: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        showPresetDateOptionSheet = false
+                    }
+                })
+                .transition(.move(edge: .bottom))
+            }
+            if showPresetDateDeleteSheet {
+                PresetDateOptionDeleteSheet(onClose: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        showPresetDateDeleteSheet = false
+                    }
+                })
+                .transition(.move(edge: .bottom))
+            }
+            if showUrlPresetSheet {
+                UrlPresetSheet {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        showUrlPresetSheet = false
+                    }
+                }
+                .transition(.move(edge: .bottom))
+            }
+            if showUrlPresetDeleteSheet {
+                UrlPresetDeleteSheet {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        showUrlPresetDeleteSheet = false
+                    }
+                }
+                .transition(.move(edge: .bottom))
+            }
+            if showTaskPresetSheet {
+                TaskPresetSheet {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        showTaskPresetSheet = false
+                    }
+                }
+                .transition(.move(edge: .bottom))
+            }
+            if showTaskPresetDeleteSheet {
+                TaskPresetDeleteSheet {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        showTaskPresetDeleteSheet = false
+                    }
+                }
+                .transition(.move(edge: .bottom))
+            }
         }
         .onChange(of: autoYear) { newValue in
             SortPreference.saveAutoYear(newValue)
@@ -454,7 +522,11 @@ struct SettingsPlaceholderView: View {
             }
         }
         .onChange(of: defaultSnoozeMinutes) { newValue in
-            SortPreference.saveDefaultSnoozeMinutes(newValue)
+            let adjusted = newValue <= 0 ? 5 : newValue
+            if adjusted != defaultSnoozeMinutes {
+                defaultSnoozeMinutes = adjusted
+            }
+            SortPreference.saveDefaultSnoozeMinutes(adjusted)
         }
         .onChange(of: recordingMaxMinutes) { newValue in
             SortPreference.saveRecordingMaxMinutes(newValue)
@@ -497,24 +569,6 @@ struct SettingsPlaceholderView: View {
             if defaultIconImageData == nil {
                 defaultIconImageData = DefaultIconStore.load()
             }
-        }
-        .sheet(isPresented: $showPresetDateOptionSheet) {
-            PresetDateOptionSheet()
-        }
-        .sheet(isPresented: $showPresetDateDeleteSheet) {
-            PresetDateOptionDeleteSheet()
-        }
-        .sheet(isPresented: $showUrlPresetSheet) {
-            UrlPresetSheet()
-        }
-        .sheet(isPresented: $showUrlPresetDeleteSheet) {
-            UrlPresetDeleteSheet()
-        }
-        .sheet(isPresented: $showTaskPresetSheet) {
-            TaskPresetSheet()
-        }
-        .sheet(isPresented: $showTaskPresetDeleteSheet) {
-            TaskPresetDeleteSheet()
         }
     }
 }
@@ -561,10 +615,10 @@ private extension SettingsPlaceholderView {
     }
 }
 
-// MARK: - プリセット用 日付オプション追加シート
+// MARK: - プリセット用 日付オプション追加・削除 小ウィンドウ
 private struct PresetDateOptionSheet: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    let onClose: () -> Void
 
     enum Mode {
         case hour, day
@@ -578,69 +632,124 @@ private struct PresetDateOptionSheet: View {
         stride(from: 0.5, through: 24.0, by: 0.5).map { Double($0) }
     }
 
-    private var bodyBackground: some View {
-        Theme.appGradient
-            .ignoresSafeArea()
-    }
-
     var body: some View {
-        NavigationStack {
-            ZStack {
-                bodyBackground
-                VStack(spacing: 16) {
-                    Picker("種類", selection: $mode) {
-                        Text("時間後").tag(Mode.hour)
-                        Text("日後").tag(Mode.day)
+        ZStack {
+            // 外側タップで閉じる透明オーバーレイ
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        onClose()
                     }
-                    .pickerStyle(.segmented)
-                    .tint(.white)
+                }
 
-                    if mode == .hour {
-                        VStack {
-                            Text("何時間後かを選択")
-                                .foregroundStyle(.white)
-                            Picker("", selection: $selectedHour) {
-                                ForEach(hourOptions, id: \.self) { v in
-                                    let label = v.truncatingRemainder(dividingBy: 1.0) == 0 ? String(format: "%.0f", v) : String(format: "%.1f", v)
-                                    Text(label).foregroundStyle(.white).tag(v)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .frame(maxHeight: 140)
-                        }
-                    } else {
-                        VStack {
-                            Text("何日後かを選択")
-                                .foregroundStyle(.white)
-                            Picker("", selection: $selectedDay) {
-                                ForEach(8...365, id: \.self) { v in
-                                    Text("\(v)").foregroundStyle(.white).tag(v)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .frame(maxHeight: 140)
-                        }
-                    }
+            GeometryReader { geo in
+                let height = geo.size.height
+                let topY = height * 0.55
+
+                VStack {
                     Spacer()
-                }
-                .padding()
-            }
-            .navigationTitle("日付プリセット追加")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") { dismiss() }
-                        .foregroundStyle(.white)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("追加") {
-                        addPreset()
+                    ZStack {
+                        // 紫系グラデーション＋下部を暗く
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.7, green: 0.4, blue: 0.9).opacity(0.8),
+                                Color(red: 0.35, green: 0.1, blue: 0.6).opacity(0.95)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.0),
+                                    Color.black.opacity(0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                        ScrollView(showsIndicators: true) {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    Text("日付プリセットを追加")
+                                        .font(.headline)
+                                        .foregroundStyle(.white)
+                                    Spacer()
+                                    Button("追加") {
+                                        addPreset()
+                                    }
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.top, 10)
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("種類")
+                                        .foregroundStyle(.white)
+                                    Picker("種類", selection: $mode) {
+                                        Text("時間後").tag(Mode.hour)
+                                        Text("日後").tag(Mode.day)
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .tint(.white)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.white.opacity(0.12))
+                                    )
+                                }
+                                .padding(.horizontal, 16)
+
+                                if mode == .hour {
+                                    VStack {
+                                        Text("何時間後かを選択")
+                                            .foregroundStyle(.white)
+                                        Picker("", selection: $selectedHour) {
+                                            ForEach(hourOptions, id: \.self) { v in
+                                                let label = v.truncatingRemainder(dividingBy: 1.0) == 0
+                                                    ? String(format: "%.0f", v)
+                                                    : String(format: "%.1f", v)
+                                                Text(label)
+                                                    .foregroundStyle(.white)
+                                                    .tag(v)
+                                            }
+                                        }
+                                        .pickerStyle(.wheel)
+                                        .frame(maxHeight: 140)
+                                    }
+                                    .padding(.horizontal, 16)
+                                } else {
+                                    VStack {
+                                        Text("何日後かを選択")
+                                            .foregroundStyle(.white)
+                                        Picker("", selection: $selectedDay) {
+                                            ForEach(8...365, id: \.self) { v in
+                                                Text("\(v)")
+                                                    .foregroundStyle(.white)
+                                                    .tag(v)
+                                            }
+                                        }
+                                        .pickerStyle(.wheel)
+                                        .frame(maxHeight: 140)
+                                    }
+                                    .padding(.horizontal, 16)
+                                }
+
+                                Spacer(minLength: 16)
+                            }
+                            .padding(.bottom, 12)
+                        }
                     }
-                    .foregroundStyle(.white)
+                    .frame(height: height - topY)
+                    .frame(maxWidth: .infinity)
                 }
+                .frame(width: geo.size.width, height: height, alignment: .bottom)
             }
         }
-        .interactiveDismissDisabled(false)
     }
 
     private func addPreset() {
@@ -648,7 +757,9 @@ private struct PresetDateOptionSheet: View {
         case .hour:
             let hours = selectedHour
             let title: String = {
-                let label = hours.truncatingRemainder(dividingBy: 1.0) == 0 ? String(format: "%.0f", hours) : String(format: "%.1f", hours)
+                let label = hours.truncatingRemainder(dividingBy: 1.0) == 0
+                    ? String(format: "%.0f", hours)
+                    : String(format: "%.1f", hours)
                 return "\(label)時間後"
             }()
             let entity = RelativeDatePresetEntity(
@@ -671,129 +782,259 @@ private struct PresetDateOptionSheet: View {
             context.insert(entity)
             try? context.save()
         }
-        dismiss()
+        onClose()
     }
 }
 
-// 追加済みの日付プリセットを削除するためのシート
 private struct PresetDateOptionDeleteSheet: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    let onClose: () -> Void
+
     @Query private var relativePresets: [RelativeDatePresetEntity]
     @State private var confirmTarget: RelativeDatePresetEntity? = nil
     @State private var showConfirm: Bool = false
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.appGradient.ignoresSafeArea()
-                VStack(alignment: .leading, spacing: 12) {
-                    if relativePresets.isEmpty {
-                        Text("追加された選択肢はありません")
-                            .foregroundStyle(.white.opacity(0.8))
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 40)
-                    } else {
-                        List {
-                            ForEach(relativePresets) { preset in
-                                Button {
-                                    confirmTarget = preset
-                                    showConfirm = true
-                                } label: {
-                                    HStack {
-                                        Text(preset.title)
-                                            .foregroundStyle(.white)
-                                        Spacer()
-                                        if preset.isHourBased, let h = preset.hours {
-                                            Text(String(format: "+%.1fh", h))
-                                                .foregroundStyle(.white.opacity(0.7))
-                                                .font(.caption)
-                                        } else if let d = preset.days {
-                                            Text("+\(d)d")
-                                                .foregroundStyle(.white.opacity(0.7))
-                                                .font(.caption)
+        ZStack {
+            // 外側タップで閉じる透明オーバーレイ
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        onClose()
+                    }
+                }
+
+            GeometryReader { geo in
+                let height = geo.size.height
+                let topY = height * 0.55
+
+                VStack {
+                    Spacer()
+                    ZStack {
+                        // 紫系グラデーション＋下部を暗く
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.7, green: 0.4, blue: 0.9).opacity(0.8),
+                                Color(red: 0.35, green: 0.1, blue: 0.6).opacity(0.95)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.0),
+                                    Color.black.opacity(0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                        ScrollView(showsIndicators: true) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("日付プリセット削除")
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 10)
+
+                                if relativePresets.isEmpty {
+                                    Text("追加された選択肢はありません")
+                                        .foregroundStyle(.white.opacity(0.85))
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding(.top, 24)
+                                } else {
+                                    VStack(spacing: 0) {
+                                        ForEach(relativePresets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
+                                            Button {
+                                                confirmTarget = preset
+                                                showConfirm = true
+                                            } label: {
+                                                HStack {
+                                                    Text(preset.title)
+                                                        .foregroundStyle(.white)
+                                                    Spacer()
+                                                    if preset.isHourBased, let h = preset.hours {
+                                                        Text(String(format: "+%.1fh", h))
+                                                            .foregroundStyle(.white.opacity(0.7))
+                                                            .font(.caption)
+                                                    } else if let d = preset.days {
+                                                        Text("+\(d)d")
+                                                            .foregroundStyle(.white.opacity(0.7))
+                                                            .font(.caption)
+                                                    }
+                                                }
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 10)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Rectangle()
+                                                .fill(Color.white.opacity(0.28))
+                                                .frame(height: 1)
                                         }
                                     }
                                 }
-                                .listRowBackground(Color.clear)
+                                Spacer(minLength: 16)
                             }
+                            .padding(.bottom, 12)
                         }
-                        .scrollContentBackground(.hidden)
                     }
-                    Spacer()
+                    .frame(height: height - topY)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.top, 8)
+                .frame(width: geo.size.width, height: height, alignment: .bottom)
             }
-            .navigationTitle("選択肢を削除")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { dismiss() }
-                        .foregroundStyle(.white)
-                }
+        }
+        .alert("削除しますか", isPresented: $showConfirm, presenting: confirmTarget) { target in
+            Button("はい", role: .destructive) {
+                context.delete(target)
+                try? context.save()
             }
-            .alert("削除しますか", isPresented: $showConfirm, presenting: confirmTarget) { target in
-                Button("はい", role: .destructive) {
-                    context.delete(target)
-                    try? context.save()
-                }
-                Button("いいえ", role: .cancel) { }
-            } message: { _ in
-                Text("このプリセットを削除してよろしいですか？")
-            }
+            Button("いいえ", role: .cancel) { }
+        } message: { _ in
+            Text("このプリセットを削除してよろしいですか？")
         }
     }
 }
 
-// MARK: - URLプリセット追加・削除シート
+// MARK: - URLプリセット追加・削除シート（アプリ設定用 小ウィンドウ）
 private struct UrlPresetSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    let onClose: () -> Void
     @State private var title: String = ""
     @State private var urlInput: String = ""
     @State private var isValidHTTPS: Bool = true
+    @State private var keyboardHeight: CGFloat = 0
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.appGradient.ignoresSafeArea()
-                Form {
-                    Section(header: Text("タイトル").foregroundColor(.white)) {
-                        TextField("プリセット名（必須）", text: $title)
-                            .foregroundColor(.black)
-                    }
-                    Section(header: Text("URL（https:// のみ）").foregroundColor(.white)) {
-                        TextField("https://example.com", text: $urlInput)
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .foregroundColor(.black)
-                            .onChange(of: urlInput) { newVal in
-                                let trimmed = newVal.trimmingCharacters(in: .whitespaces)
-                                isValidHTTPS = trimmed.isEmpty || trimmed.hasPrefix("https://")
-                            }
-                        if !isValidHTTPS {
-                            Text("URLは https:// で始めてください")
-                                .font(.footnote)
-                                .foregroundStyle(.red)
+        ZStack {
+            // 外側タップで閉じる透明オーバーレイ
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture {
+                    if keyboardHeight > 0 {
+                        dismissKeyboard()
+                    } else {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                            onClose()
                         }
                     }
                 }
-                .scrollContentBackground(.hidden)
-            }
-            .navigationTitle("URLプリセットを追加")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") { dismiss() }
-                        .foregroundStyle(.white)
+
+            GeometryReader { geo in
+                let height = geo.size.height
+                let topY = height * 0.55
+
+                VStack {
+                    Spacer()
+                    ZStack {
+                        // URL用：黄緑系グラデーション＋下部を暗く
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.55, green: 0.9, blue: 0.3).opacity(0.8),
+                                Color(red: 0.25, green: 0.5, blue: 0.15).opacity(0.95)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.0),
+                                    Color.black.opacity(0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                        ScrollView(showsIndicators: true) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Text("URLプリセットを追加")
+                                        .font(.headline)
+                                        .foregroundStyle(.white)
+                                    Spacer()
+                                    Button("追加") {
+                                        addPreset()
+                                    }
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.top, 10)
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("タイトル")
+                                        .foregroundStyle(.white.opacity(0.9))
+                                    TextField("プリセット名（必須）", text: $title)
+                                        .textFieldStyle(.roundedBorder)
+                                        .foregroundColor(.black)
+                                }
+                                .padding(.horizontal, 16)
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("URL（https:// のみ）")
+                                        .foregroundStyle(.white.opacity(0.9))
+                                    TextField("https://example.com", text: $urlInput)
+                                        .keyboardType(.URL)
+                                        .textInputAutocapitalization(.never)
+                                        .autocorrectionDisabled()
+                                        .foregroundColor(.black)
+                                        .textFieldStyle(.roundedBorder)
+                                        .onChange(of: urlInput) { newVal in
+                                            let trimmed = newVal.trimmingCharacters(in: .whitespaces)
+                                            isValidHTTPS = trimmed.isEmpty || trimmed.hasPrefix("https://")
+                                        }
+                                    if !isValidHTTPS {
+                                    Text("URLは https:// で始めてください")
+                                            .font(.footnote)
+                                            .foregroundStyle(.red)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+
+                                Spacer(minLength: 16)
+                            }
+                            .padding(.bottom, 12)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if keyboardHeight > 0 {
+                                dismissKeyboard()
+                            }
+                        }
+                    }
+                    .frame(height: height - topY)
+                    .frame(maxWidth: .infinity)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("追加") { addPreset() }
-                        .foregroundStyle(.white)
-                }
+                .frame(width: geo.size.width, height: height, alignment: .bottom)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+            if let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                let screenHeight = UIScreen.main.bounds.height
+                let height = max(0, screenHeight - frame.origin.y)
+                keyboardHeight = height
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardHeight = 0
+        }
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     private func addPreset() {
@@ -806,76 +1047,124 @@ private struct UrlPresetSheet: View {
         let entity = UrlPresetEntity(title: trimmedTitle, urlString: trimmedURL)
         context.insert(entity)
         try? context.save()
-        dismiss()
+        onClose()
     }
 }
 
 private struct UrlPresetDeleteSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    let onClose: () -> Void
     @Query private var presets: [UrlPresetEntity]
     @State private var confirmTarget: UrlPresetEntity? = nil
     @State private var showConfirm: Bool = false
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.appGradient.ignoresSafeArea()
-                VStack(alignment: .leading, spacing: 12) {
-                    if presets.isEmpty {
-                        Text("追加されたURLプリセットはありません")
-                            .foregroundStyle(.white.opacity(0.8))
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 40)
-                    } else {
-                        List {
-                            ForEach(presets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
-                                Button {
-                                    confirmTarget = preset
-                                    showConfirm = true
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(preset.title)
-                                            .foregroundStyle(.white)
-                                        Text(preset.urlString)
-                                            .font(.caption)
-                                            .foregroundStyle(.white.opacity(0.8))
+        ZStack {
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        onClose()
+                    }
+                }
+
+            GeometryReader { geo in
+                let height = geo.size.height
+                let topY = height * 0.55
+
+                VStack {
+                    Spacer()
+                    ZStack {
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.55, green: 0.9, blue: 0.3).opacity(0.8),
+                                Color(red: 0.25, green: 0.5, blue: 0.15).opacity(0.95)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.0),
+                                    Color.black.opacity(0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                        ScrollView(showsIndicators: true) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("URLプリセット削除")
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 10)
+
+                                if presets.isEmpty {
+                                    Text("追加されたURLプリセットはありません")
+                                        .foregroundStyle(.white.opacity(0.85))
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding(.top, 24)
+                                } else {
+                                    VStack(spacing: 0) {
+                                        ForEach(presets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
+                                            Button {
+                                                confirmTarget = preset
+                                                showConfirm = true
+                                            } label: {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text(preset.title)
+                                                        .foregroundStyle(.white)
+                                                    Text(preset.urlString)
+                                                        .font(.caption)
+                                                        .foregroundStyle(.white.opacity(0.85))
+                                                }
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 10)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Rectangle()
+                                                .fill(Color.white.opacity(0.28))
+                                                .frame(height: 1)
+                                        }
                                     }
                                 }
-                                .listRowBackground(Color.clear)
+                                Spacer(minLength: 16)
                             }
+                            .padding(.bottom, 12)
                         }
-                        .scrollContentBackground(.hidden)
                     }
-                    Spacer()
+                    .frame(height: height - topY)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.top, 8)
+                .frame(width: geo.size.width, height: height, alignment: .bottom)
             }
-            .navigationTitle("URLプリセット削除")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { dismiss() }
-                        .foregroundStyle(.white)
-                }
+        }
+        .alert("削除しますか", isPresented: $showConfirm, presenting: confirmTarget) { target in
+            Button("はい", role: .destructive) {
+                context.delete(target)
+                try? context.save()
             }
-            .alert("削除しますか", isPresented: $showConfirm, presenting: confirmTarget) { target in
-                Button("はい", role: .destructive) {
-                    context.delete(target)
-                    try? context.save()
-                }
-                Button("いいえ", role: .cancel) {}
-            } message: { _ in
-                Text("このURLプリセットを削除してよろしいですか？")
-            }
+            Button("いいえ", role: .cancel) {}
+        } message: { _ in
+            Text("このURLプリセットを削除してよろしいですか？")
         }
     }
 }
 
-// MARK: - タスクプリセット追加・削除シート
+// MARK: - タスクプリセット追加・削除シート（アプリ設定用 小ウィンドウ）
 private struct TaskPresetSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    let onClose: () -> Void
 
     private struct TaskDraft: Identifiable {
         let id: UUID
@@ -890,152 +1179,219 @@ private struct TaskPresetSheet: View {
     @State private var deadlineHours: Int = 0
     @State private var deadlineMinutes: Int = 0
     @State private var deadlineDays: Int = 0
+    @State private var keyboardHeight: CGFloat = 0
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.appGradient.ignoresSafeArea()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // タイトル
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("タイトル")
-                                .foregroundStyle(.white)
-                            TextField("プリセット名（必須）", text: $title)
-                                .foregroundColor(.black)
-                                .textFieldStyle(.roundedBorder)
+        ZStack {
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture {
+                    if keyboardHeight > 0 {
+                        dismissKeyboard()
+                    } else {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                            onClose()
                         }
+                    }
+                }
 
-                        // タスク一覧
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("ToDo")
-                                .foregroundStyle(.white)
-                            if tasks.isEmpty {
-                                Button {
-                                    tasks.append(TaskDraft(id: UUID(), text: ""))
-                                } label: {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "plus.circle")
-                                        Text("タスクを追加")
+            GeometryReader { geo in
+                let height = geo.size.height
+                let topY = height * 0.55
+
+                VStack {
+                    Spacer()
+                    ZStack {
+                        // タスク用：水色系グラデーション＋下部を暗く
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.4, green: 0.8, blue: 0.95).opacity(0.8),
+                                Color(red: 0.15, green: 0.45, blue: 0.6).opacity(0.95)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.0),
+                                    Color.black.opacity(0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                        ScrollView(showsIndicators: true) {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    Text("タスクプリセットを追加")
+                                        .font(.headline)
+                                        .foregroundStyle(.white)
+                                    Spacer()
+                                    Button("追加") {
+                                        addPreset()
                                     }
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(14)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(style: StrokeStyle(lineWidth: 1, dash: [6]))
-                                            .foregroundColor(.white)
-                                    )
                                 }
-                            } else {
-                                VStack(spacing: 10) {
-                                    ForEach(tasks) { task in
-                                        HStack(alignment: .top, spacing: 8) {
-                                            TextField(
-                                                "タスク",
-                                                text: Binding(
-                                                    get: {
-                                                        task.text
-                                                    },
-                                                    set: { newVal in
-                                                        if let idx = tasks.firstIndex(where: { $0.id == task.id }) {
-                                                            tasks[idx].text = String(newVal.prefix(120))
-                                                        }
-                                                    }
-                                                )
+                                .padding(.horizontal, 16)
+                                .padding(.top, 10)
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("タイトル")
+                                        .foregroundStyle(.white)
+                                    TextField("プリセット名（必須）", text: $title)
+                                        .foregroundColor(.black)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                                .padding(.horizontal, 16)
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("ToDo")
+                                        .foregroundStyle(.white)
+                                    if tasks.isEmpty {
+                                        Button {
+                                            tasks.append(TaskDraft(id: UUID(), text: ""))
+                                        } label: {
+                                            HStack(spacing: 8) {
+                                                Image(systemName: "plus.circle")
+                                                Text("タスクを追加")
+                                            }
+                                            .foregroundStyle(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(14)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(style: StrokeStyle(lineWidth: 1, dash: [6]))
+                                                    .foregroundColor(.white)
                                             )
-                                            .textFieldStyle(.roundedBorder)
-                                            .foregroundColor(.black)
-                                            Button(role: .destructive) {
-                                                tasks.removeAll { $0.id == task.id }
+                                        }
+                                    } else {
+                                        VStack(spacing: 10) {
+                                            ForEach(tasks) { task in
+                                                HStack(alignment: .top, spacing: 8) {
+                                                    TextField(
+                                                        "タスク",
+                                                        text: Binding(
+                                                            get: {
+                                                                task.text
+                                                            },
+                                                            set: { newVal in
+                                                                if let idx = tasks.firstIndex(where: { $0.id == task.id }) {
+                                                                    tasks[idx].text = String(newVal.prefix(120))
+                                                                }
+                                                            }
+                                                        )
+                                                    )
+                                                    .textFieldStyle(.roundedBorder)
+                                                    .foregroundColor(.black)
+                                                    Button(role: .destructive) {
+                                                        tasks.removeAll { $0.id == task.id }
+                                                    } label: {
+                                                        Image(systemName: "trash")
+                                                            .foregroundStyle(.red)
+                                                    }
+                                                }
+                                            }
+                                            Button {
+                                                tasks.append(TaskDraft(id: UUID(), text: ""))
                                             } label: {
-                                                Image(systemName: "trash")
-                                                    .foregroundStyle(.red)
+                                                HStack(spacing: 8) {
+                                                    Image(systemName: "plus.circle")
+                                                    Text("タスクを追加")
+                                                }
+                                                .foregroundStyle(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(10)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 8)
+                                                        .stroke(style: StrokeStyle(lineWidth: 1, dash: [6]))
+                                                        .foregroundColor(.white)
+                                                )
                                             }
                                         }
                                     }
-                                    Button {
-                                        tasks.append(TaskDraft(id: UUID(), text: ""))
-                                    } label: {
-                                        HStack(spacing: 8) {
-                                            Image(systemName: "plus.circle")
-                                            Text("タスクを追加")
-                                        }
+                                }
+                                .padding(.horizontal, 16)
+
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("全タスクの締切設定（任意）")
                                         .foregroundStyle(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(10)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(style: StrokeStyle(lineWidth: 1, dash: [6]))
-                                                .foregroundColor(.white)
-                                        )
+                                    Picker("モード", selection: $deadlineMode) {
+                                        Text(DeadlineMode.hoursMinutes.rawValue).tag(DeadlineMode.hoursMinutes)
+                                        Text(DeadlineMode.days.rawValue).tag(DeadlineMode.days)
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .tint(.white)
+                                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.12)))
+
+                                    if deadlineMode == .hoursMinutes {
+                                        HStack {
+                                            Text("\(deadlineHours) 時間")
+                                                .foregroundStyle(.white)
+                                            Spacer()
+                                            Stepper("", value: $deadlineHours, in: 0...168)
+                                                .labelsHidden()
+                                                .tint(.white)
+                                                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
+                                        }
+                                        HStack {
+                                            Text("\(deadlineMinutes) 分")
+                                                .foregroundStyle(.white)
+                                            Spacer()
+                                            Stepper("", value: $deadlineMinutes, in: 0...59)
+                                                .labelsHidden()
+                                                .tint(.white)
+                                                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
+                                        }
+                                    } else {
+                                        HStack {
+                                            Text("\(deadlineDays) 日後")
+                                                .foregroundStyle(.white)
+                                            Spacer()
+                                            Stepper("", value: $deadlineDays, in: 0...365)
+                                                .labelsHidden()
+                                                .tint(.white)
+                                                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
+                                        }
                                     }
                                 }
-                            }
-                        }
+                                .padding(.horizontal, 16)
 
-                        // 締切（任意）
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("全タスクの締切設定（任意）")
-                                .foregroundStyle(.white)
-                            Picker("モード", selection: $deadlineMode) {
-                                Text(DeadlineMode.hoursMinutes.rawValue).tag(DeadlineMode.hoursMinutes)
-                                Text(DeadlineMode.days.rawValue).tag(DeadlineMode.days)
+                                Spacer(minLength: 16)
                             }
-                            .pickerStyle(.segmented)
-                            .tint(.white)
-                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.12)))
-
-                            if deadlineMode == .hoursMinutes {
-                                HStack {
-                                    Text("\(deadlineHours) 時間")
-                                        .foregroundStyle(.white)
-                                    Spacer()
-                                    Stepper("", value: $deadlineHours, in: 0...168)
-                                        .labelsHidden()
-                                        .tint(.white)
-                                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
-                                }
-                                HStack {
-                                    Text("\(deadlineMinutes) 分")
-                                        .foregroundStyle(.white)
-                                    Spacer()
-                                    Stepper("", value: $deadlineMinutes, in: 0...59)
-                                        .labelsHidden()
-                                        .tint(.white)
-                                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
-                                }
-                            } else {
-                                HStack {
-                                    Text("\(deadlineDays) 日後")
-                                        .foregroundStyle(.white)
-                                    Spacer()
-                                    Stepper("", value: $deadlineDays, in: 0...365)
-                                        .labelsHidden()
-                                        .tint(.white)
-                                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
+                            .padding(.bottom, 12)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if keyboardHeight > 0 {
+                                    dismissKeyboard()
                                 }
                             }
                         }
-
-                        Spacer(minLength: 40) // 一番下に余白を設ける
                     }
-                    .padding()
+                    .frame(height: height - topY)
+                    .frame(maxWidth: .infinity)
                 }
-            }
-            .navigationTitle("タスクプリセットを追加")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") { dismiss() }
-                        .foregroundStyle(.white)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("追加") { addPreset() }
-                        .foregroundStyle(.white)
-                }
+                .frame(width: geo.size.width, height: height, alignment: .bottom)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+            if let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                let screenHeight = UIScreen.main.bounds.height
+                let height = max(0, screenHeight - frame.origin.y)
+                keyboardHeight = height
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardHeight = 0
+        }
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     private func addPreset() {
@@ -1057,70 +1413,116 @@ private struct TaskPresetSheet: View {
 
         context.insert(preset)
         try? context.save()
-        dismiss()
+        onClose()
     }
 }
 
 private struct TaskPresetDeleteSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    let onClose: () -> Void
+
     @Query private var presets: [TaskPresetEntity]
     @State private var confirmTarget: TaskPresetEntity? = nil
     @State private var showConfirm: Bool = false
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.appGradient.ignoresSafeArea()
-                VStack(alignment: .leading, spacing: 12) {
-                    if presets.isEmpty {
-                        Text("追加されたタスクプリセットはありません")
-                            .foregroundStyle(.white.opacity(0.8))
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 40)
-                    } else {
-                        List {
-                            ForEach(presets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
-                                Button {
-                                    confirmTarget = preset
-                                    showConfirm = true
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(preset.title)
-                                            .foregroundStyle(.white)
-                                        if !preset.items.isEmpty {
-                                            Text("\(preset.items.count) 件のタスク")
-                                                .font(.caption)
-                                                .foregroundStyle(.white.opacity(0.8))
+        ZStack {
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onClose()
+                }
+
+            GeometryReader { geo in
+                let height = geo.size.height
+                let topY = height * 0.55
+
+                VStack {
+                    Spacer()
+                    ZStack {
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.4, green: 0.8, blue: 0.95).opacity(0.8),
+                                Color(red: 0.15, green: 0.45, blue: 0.6).opacity(0.95)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.0),
+                                    Color.black.opacity(0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                        ScrollView(showsIndicators: true) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("タスクプリセット削除")
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 10)
+
+                                if presets.isEmpty {
+                                    Text("追加されたタスクプリセットはありません")
+                                        .foregroundStyle(.white.opacity(0.85))
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding(.top, 24)
+                                } else {
+                                    VStack(spacing: 0) {
+                                        ForEach(presets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
+                                            Button {
+                                                confirmTarget = preset
+                                                showConfirm = true
+                                            } label: {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text(preset.title)
+                                                        .foregroundStyle(.white)
+                                                    if !preset.items.isEmpty {
+                                                        Text("\(preset.items.count) 件のタスク")
+                                                            .font(.caption)
+                                                            .foregroundStyle(.white.opacity(0.8))
+                                                    }
+                                                }
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 10)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Rectangle()
+                                                .fill(Color.white.opacity(0.28))
+                                                .frame(height: 1)
                                         }
                                     }
                                 }
-                                .listRowBackground(Color.clear)
+                                Spacer(minLength: 16)
                             }
+                            .padding(.bottom, 12)
                         }
-                        .scrollContentBackground(.hidden)
                     }
-                    Spacer()
+                    .frame(height: height - topY)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.top, 8)
+                .frame(width: geo.size.width, height: height, alignment: .bottom)
             }
-            .navigationTitle("タスクプリセット削除")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { dismiss() }
-                        .foregroundStyle(.white)
-                }
+        }
+        .alert("削除しますか", isPresented: $showConfirm, presenting: confirmTarget) { target in
+            Button("はい", role: .destructive) {
+                context.delete(target)
+                try? context.save()
             }
-            .alert("削除しますか", isPresented: $showConfirm, presenting: confirmTarget) { target in
-                Button("はい", role: .destructive) {
-                    context.delete(target)
-                    try? context.save()
-                }
-                Button("いいえ", role: .cancel) {}
-            } message: { _ in
-                Text("このタスクプリセットを削除してよろしいですか？")
-            }
+            Button("いいえ", role: .cancel) {}
+        } message: { _ in
+            Text("このタスクプリセットを削除してよろしいですか？")
         }
     }
 }

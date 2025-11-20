@@ -149,18 +149,29 @@ enum SortPreference {
         UserDefaults.standard.set(preset.rawValue, forKey: notificationVolumeKey)
     }
 
-    // MARK: - Default snooze minutes (1...10080, initial 10)
+    // MARK: - Default snooze minutes (>=1, initial 10)
     static func loadDefaultSnoozeMinutes() -> Int {
         let stored = UserDefaults.standard.integer(forKey: defaultSnoozeMinutesKey)
         if UserDefaults.standard.object(forKey: defaultSnoozeMinutesKey) == nil {
             return 10
         }
-        return max(1, min(10080, stored))
+        let clamped = max(0, min(10080, stored))
+        if clamped <= 0 {
+            // 0 分指定時は 5 分として扱う
+            return 5
+        }
+        return clamped
     }
 
     static func saveDefaultSnoozeMinutes(_ minutes: Int) {
-        let clamped = max(1, min(10080, minutes))
-        UserDefaults.standard.set(clamped, forKey: defaultSnoozeMinutesKey)
+        let effective: Int
+        if minutes <= 0 {
+            // 0 分以下は 5 分として保存
+            effective = 5
+        } else {
+            effective = min(10080, minutes)
+        }
+        UserDefaults.standard.set(effective, forKey: defaultSnoozeMinutesKey)
     }
 
     // MARK: - Recording max minutes (1...60, initial 3)

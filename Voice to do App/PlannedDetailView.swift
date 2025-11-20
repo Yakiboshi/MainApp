@@ -16,6 +16,8 @@ struct PlannedDetailView: View {
     @State private var afterMessage: String = ""
     @State private var linkInput: String = ""
     @State private var linkIsValidHTTPS: Bool = true
+    @State private var showUrlPresetPicker: Bool = false
+    @State private var showTaskPresetPicker: Bool = false
 
     private struct TaskDraft: Identifiable {
         var id: UUID
@@ -29,6 +31,9 @@ struct PlannedDetailView: View {
     @State private var deadlineHours: Int = 0
     @State private var deadlineMinutes: Int = 0
     @State private var deadlineDays: Int = 0
+
+    @Query private var urlPresets: [UrlPresetEntity]
+    @Query private var taskPresets: [TaskPresetEntity]
 
     // アイコン用
     @State private var showPhotoPicker = false
@@ -101,6 +106,15 @@ struct PlannedDetailView: View {
                     )
             }
             .ignoresSafeArea(edges: .bottom)
+
+            if showUrlPresetPicker {
+                urlPresetOverlay
+                    .transition(.move(edge: .bottom))
+            }
+            if showTaskPresetPicker {
+                taskPresetOverlay
+                    .transition(.move(edge: .bottom))
+            }
         }
         // 背景タップでキーボードを閉じる
         .contentShape(Rectangle())
@@ -374,9 +388,23 @@ struct PlannedDetailView: View {
 
     private var urlSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("URL（任意・https:// のみ）")
-                .font(.headline)
-                .foregroundStyle(.white)
+            HStack {
+                Text("URL（任意・https:// のみ）")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Spacer()
+                if !urlPresets.isEmpty {
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                            showUrlPresetPicker = true
+                        }
+                    } label: {
+                        Image(systemName: "list.bullet")
+                            .foregroundStyle(.white)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
             TextField(
                 text: Binding(
                     get: { linkInput },
@@ -400,9 +428,23 @@ struct PlannedDetailView: View {
 
     private var tasksSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("ToDo")
-                .font(.headline)
-                .foregroundStyle(.white)
+            HStack {
+                Text("ToDo")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Spacer()
+                if !taskPresets.isEmpty {
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                            showTaskPresetPicker = true
+                        }
+                    } label: {
+                        Image(systemName: "list.bullet")
+                            .foregroundStyle(.white)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
             if taskDrafts.isEmpty {
                 Button(action: { addTask() }) {
                     HStack(spacing: 8) {
@@ -511,6 +553,172 @@ struct PlannedDetailView: View {
         }
     }
 
+    // MARK: - URL / タスクプリセット選択用小ウィンドウ
+    private var urlPresetOverlay: some View {
+        ZStack {
+            // 外側タップで閉じる透明オーバーレイ
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        showUrlPresetPicker = false
+                    }
+                }
+
+            GeometryReader { geo in
+                let height = geo.size.height
+                let topY = height * 0.55
+
+                VStack {
+                    Spacer()
+                    ZStack {
+                        // 半透明の黄緑グラデーション（下部ほど暗く）
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.55, green: 0.9, blue: 0.3).opacity(0.8),
+                                Color(red: 0.25, green: 0.5, blue: 0.15).opacity(0.95)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.0),
+                                    Color.black.opacity(0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                        ScrollView(showsIndicators: true) {
+                            VStack(spacing: 0) {
+                                ForEach(urlPresets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
+                                    Button {
+                                        applyUrlPreset(preset)
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                            showUrlPresetPicker = false
+                                        }
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(preset.title)
+                                                .foregroundStyle(.white)
+                                                .font(.body)
+                                            Text(preset.urlString)
+                                                .font(.caption)
+                                                .foregroundStyle(.white.opacity(0.85))
+                                        }
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    Rectangle()
+                                        .fill(Color.white.opacity(0.28))
+                                        .frame(height: 1)
+                                }
+                            }
+                        }
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                    }
+                    .frame(height: height - topY)
+                    .frame(maxWidth: .infinity)
+                }
+                .frame(width: geo.size.width, height: height, alignment: .bottom)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var taskPresetOverlay: some View {
+        ZStack {
+            // 外側タップで閉じる透明オーバーレイ
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        showTaskPresetPicker = false
+                    }
+                }
+
+            GeometryReader { geo in
+                let height = geo.size.height
+                let topY = height * 0.55
+
+                VStack {
+                    Spacer()
+                    ZStack {
+                        // 半透明の水色グラデーション（下側ほど暗く）
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.4, green: 0.8, blue: 0.95).opacity(0.8),
+                                Color(red: 0.15, green: 0.45, blue: 0.6).opacity(0.95)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.0),
+                                    Color.black.opacity(0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                        ScrollView(showsIndicators: true) {
+                            VStack(spacing: 0) {
+                                ForEach(taskPresets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
+                                    Button {
+                                        applyTaskPreset(preset)
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                            showTaskPresetPicker = false
+                                        }
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(preset.title)
+                                                .foregroundStyle(.white)
+                                                .font(.body)
+                                            if !preset.items.isEmpty {
+                                                Text("\(preset.items.count) 件のタスク")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.white.opacity(0.85))
+                                            }
+                                        }
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    Rectangle()
+                                        .fill(Color.white.opacity(0.28))
+                                        .frame(height: 1)
+                                }
+                            }
+                        }
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                    }
+                    .frame(height: height - topY)
+                    .frame(maxWidth: .infinity)
+                }
+                .frame(width: geo.size.width, height: height, alignment: .bottom)
+            }
+        }
+    }
+
     // MARK: - Load / Save
     private func load() {
         loaded = true
@@ -586,8 +794,41 @@ struct PlannedDetailView: View {
             entity.deadlineMinutes = nil
         }
 
+        // スヌーズ時間が 0 分になっている場合は 5 分として保存する
+        if let snooze = entity.snoozeMin, snooze <= 0 {
+            entity.snoozeMin = 5
+        }
+
         try? context.save()
         dismiss()
+    }
+
+    private func applyUrlPreset(_ preset: UrlPresetEntity) {
+        let url = preset.urlString
+        linkInput = url
+        let trimmed = url.trimmingCharacters(in: .whitespaces)
+        linkIsValidHTTPS = trimmed.isEmpty || trimmed.hasPrefix("https://")
+    }
+
+    private func applyTaskPreset(_ preset: TaskPresetEntity) {
+        // プリセットのタスクをドラフトに反映
+        let drafts = preset.items.map { item in
+            TaskDraft(id: UUID(), text: item.text, isDone: false)
+        }
+        taskDrafts = drafts
+
+        // 締切もあれば適用（任意）
+        if let d = preset.deadlineDays, d > 0 {
+            deadlineMode = .days
+            deadlineDays = d
+            deadlineHours = 0
+            deadlineMinutes = 0
+        } else {
+            deadlineMode = .hoursMinutes
+            deadlineHours = preset.deadlineHours ?? 0
+            deadlineMinutes = preset.deadlineMinutes ?? 0
+            deadlineDays = 0
+        }
     }
 
     private func applyTaskDrafts() {

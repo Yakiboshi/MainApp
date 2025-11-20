@@ -110,6 +110,7 @@ struct HistoryListPage: View {
                                 NotificationRouter.shared.presentHistoryDetail(for: rec.id)
                             } label: {
                                 HistoryRowView(entity: rec)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .listRowBackground(Color.clear)

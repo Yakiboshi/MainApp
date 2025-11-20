@@ -127,6 +127,7 @@ struct PlannedListPage: View {
                                         NotificationRouter.shared.presentPlannedEditor(for: rec.id)
                                     } label: {
                                         row
+                                            .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
                                     .disabled(isWithinOneMinute(rec))

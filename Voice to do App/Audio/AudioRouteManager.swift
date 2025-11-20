@@ -31,7 +31,8 @@ final class AudioRouteManager: ObservableObject {
         let session = AVAudioSession.sharedInstance()
         do {
             // 同一カテゴリ/モードで再設定しておく（voiceChat + Bluetooth対応）
-            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .allowBluetoothA2DP])
+            // 録音と同じく、入力に必要な .allowBluetooth のみに絞る
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth])
             try session.setActive(true)
             availableInputs = session.availableInputs ?? []
             // 現在の選択（preferredInput があればそれ、なければ currentRoute から）

@@ -18,6 +18,7 @@ struct AppTabsView: View {
     @State private var keypadTopY: CGFloat = 0
     @State private var headerBottomY: CGFloat = 0
     @State private var bottomBarHeight: CGFloat = 0
+    @State private var isKeyboardVisible: Bool = false
     // MARK: Layout constants（独立して編集できます）
     // 高さの数値は縦幅ではなく「画面下端からの距離」として扱う
     private let tmpKeypadBottomOffset: CGFloat = 75
@@ -115,18 +116,22 @@ struct AppTabsView: View {
         .coordinateSpace(name: "AppRoot")
         // safeAreaInset でナビ上端＝コンテンツ下端を定義
         .safeAreaInset(edge: .bottom) {
-            BottomNavBar(
-                items: items,
-                selectedIndex: $selectedIndex,
-                historyBadgeCount: historyBadgeCount(),
-                voicemailBadgeCount: voicemailBadgeCount(),
-                onAnyTap: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet = false } }
-            )
-                .background(
-                    GeometryReader { p in
-                        Color.clear.preference(key: BottomBarHeightPreferenceKey.self, value: p.size.height)
-                    }
-                )
+            Group {
+                if !isKeyboardVisible {
+                    BottomNavBar(
+                        items: items,
+                        selectedIndex: $selectedIndex,
+                        historyBadgeCount: historyBadgeCount(),
+                        voicemailBadgeCount: voicemailBadgeCount(),
+                        onAnyTap: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet = false } }
+                    )
+                    .background(
+                        GeometryReader { p in
+                            Color.clear.preference(key: BottomBarHeightPreferenceKey.self, value: p.size.height)
+                        }
+                    )
+                }
+            }
         }
         // フルスクリーンの通信画面（ナビゲーションバーなし）
         .fullScreenCover(isPresented: Binding(get: {
@@ -157,6 +162,13 @@ struct AppTabsView: View {
         }
         .onChange(of: notifRouter.requestedTabIndex) { idx in
             if let i = idx { selectedIndex = i; NotificationRouter.shared.requestedTabIndex = nil }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            isKeyboardVisible = true
+            bottomBarHeight = 0
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            isKeyboardVisible = false
         }
     }
 }

@@ -112,6 +112,7 @@ struct VoicemailListPage: View {
                                 NotificationRouter.shared.openIncomingCall(messageId: rec.id.uuidString, fromVoicemail: true)
                             } label: {
                                 VoicemailRowView(entity: rec)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .listRowBackground(Color.clear)

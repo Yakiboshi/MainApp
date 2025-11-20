@@ -57,7 +57,9 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
         do {
             // Use voiceChat for better echo cancellation and BT mic support
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .allowBluetoothA2DP])
+            // 実機では .playAndRecord + .voiceChat と .allowBluetoothA2DP の組み合わせが失敗するケースがあるため、
+            // 録音時は入力に必要な .allowBluetooth のみに絞る
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth])
             try session.setActive(true)
 
             // 録音の入力ゲインを強める（可能なデバイスのみ）。デフォルトの約2倍を目安に、上限1.0でクリップ。
@@ -230,18 +232,19 @@ final class AudioRecorderViewModel: NSObject, ObservableObject, AVAudioRecorderD
     }
 
     @objc private func handleRouteChange(_ note: Notification) {
-        // For unexpected severe changes, cancel the recording (spec says irregular -> cancel)
+        // 以前は .unknown などで積極的に cancel() していたが、
+        // 実機での正規なルート変更まで巻き込んで録音が即停止するケースがあったため、
+        // ここでは本当に「ルートが取れない」ときだけキャンセルするように絞る。
         guard isRecording else { return }
         if let reasonVal = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
            let reason = AVAudioSession.RouteChangeReason(rawValue: reasonVal) {
             switch reason {
-            case .oldDeviceUnavailable, .newDeviceAvailable, .categoryChange, .override, .wakeFromSleep, .noSuitableRouteForCategory:
-                // Keep recording; voiceChat should handle.
+            case .noSuitableRouteForCategory:
+                // このカテゴリでは適切なルートが存在しない → 録音を中断
+                cancel()
+            default:
+                // oldDeviceUnavailable/newDeviceAvailable/categoryChange/override などは録音継続
                 break
-            case .unknown:
-                cancel()
-            @unknown default:
-                cancel()
             }
         }
     }

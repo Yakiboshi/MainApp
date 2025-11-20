@@ -130,6 +130,16 @@ private struct DetailCoreView: View {
                     )
             }
             .ignoresSafeArea(edges: .bottom)
+
+            // URL / タスクプリセット選択用の小ウィンドウ（オーバーレイ）
+            if showUrlPresetPicker {
+                urlPresetOverlay
+                    .transition(.move(edge: .bottom))
+            }
+            if showTaskPresetPicker {
+                taskPresetOverlay
+                    .transition(.move(edge: .bottom))
+            }
         }
         .navigationTitle("詳細登録")
         .navigationBarTitleDisplayMode(.inline)
@@ -146,73 +156,172 @@ private struct DetailCoreView: View {
             if newMode == .days { recording.deadlineHours = nil; recording.deadlineMinutes = nil }
             else { recording.deadlineDays = nil }
         }
-        // URL / タスクプリセット選択用の小ウィンドウ（シート）
-        .sheet(isPresented: $showUrlPresetPicker) {
-            NavigationStack {
-                ZStack {
-                    Theme.appGradient.ignoresSafeArea()
-                    List {
-                        ForEach(urlPresets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
-                            Button {
-                                applyUrlPreset(preset)
-                                showUrlPresetPicker = false
-                            } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(preset.title)
-                                        .foregroundStyle(.white)
-                                    Text(preset.urlString)
-                                        .font(.caption)
-                                        .foregroundStyle(.white.opacity(0.8))
+    }
+
+    // URLプリセット選択オーバーレイ
+    @ViewBuilder
+    private var urlPresetOverlay: some View {
+        ZStack {
+            // タップ検知用の透明オーバーレイ（外側タップで閉じる）
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        showUrlPresetPicker = false
+                    }
+                }
+
+            GeometryReader { geo in
+                let height = geo.size.height
+                let topY = height * 0.55 // 下部 45% をシートに使う
+
+                VStack {
+                    Spacer()
+                    ZStack {
+                        // 半透明の黄緑グラデーション（下部ほど暗く）
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.55, green: 0.9, blue: 0.3).opacity(0.8),
+                                Color(red: 0.25, green: 0.5, blue: 0.15).opacity(0.95)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.0),
+                                    Color.black.opacity(0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                        ScrollView(showsIndicators: true) {
+                            VStack(spacing: 0) {
+                                ForEach(urlPresets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
+                                    Button {
+                                        applyUrlPreset(preset)
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                            showUrlPresetPicker = false
+                                        }
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(preset.title)
+                                                .foregroundStyle(.white)
+                                                .font(.body)
+                                            Text(preset.urlString)
+                                                .font(.caption)
+                                                .foregroundStyle(.white.opacity(0.85))
+                                        }
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    Rectangle()
+                                        .fill(Color.white.opacity(0.28))
+                                        .frame(height: 1)
                                 }
                             }
-                            .listRowBackground(Color.clear)
                         }
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
                     }
-                    .scrollContentBackground(.hidden)
+                    .frame(height: height - topY)
+                    .frame(maxWidth: .infinity)
                 }
-                .navigationTitle("URLプリセット")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("閉じる") { showUrlPresetPicker = false }
-                            .foregroundStyle(.white)
-                    }
-                }
+                .frame(width: geo.size.width, height: height, alignment: .bottom)
             }
         }
-        .sheet(isPresented: $showTaskPresetPicker) {
-            NavigationStack {
-                ZStack {
-                    Theme.appGradient.ignoresSafeArea()
-                    List {
-                        ForEach(taskPresets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
-                            Button {
-                                applyTaskPreset(preset)
-                                showTaskPresetPicker = false
-                            } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(preset.title)
-                                        .foregroundStyle(.white)
-                                    if !preset.items.isEmpty {
-                                        Text("\(preset.items.count) 件のタスク")
-                                            .font(.caption)
-                                            .foregroundStyle(.white.opacity(0.8))
+    }
+
+    // タスクプリセット選択オーバーレイ
+    @ViewBuilder
+    private var taskPresetOverlay: some View {
+        ZStack {
+            // 外側タップで閉じる透明オーバーレイ
+            Color.clear
+                .contentShape(Rectangle())
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                        showTaskPresetPicker = false
+                    }
+                }
+
+            GeometryReader { geo in
+                let height = geo.size.height
+                let topY = height * 0.55
+
+                VStack {
+                    Spacer()
+                    ZStack {
+                        // 半透明の水色グラデーション（下側ほど暗く）
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.4, green: 0.8, blue: 0.95).opacity(0.8),
+                                Color(red: 0.15, green: 0.45, blue: 0.6).opacity(0.95)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .overlay(
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.0),
+                                    Color.black.opacity(0.35)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+                        ScrollView(showsIndicators: true) {
+                            VStack(spacing: 0) {
+                                ForEach(taskPresets.sorted(by: { $0.createdAt < $1.createdAt })) { preset in
+                                    Button {
+                                        applyTaskPreset(preset)
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                            showTaskPresetPicker = false
+                                        }
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(preset.title)
+                                                .foregroundStyle(.white)
+                                                .font(.body)
+                                            if !preset.items.isEmpty {
+                                                Text("\(preset.items.count) 件のタスク")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.white.opacity(0.85))
+                                            }
+                                        }
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
                                     }
+                                    .buttonStyle(.plain)
+
+                                    Rectangle()
+                                        .fill(Color.white.opacity(0.28))
+                                        .frame(height: 1)
                                 }
                             }
-                            .listRowBackground(Color.clear)
                         }
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
                     }
-                    .scrollContentBackground(.hidden)
+                    .frame(height: height - topY)
+                    .frame(maxWidth: .infinity)
                 }
-                .navigationTitle("タスクプリセット")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("閉じる") { showTaskPresetPicker = false }
-                            .foregroundStyle(.white)
-                    }
-                }
+                .frame(width: geo.size.width, height: height, alignment: .bottom)
             }
         }
     }
@@ -427,7 +536,9 @@ private struct DetailCoreView: View {
                 Spacer()
                 if !urlPresets.isEmpty {
                     Button {
-                        showUrlPresetPicker = true
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                            showUrlPresetPicker = true
+                        }
                     } label: {
                         Image(systemName: "list.bullet")
                             .foregroundStyle(.white)
@@ -454,7 +565,9 @@ private struct DetailCoreView: View {
                 Spacer()
                 if !taskPresets.isEmpty {
                     Button {
-                        showTaskPresetPicker = true
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                            showTaskPresetPicker = true
+                        }
                     } label: {
                         Image(systemName: "list.bullet")
                             .foregroundStyle(.white)
@@ -644,6 +757,10 @@ private struct DetailCoreView: View {
         }
         let trimmed = (linkInput.isEmpty ? (recording.linkURLString ?? "") : linkInput).trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty { recording.linkURLString = nil } else if trimmed.hasPrefix("https://") { recording.linkURLString = trimmed } else { recording.linkURLString = nil }
+        // スヌーズ時間が 0 分になっている場合は 5 分として保存する
+        if let snooze = recording.snoozeMin, snooze <= 0 {
+            recording.snoozeMin = 5
+        }
         try? context.save()
         NotificationRouter.shared.switchToTab(3)
         NotificationRouter.shared.dismissIntermediate()
