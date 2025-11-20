@@ -58,13 +58,13 @@ struct AfterCallView: View {
                     if let rec = recording {
                         Text(displayTitle(rec))
                             .font(.title2).fontWeight(.semibold)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                             .padding(.top, 6)
 
                         if shouldShowSubText(rec) {
                             Text("\(formattedDate(savedDate(for: rec))) からの電話")
                                 .font(.subheadline)
-                                .foregroundStyle(.gray)
+                                .foregroundStyle(Theme.secondaryText)
                                 .padding(.bottom, 2)
                         }
                     }
@@ -75,7 +75,7 @@ struct AfterCallView: View {
                             if let rec = recording, let msg = (rec.afterMessage?.trimmingCharacters(in: .whitespacesAndNewlines)), !msg.isEmpty {
                                 Text(msg)
                                     .multilineTextAlignment(.center)
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Theme.primaryText)
                                     .frame(width: proxy.size.width * 0.8)
                                     .padding(.top, 6)
                             }
@@ -258,11 +258,11 @@ struct AfterCallView: View {
                         .font(.footnote)
                         .foregroundStyle(Color.white.opacity(0.8))
                 }
-            } else if (rec.deadlineHours ?? 0) > 0 || (rec.deadlineMinutes ?? 0) > 0 { // 時間/分モード
-                let textColor: Color = lessThan1h ? .red : .white
+                } else if (rec.deadlineHours ?? 0) > 0 || (rec.deadlineMinutes ?? 0) > 0 { // 時間/分モード
+                let textColor: Color = lessThan1h ? .red : Theme.primaryText
                 VStack(spacing: 4) {
                     HStack(spacing: 6) {
-                        Text("目標時刻まで").foregroundStyle(.white).font(.headline)
+                        Text("目標時刻まで").foregroundStyle(Theme.primaryText).font(.headline)
                         let timeText = lessThan1h ? formatMMSS(remaining) : formatHHMM(remaining)
                         let timeMask = String(timeText.map { $0 == ":" ? ":" : "8" })
                         ZStack {
@@ -458,7 +458,10 @@ private struct ReListenPlayerView: View {
                                 .padding(24)
                         )
                 }
-                Text(timeString(elapsed)).font(.system(size: 36, weight: .bold, design: .monospaced)).foregroundStyle(.white).padding(.top, 16)
+                Text(timeString(elapsed))
+                    .font(.system(size: 36, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Theme.primaryText)
+                    .padding(.top, 16)
                 // 波形（再生中のみアニメ）
                 WaveformViewSimple(isAnimating: Binding(get: { player.isPlaying }, set: { _ in }))
                     .frame(height: 80)
@@ -466,27 +469,31 @@ private struct ReListenPlayerView: View {
 
                 // コントロール + 進捗スライダー
                 HStack(spacing: 12) {
+                    let isSing = Theme.isSingularity
+                    let circleFill = isSing ? Color.black : Color.white
+                    let iconColor = isSing ? Color.white : Color.black
+                    let sliderTint = isSing ? Color.black : .white
                     // 再生/一時停止
                     Button(action: {
                         if player.isPlaying { player.pause() } else { player.play() }
                     }) {
-                        Circle().fill(Color.white)
+                        Circle().fill(circleFill)
                             .frame(width: 40, height: 40)
-                            .overlay(Image(systemName: player.isPlaying ? "pause.fill" : "play.fill").foregroundColor(.black))
+                            .overlay(Image(systemName: player.isPlaying ? "pause.fill" : "play.fill").foregroundColor(iconColor))
                     }
                     // 最初から（終了時のみ表示）
                     if didFinish || (elapsed >= duration - 0.1) {
                         Button(action: { restart() }) {
-                            Circle().fill(Color.white)
+                            Circle().fill(circleFill)
                                 .frame(width: 40, height: 40)
-                                .overlay(Image(systemName: "backward.to.start.fill").foregroundColor(.black))
+                                .overlay(Image(systemName: "backward.to.start.fill").foregroundColor(iconColor))
                         }
                     }
                     Slider(value: Binding(get: { elapsed }, set: { newVal in
                         elapsed = newVal
                         player.seek(to: newVal)
                     }), in: 0...max(duration, 1))
-                    .tint(.white)
+                    .tint(sliderTint)
                 }
                 .padding(.horizontal, 24)
 
@@ -503,7 +510,7 @@ private struct ReListenPlayerView: View {
                         }
                     }
                     Text("閉じる")
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                         .font(Theme.circleButtonLabelFont)
                 }
                 .padding(.bottom, 48)

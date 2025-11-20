@@ -235,7 +235,7 @@ private struct BottomNavBar: View {
                 }
             }
             .padding(.bottom, 8)
-            .background(Theme.tabBlue)
+            .background(Theme.appBlue)
         }
         .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: -2)
     }
@@ -718,7 +718,7 @@ private struct RepeatBackspaceButtonUI: View {
                     .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
                     .shadow(color: Color.black.opacity(0.35), radius: 6, x: 0, y: 3)
                 Image(systemName: "delete.left").font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
             }
             .frame(width: diameter, height: diameter)
             .scaleEffect(pressed ? 0.98 : 1.0)
@@ -783,7 +783,7 @@ private struct KeyButtonUI: View {
                     if let title { Text(title).font(.system(size: 28, weight: .semibold)) }
                     else if let systemName { Image(systemName: systemName).font(.system(size: 24, weight: .semibold)) }
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
             }
             .frame(width: diameter, height: diameter)
             .scaleEffect(pressed ? 0.98 : 1.0)

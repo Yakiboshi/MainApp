@@ -79,7 +79,7 @@ struct PlannedDetailView: View {
                                 }
                                 Text("キャンセル")
                                     .font(Theme.circleButtonLabelFont)
-                                    .foregroundStyle(.white.opacity(0.9))
+                                    .foregroundStyle(Theme.secondaryText)
                             }
 
                             VStack(spacing: 6) {
@@ -99,7 +99,7 @@ struct PlannedDetailView: View {
                                 .opacity(isFutureDate && isUniqueDate ? 1.0 : 0.6)
                                 Text("完了")
                                     .font(Theme.circleButtonLabelFont)
-                                    .foregroundStyle(.white.opacity(0.9))
+                                    .foregroundStyle(Theme.secondaryText)
                             }
                         }
                         .padding(.bottom, 28)
@@ -160,7 +160,7 @@ struct PlannedDetailView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 110, height: 110)
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(Theme.isSingularity ? .black.opacity(0.6) : .white.opacity(0.6))
                 }
                 Button { showPhotoPicker = true } label: {
                     Image(systemName: "arrow.2.circlepath.circle.fill")
@@ -205,7 +205,7 @@ struct PlannedDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("予定日時")
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
             DatePicker(
                 "",
                 selection: $scheduledAt,
@@ -239,14 +239,14 @@ struct PlannedDetailView: View {
         return VStack(alignment: .leading, spacing: 8) {
             Text("スヌーズ時間")
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
             Text("この予定のスヌーズ時間（日・時間・分）")
                 .font(.footnote)
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(Theme.secondaryText)
             HStack(alignment: .center, spacing: 16) {
                 VStack {
                     Text("日")
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(Theme.secondaryText)
                         .font(.caption)
                     Picker(
                         "",
@@ -262,7 +262,7 @@ struct PlannedDetailView: View {
                         )
                     ) {
                         ForEach(0...7, id: \.self) { v in
-                            Text("\(v)").foregroundStyle(.white).tag(v)
+                            Text("\(v)").foregroundStyle(Theme.primaryText).tag(v)
                         }
                     }
                     .labelsHidden()
@@ -271,7 +271,7 @@ struct PlannedDetailView: View {
                 }
                 VStack {
                     Text("時間")
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(Theme.secondaryText)
                         .font(.caption)
                     Picker(
                         "",
@@ -290,7 +290,7 @@ struct PlannedDetailView: View {
                         )
                     ) {
                         ForEach(0...23, id: \.self) { v in
-                            Text("\(v)").foregroundStyle(.white).tag(v)
+                            Text("\(v)").foregroundStyle(Theme.primaryText).tag(v)
                         }
                     }
                     .labelsHidden()
@@ -299,7 +299,7 @@ struct PlannedDetailView: View {
                 }
                 VStack {
                     Text("分")
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(Theme.secondaryText)
                         .font(.caption)
                     Picker(
                         "",
@@ -318,7 +318,7 @@ struct PlannedDetailView: View {
                         )
                     ) {
                         ForEach(0...59, id: \.self) { v in
-                            Text("\(v)").foregroundStyle(.white).tag(v)
+                            Text("\(v)").foregroundStyle(Theme.primaryText).tag(v)
                         }
                     }
                     .labelsHidden()
@@ -333,7 +333,7 @@ struct PlannedDetailView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("タイトル")
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
             TextField(
                 text: Binding(
                     get: { title },
@@ -342,14 +342,14 @@ struct PlannedDetailView: View {
                 prompt: Text(defaultTitle()).foregroundColor(.secondary)
             ) {}
             .textFieldStyle(.plain)
-            .foregroundStyle(.black)
+            .foregroundStyle(Theme.textFieldInputColor)
             .padding(10)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white))
+            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.textFieldBackground))
             HStack {
                 Spacer()
                 Text("\(title.count)/\(titleLimit)")
                     .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(Theme.secondaryText)
             }
         }
     }
@@ -358,7 +358,7 @@ struct PlannedDetailView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("アフターメモ")
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
             ZStack(alignment: .topLeading) {
                 if afterMessage.isEmpty {
                     Text("（\(scheduledLabel()) に送るメモ）")
@@ -374,14 +374,14 @@ struct PlannedDetailView: View {
                 )
                 .frame(minHeight: 90)
                 .scrollContentBackground(.hidden)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white))
-                .foregroundStyle(.black)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Theme.textFieldBackground))
+                .foregroundStyle(Theme.textFieldInputColor)
             }
             HStack {
                 Spacer()
                 Text("\(afterMessage.count)/\(memoLimit)")
                     .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(Theme.secondaryText)
             }
         }
     }
@@ -391,7 +391,7 @@ struct PlannedDetailView: View {
             HStack {
                 Text("URL（任意・https:// のみ）")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 Spacer()
                 if !urlPresets.isEmpty {
                     Button {
@@ -400,7 +400,7 @@ struct PlannedDetailView: View {
                         }
                     } label: {
                         Image(systemName: "list.bullet")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                     }
                     .buttonStyle(.plain)
                 }
@@ -429,9 +429,9 @@ struct PlannedDetailView: View {
     private var tasksSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("ToDo")
-                    .font(.headline)
-                    .foregroundStyle(.white)
+            Text("ToDo")
+                .font(.headline)
+                .foregroundStyle(Theme.primaryText)
                 Spacer()
                 if !taskPresets.isEmpty {
                     Button {
@@ -440,7 +440,7 @@ struct PlannedDetailView: View {
                         }
                     } label: {
                         Image(systemName: "list.bullet")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                     }
                     .buttonStyle(.plain)
                 }
@@ -451,9 +451,10 @@ struct PlannedDetailView: View {
                         Image(systemName: "plus.circle")
                         Text("タスクを追加")
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                     .frame(maxWidth: .infinity)
                     .padding(14)
+                    .background(Color.clear)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(style: StrokeStyle(lineWidth: 1, dash: [6]))
@@ -490,9 +491,10 @@ struct PlannedDetailView: View {
                             Image(systemName: "plus.circle")
                             Text("タスクを追加")
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                         .frame(maxWidth: .infinity)
                         .padding(10)
+                        .background(Color.clear)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(style: StrokeStyle(lineWidth: 1, dash: [6]))
@@ -510,7 +512,7 @@ struct PlannedDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("全タスクの締切設定")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 Picker("モード", selection: $deadlineMode) {
                     Text(DeadlineMode.hoursMinutes.rawValue).tag(DeadlineMode.hoursMinutes)
                     Text(DeadlineMode.days.rawValue).tag(DeadlineMode.days)
@@ -522,7 +524,7 @@ struct PlannedDetailView: View {
                 if deadlineMode == .hoursMinutes {
                     HStack {
                         Text("\(deadlineHours) 時間")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                         Spacer()
                         Stepper("", value: $deadlineHours, in: 0...72)
                             .labelsHidden()
@@ -531,7 +533,7 @@ struct PlannedDetailView: View {
                     }
                     HStack {
                         Text("\(deadlineMinutes) 分")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                         Spacer()
                         Stepper("", value: $deadlineMinutes, in: 0...59)
                             .labelsHidden()
@@ -541,7 +543,7 @@ struct PlannedDetailView: View {
                 } else {
                     HStack {
                         Text("\(deadlineDays) 日後")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                         Spacer()
                         Stepper("", value: $deadlineDays, in: 0...60)
                             .labelsHidden()

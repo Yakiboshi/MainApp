@@ -34,7 +34,7 @@ private struct TopBarPlaceholder: View {
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                TextField("検索（未実装）", text: $query)
+                TextField("検索", text: $query)
                     .textFieldStyle(.plain)
                     .foregroundColor(.black)
                     .padding(.horizontal, 12)
@@ -42,12 +42,12 @@ private struct TopBarPlaceholder: View {
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.lightBlue))
                 Button(action: { cycleSort() }) { Text(labelForSort(sortMode)) }
                     .buttonStyle(.plain)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
             }
             .padding(.horizontal)
             .padding(.top, 8)
             .padding(.bottom, 8)
-            .background(Color.white.opacity(0.08))
+            .background(Color.black.opacity(0.12))
         }
     }
 
@@ -105,10 +105,10 @@ struct PlannedListPage: View {
                     VStack(spacing: 12) {
                         Text("予定はありません")
                             .font(.headline)
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(Theme.secondaryText)
                         Text("キーパッドから新規作成してください")
                             .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(Theme.secondaryText)
                     }
                 )
             } else {
@@ -225,7 +225,7 @@ private struct PlannedRowView: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(displayTitle(entity))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                     .font(.title3)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if isSnoozed {
@@ -236,7 +236,7 @@ private struct PlannedRowView: View {
                 }
                 Text(scheduledDateText(entity))
                     .font(.caption)
-                    .foregroundStyle(Color.white.opacity(0.8))
+                    .foregroundStyle(Theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 if isSnoozed {
                     Text("スヌーズ")

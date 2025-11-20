@@ -47,6 +47,7 @@ enum SortPreference {
     private static let recordingMaxMinutesKey = "settings.recordingMaxMinutes"
     private static let maxFutureYearsKey = "settings.maxFutureYears"
     private static let playbackVolumeSliderKey = "settings.playbackVolumeSlider"
+    private static let themeKindKey = "settings.themeKind"
 
     static func loadHistory() -> History {
         if let raw = UserDefaults.standard.string(forKey: historyKey),
@@ -214,5 +215,19 @@ enum SortPreference {
     static func savePlaybackVolumeSlider(_ value: Int) {
         let clamped = max(0, min(100, value))
         UserDefaults.standard.set(clamped, forKey: playbackVolumeSliderKey)
+    }
+
+    // MARK: - Theme kind
+    static func loadThemeKind() -> AppThemeKind {
+        let defaults = UserDefaults.standard
+        if let raw = defaults.string(forKey: themeKindKey),
+           let kind = AppThemeKind(rawValue: raw) {
+            return kind
+        }
+        return .future
+    }
+
+    static func saveThemeKind(_ kind: AppThemeKind) {
+        UserDefaults.standard.set(kind.rawValue, forKey: themeKindKey)
     }
 }

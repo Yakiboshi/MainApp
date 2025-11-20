@@ -7,13 +7,18 @@
 
 import SwiftUI
 import SwiftData
+import Combine
 
 struct ContentView: View {
     @StateObject private var notifRouter = NotificationRouter.shared
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @State private var themeVersion: Int = 0
+
     var body: some View {
         AppTabsView()
+            // テーマ変更時にルートビューを再構築（NavBar / TabBar 含む）
+            .id(themeVersion)
             .task {
                 // アプリ起動時に通知/マイク権限を確認（初回は要求）
                 PermissionManager.requestLaunchPermissions()
@@ -97,6 +102,10 @@ struct ContentView: View {
                         LocalNotificationManager.shared.refreshAllNotifications(in: modelContext)
                     }
                 }
+            }
+            // テーマ変更通知を受け取って再構築
+            .onReceive(NotificationCenter.default.publisher(for: .themeDidChange)) { _ in
+                themeVersion &+= 1
             }
     }
 }

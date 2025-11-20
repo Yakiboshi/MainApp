@@ -23,6 +23,8 @@ struct SettingsPlaceholderView: View {
     @State private var showUrlPresetDeleteSheet: Bool = false
     @State private var showTaskPresetSheet: Bool = false
     @State private var showTaskPresetDeleteSheet: Bool = false
+    @State private var isApplyingTheme: Bool = false
+    @State private var selectedTheme: AppThemeKind = SortPreference.loadThemeKind()
 
     @Query(sort: \SoundFile.createdAt, order: .reverse) private var soundFiles: [SoundFile]
 
@@ -35,7 +37,7 @@ struct SettingsPlaceholderView: View {
                     HStack {
                         Text("アプリ設定")
                             .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(Theme.primaryText)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.leading, 16)
                         Spacer(minLength: 0)
@@ -58,18 +60,51 @@ struct SettingsPlaceholderView: View {
                         )
                         VStack(alignment: .leading, spacing: 8) {
                             Text("着信音")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Theme.primaryText)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Text(currentSoundDisplayName)
-                                .foregroundStyle(Color.white.opacity(0.9))
+                                .foregroundStyle(Theme.secondaryText)
                                 .font(.subheadline)
                             Button("着信音を変更") {
                                 isShowingSoundSheet = true
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(.white.opacity(0.15))
+                            .tint(Theme.isSingularity ? .black : .white.opacity(0.15))
                         }
                         .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
+
+                        // テーマカラー
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("テーマカラー")
+                                .foregroundStyle(Theme.primaryText)
+                            Text("画面全体の背景色・文字色を切り替え")
+                                .foregroundStyle(Theme.secondaryText)
+                                .font(.footnote)
+                            HStack(spacing: 12) {
+                                Picker("", selection: $selectedTheme) {
+                                    ForEach(AppThemeKind.allCases) { kind in
+                                        Text(kind.displayName)
+                                            .tag(kind)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .tint(Theme.isSingularity ? .black : .white)
+
+                                Spacer()
+
+                                Button("適用") {
+                                    applySelectedTheme()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(Theme.isSingularity ? .black : .white.opacity(0.2))
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .fill(Color.white.opacity(0.08))
@@ -78,9 +113,9 @@ struct SettingsPlaceholderView: View {
                         // デフォルトスヌーズ時間（日・時間・分）
                         VStack(alignment: .leading, spacing: 8) {
                             Text("デフォルトスヌーズ時間")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Theme.primaryText)
                             Text("詳細設定画面のスヌーズ初期値（日・時間・分）")
-                                .foregroundStyle(Color.white.opacity(0.7))
+                                .foregroundStyle(Theme.secondaryText)
                                 .font(.footnote)
                             let total = defaultSnoozeMinutes
                             let days = max(0, min(7, total / (24 * 60)))
@@ -89,7 +124,7 @@ struct SettingsPlaceholderView: View {
                             HStack(alignment: .center, spacing: 16) {
                                 VStack {
                                     Text("日")
-                                        .foregroundStyle(.white.opacity(0.8))
+                                        .foregroundStyle(Theme.isSingularity ? .black : .white.opacity(0.8))
                                         .font(.caption)
                                     Picker(
                                         "",
@@ -104,7 +139,9 @@ struct SettingsPlaceholderView: View {
                                         )
                                     ) {
                                         ForEach(0...7, id: \.self) { v in
-                                            Text("\(v)").foregroundStyle(.white).tag(v)
+                                            Text("\(v)")
+                                                .foregroundStyle(Theme.isSingularity ? .black : .white)
+                                                .tag(v)
                                         }
                                     }
                                     .labelsHidden()
@@ -113,7 +150,7 @@ struct SettingsPlaceholderView: View {
                                 }
                                 VStack {
                                     Text("時間")
-                                        .foregroundStyle(.white.opacity(0.8))
+                                        .foregroundStyle(Theme.isSingularity ? .black : .white.opacity(0.8))
                                         .font(.caption)
                                     Picker(
                                         "",
@@ -128,7 +165,9 @@ struct SettingsPlaceholderView: View {
                                         )
                                     ) {
                                         ForEach(0...23, id: \.self) { v in
-                                            Text("\(v)").foregroundStyle(.white).tag(v)
+                                            Text("\(v)")
+                                                .foregroundStyle(Theme.isSingularity ? .black : .white)
+                                                .tag(v)
                                         }
                                     }
                                     .labelsHidden()
@@ -137,7 +176,7 @@ struct SettingsPlaceholderView: View {
                                 }
                                 VStack {
                                     Text("分")
-                                        .foregroundStyle(.white.opacity(0.8))
+                                        .foregroundStyle(Theme.isSingularity ? .black : .white.opacity(0.8))
                                         .font(.caption)
                                     Picker(
                                         "",
@@ -152,7 +191,9 @@ struct SettingsPlaceholderView: View {
                                         )
                                     ) {
                                         ForEach(0...59, id: \.self) { v in
-                                            Text("\(v)").foregroundStyle(.white).tag(v)
+                                            Text("\(v)")
+                                                .foregroundStyle(Theme.isSingularity ? .black : .white)
+                                                .tag(v)
                                         }
                                     }
                                     .labelsHidden()
@@ -170,9 +211,9 @@ struct SettingsPlaceholderView: View {
                         // デフォルトアイコン設定
                         VStack(alignment: .leading, spacing: 8) {
                             Text("デフォルトアイコン")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Theme.primaryText)
                             Text("アイコン未設定の録音で使用する画像")
-                                .foregroundStyle(Color.white.opacity(0.7))
+                                .foregroundStyle(Theme.secondaryText)
                                 .font(.footnote)
                             HStack(spacing: 16) {
                                 ZStack {
@@ -191,7 +232,7 @@ struct SettingsPlaceholderView: View {
                                             .resizable()
                                             .scaledToFit()
                                             .frame(width: 60, height: 60)
-                                            .foregroundStyle(.white.opacity(0.7))
+                                            .foregroundStyle(Theme.isSingularity ? .black.opacity(0.7) : .white.opacity(0.7))
                                     }
                                 }
                                 Spacer()
@@ -199,7 +240,7 @@ struct SettingsPlaceholderView: View {
                                     showDefaultIconPhotoPicker = true
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .tint(.white.opacity(0.2))
+                                .tint(Theme.isSingularity ? .black : .white.opacity(0.2))
                                 if defaultIconImageData != nil {
                                     Button("クリア") {
                                         defaultIconImageData = nil
@@ -218,9 +259,9 @@ struct SettingsPlaceholderView: View {
                         // 録音上限時間
                         VStack(alignment: .leading, spacing: 8) {
                             Text("録音上限時間")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Theme.primaryText)
                             Text("録音画面の最大録音時間（1〜60分）")
-                                .foregroundStyle(Color.white.opacity(0.7))
+                                .foregroundStyle(Theme.secondaryText)
                                 .font(.footnote)
                             HStack {
                                 Stepper(
@@ -229,7 +270,7 @@ struct SettingsPlaceholderView: View {
                                     step: 1
                                 ) {
                                     Text("\(recordingMaxMinutes) 分")
-                                        .foregroundStyle(Color.white)
+                                        .foregroundStyle(Theme.primaryText)
                                 }
                                 .tint(.white)
                             }
@@ -244,9 +285,9 @@ struct SettingsPlaceholderView: View {
                         // 最高未来時刻
                         VStack(alignment: .leading, spacing: 8) {
                             Text("最高未来時刻")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Theme.primaryText)
                             Text("登録できる未来の上限（1〜10年）")
-                                .foregroundStyle(Color.white.opacity(0.7))
+                                .foregroundStyle(Theme.secondaryText)
                                 .font(.footnote)
                             HStack {
                                 Stepper(
@@ -255,7 +296,7 @@ struct SettingsPlaceholderView: View {
                                     step: 1
                                 ) {
                                     Text("\(maxFutureYears) 年先まで")
-                                        .foregroundStyle(Color.white)
+                                        .foregroundStyle(Theme.primaryText)
                                 }
                                 .tint(.white)
                             }
@@ -270,9 +311,9 @@ struct SettingsPlaceholderView: View {
                         // 録音音声再生時の音量
                         VStack(alignment: .leading, spacing: 8) {
                             Text("録音音声再生時の音量")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Theme.primaryText)
                             Text("詳細プレビュー・通話・通話後・履歴再生の音量")
-                                .foregroundStyle(Color.white.opacity(0.7))
+                                .foregroundStyle(Theme.secondaryText)
                                 .font(.footnote)
                             HStack {
                                 Slider(
@@ -287,7 +328,7 @@ struct SettingsPlaceholderView: View {
                                 }
                                 .tint(.white)
                                 Text("\(Int(playbackVolumeSlider))")
-                                    .foregroundStyle(Color.white)
+                                    .foregroundStyle(Theme.primaryText)
                                     .frame(width: 44, alignment: .trailing)
                             }
                         }
@@ -301,9 +342,9 @@ struct SettingsPlaceholderView: View {
                         // プリセット・日付の追加選択肢
                         VStack(alignment: .leading, spacing: 8) {
                             Text("プリセット・日付の追加選択肢")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Theme.primaryText)
                             Text("キーパッド画面のプリセットに出す相対時刻（日付）を追加")
-                                .foregroundStyle(Color.white.opacity(0.7))
+                                .foregroundStyle(Theme.secondaryText)
                                 .font(.footnote)
                             HStack(spacing: 12) {
                                 Button {
@@ -313,7 +354,7 @@ struct SettingsPlaceholderView: View {
                                 } label: {
                                     Text("選択肢を追加…")
                                         .font(.system(size: 15, weight: .semibold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(Theme.isSingularity ? .black : .white)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 8)
                                         .background(
@@ -351,9 +392,9 @@ struct SettingsPlaceholderView: View {
                         // URLプリセット
                         VStack(alignment: .leading, spacing: 8) {
                             Text("URLプリセット")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Theme.primaryText)
                             Text("詳細設定画面のURL欄に挿入できるプリセット")
-                                .foregroundStyle(Color.white.opacity(0.7))
+                                .foregroundStyle(Theme.secondaryText)
                                 .font(.footnote)
                             HStack(spacing: 12) {
                                 Button {
@@ -363,7 +404,7 @@ struct SettingsPlaceholderView: View {
                                 } label: {
                                     Text("URLを追加…")
                                         .font(.system(size: 15, weight: .semibold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(Theme.isSingularity ? .black : .white)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 8)
                                         .background(
@@ -401,9 +442,9 @@ struct SettingsPlaceholderView: View {
                         // タスクプリセット
                         VStack(alignment: .leading, spacing: 8) {
                             Text("タスクプリセット")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Theme.primaryText)
                             Text("詳細設定画面のToDoと締切に挿入できるプリセット")
-                                .foregroundStyle(Color.white.opacity(0.7))
+                                .foregroundStyle(Theme.secondaryText)
                                 .font(.footnote)
                             HStack(spacing: 12) {
                                 Button {
@@ -413,7 +454,7 @@ struct SettingsPlaceholderView: View {
                                 } label: {
                                     Text("タスクを追加…")
                                         .font(.system(size: 15, weight: .semibold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(Theme.isSingularity ? .black : .white)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 8)
                                         .background(
@@ -506,6 +547,20 @@ struct SettingsPlaceholderView: View {
                 }
                 .transition(.move(edge: .bottom))
             }
+
+            // テーマ適用中のローディングオーバーレイ
+            if isApplyingTheme {
+                Theme.appGradient
+                    .ignoresSafeArea()
+                    .overlay(
+                        VStack(spacing: 16) {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                            Text("テーマを適用中…")
+                                .foregroundStyle(Theme.primaryText)
+                        }
+                    )
+            }
         }
         .onChange(of: autoYear) { newValue in
             SortPreference.saveAutoYear(newValue)
@@ -577,7 +632,7 @@ private extension SettingsPlaceholderView {
     func settingToggleRow(title: String, isOn: Binding<Bool>) -> some View {
         HStack {
             Text(title)
-                .foregroundStyle(Color.white)
+                .foregroundStyle(Theme.primaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Toggle("", isOn: isOn.onChange { newValue in
                 // 保存などの副作用は View 本体側の .onChange で処理
@@ -591,6 +646,25 @@ private extension SettingsPlaceholderView {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.white.opacity(0.08))
         )
+    }
+
+    func applySelectedTheme() {
+        // 二重適用防止
+        guard !isApplyingTheme else { return }
+        let newTheme = selectedTheme
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isApplyingTheme = true
+        }
+        // 設定を保存して NavBar / TabBar の appearance を更新
+        SortPreference.saveThemeKind(newTheme)
+        ThemeManager.applyTheme(kind: newTheme)
+        // ルート側にテーマ変更を通知し、全 UI を再構築
+        NotificationCenter.default.post(name: .themeDidChange, object: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isApplyingTheme = false
+            }
+        }
     }
 }
 

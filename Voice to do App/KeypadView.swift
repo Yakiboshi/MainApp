@@ -8,10 +8,10 @@ struct KeypadView: View {
             VStack(spacing: 12) {
                 Text("キーパッド（初期化済）")
                     .font(.title).bold()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 Text("画像確認タイム → 実装 → 動作確認 の順で再構築します")
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(Theme.secondaryText)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

@@ -15,7 +15,7 @@ struct IntermediateView: View {
             if let rec = fetch() {
                 DetailCoreView(recording: rec)
             } else {
-                ZStack { Theme.appGradient.ignoresSafeArea(); Text("対象データが見つかりません").foregroundStyle(.white) }
+                ZStack { Theme.appGradient.ignoresSafeArea(); Text("対象データが見つかりません").foregroundStyle(Theme.primaryText) }
             }
         }
     }
@@ -87,7 +87,7 @@ private struct DetailCoreView: View {
                                 }
                                 Text("キャンセル")
                                     .font(Theme.circleButtonLabelFont)
-                                    .foregroundStyle(.white.opacity(0.9))
+                                    .foregroundStyle(Theme.secondaryText)
                             }
                             VStack(spacing: 6) {
                                 Button {
@@ -105,7 +105,7 @@ private struct DetailCoreView: View {
                                 }
                                 Text("かけ直し")
                                     .font(Theme.circleButtonLabelFont)
-                                    .foregroundStyle(.white.opacity(0.9))
+                                    .foregroundStyle(Theme.secondaryText)
                             }
                             VStack(spacing: 6) {
                                 Button {
@@ -123,7 +123,7 @@ private struct DetailCoreView: View {
                                 }
                                 Text("確定")
                                     .font(Theme.circleButtonLabelFont)
-                                    .foregroundStyle(.white.opacity(0.9))
+                                    .foregroundStyle(Theme.secondaryText)
                             }
                         }
                         .padding(.bottom, 28)
@@ -211,11 +211,11 @@ private struct DetailCoreView: View {
                                     } label: {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(preset.title)
-                                                .foregroundStyle(.white)
+                                                .foregroundStyle(Theme.primaryText)
                                                 .font(.body)
                                             Text(preset.urlString)
                                                 .font(.caption)
-                                                .foregroundStyle(.white.opacity(0.85))
+                                                .foregroundStyle(Theme.secondaryText)
                                         }
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 10)
@@ -294,12 +294,12 @@ private struct DetailCoreView: View {
                                     } label: {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(preset.title)
-                                                .foregroundStyle(.white)
+                                                .foregroundStyle(Theme.primaryText)
                                                 .font(.body)
                                             if !preset.items.isEmpty {
                                                 Text("\(preset.items.count) 件のタスク")
                                                     .font(.caption)
-                                                    .foregroundStyle(.white.opacity(0.85))
+                                                    .foregroundStyle(Theme.secondaryText)
                                             }
                                         }
                                         .padding(.horizontal, 16)
@@ -360,14 +360,14 @@ private struct DetailCoreView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 110, height: 110)
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(Theme.secondaryText)
                 }
                 Button { showPhotoPicker = true } label: {
-                    Image(systemName: "arrow.2.circlepath.circle.fill").font(.system(size: 32)).foregroundStyle(.white).shadow(radius: 2).offset(x: 40, y: 40)
+                    Image(systemName: "arrow.2.circlepath.circle.fill").font(.system(size: 32)).foregroundStyle(Theme.primaryText).shadow(radius: 2).offset(x: 40, y: 40)
                 }
                 .accessibilityLabel("アイコンを変更")
             }
-            Text("アイコン（写真/撮影→トリミング）").font(.subheadline).foregroundStyle(.white.opacity(0.8))
+            Text("アイコン（写真/撮影→トリミング）").font(.subheadline).foregroundStyle(Theme.secondaryText)
         }
         .padding(.top, 24)
         .photosPicker(isPresented: $showPhotoPicker, selection: $pickedItem, matching: .images)
@@ -392,19 +392,19 @@ private struct DetailCoreView: View {
 
     private var previewSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("プレビュー").font(.headline).foregroundStyle(.white)
+            Text("プレビュー").font(.headline).foregroundStyle(Theme.primaryText)
             HStack(spacing: 12) {
                 Button {
                     SoundManager.shared.play("cancell", ext: "mp3")
                     togglePlay()
                 } label: {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill").foregroundStyle(.white).padding(10).background(Circle().fill(Color.accentColor))
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill").foregroundStyle(Theme.primaryText).padding(10).background(Circle().fill(Color.accentColor))
                 }
                 Slider(value: $progress, in: 0...1) { editing in
                     guard let player else { return }
                     if editing == false { player.currentTime = player.duration * progress }
                 }.disabled(player == nil)
-                Text(playerDurationString()).font(.caption).frame(width: 46, alignment: .trailing).foregroundStyle(.white.opacity(0.7))
+                Text(playerDurationString()).font(.caption).frame(width: 46, alignment: .trailing).foregroundStyle(Theme.secondaryText)
             }
             .onAppear { preparePlayerIfNeeded() }
             .onDisappear { stopPlayer() }
@@ -413,14 +413,14 @@ private struct DetailCoreView: View {
 
     private var snoozeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("スヌーズ時間").font(.headline).foregroundStyle(.white)
+            Text("スヌーズ時間").font(.headline).foregroundStyle(Theme.primaryText)
             let total = recording.snoozeMin ?? SortPreference.loadDefaultSnoozeMinutes()
             let days = max(0, min(7, total / (24 * 60)))
             let hours = max(0, min(23, (total % (24 * 60)) / 60))
             let mins = max(0, min(59, total % 60))
             HStack(alignment: .center, spacing: 16) {
                 VStack {
-                    Text("日").foregroundStyle(.white.opacity(0.8)).font(.caption)
+                    Text("日").foregroundStyle(Theme.secondaryText).font(.caption)
                     Picker(
                         "",
                         selection: Binding(
@@ -435,7 +435,7 @@ private struct DetailCoreView: View {
                         )
                     ) {
                         ForEach(0...7, id: \.self) { v in
-                            Text("\(v)").foregroundStyle(.white).tag(v)
+                            Text("\(v)").foregroundStyle(Theme.primaryText).tag(v)
                         }
                     }
                     .labelsHidden()
@@ -443,7 +443,7 @@ private struct DetailCoreView: View {
                     .frame(maxHeight: 100)
                 }
                 VStack {
-                    Text("時間").foregroundStyle(.white.opacity(0.8)).font(.caption)
+                    Text("時間").foregroundStyle(Theme.secondaryText).font(.caption)
                     Picker(
                         "",
                         selection: Binding(
@@ -458,7 +458,7 @@ private struct DetailCoreView: View {
                         )
                     ) {
                         ForEach(0...23, id: \.self) { v in
-                            Text("\(v)").foregroundStyle(.white).tag(v)
+                            Text("\(v)").foregroundStyle(Theme.primaryText).tag(v)
                         }
                     }
                     .labelsHidden()
@@ -466,7 +466,7 @@ private struct DetailCoreView: View {
                     .frame(maxHeight: 100)
                 }
                 VStack {
-                    Text("分").foregroundStyle(.white.opacity(0.8)).font(.caption)
+                    Text("分").foregroundStyle(Theme.secondaryText).font(.caption)
                     Picker(
                         "",
                         selection: Binding(
@@ -481,7 +481,7 @@ private struct DetailCoreView: View {
                         )
                     ) {
                         ForEach(0...59, id: \.self) { v in
-                            Text("\(v)").foregroundStyle(.white).tag(v)
+                            Text("\(v)").foregroundStyle(Theme.primaryText).tag(v)
                         }
                     }
                     .labelsHidden()
@@ -494,22 +494,22 @@ private struct DetailCoreView: View {
 
     private var titleSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("タイトル").font(.headline).foregroundStyle(.white)
+            Text("タイトル").font(.headline).foregroundStyle(Theme.primaryText)
             TextField(
                 text: Binding(get: { recording.title ?? "" }, set: { recording.title = String($0.prefix(titleLimit)) }),
                 prompt: Text(defaultTitleNow()).foregroundColor(.secondary)
             ) {}
             .textFieldStyle(.plain)
-            .foregroundStyle(.black)
+            .foregroundStyle(Theme.textFieldInputColor)
             .padding(10)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white))
-            HStack { Spacer(); Text("\((recording.title ?? "").count)/\(titleLimit)").font(.caption2).foregroundStyle(.white.opacity(0.7)) }
+            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.textFieldBackground))
+            HStack { Spacer(); Text("\((recording.title ?? "").count)/\(titleLimit)").font(.caption2).foregroundStyle(Theme.secondaryText) }
         }
     }
 
     private var afterMemoSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("アフターメモ").font(.headline).foregroundStyle(.white)
+            Text("アフターメモ").font(.headline).foregroundStyle(Theme.primaryText)
             ZStack(alignment: .topLeading) {
                 if (recording.afterMessage ?? "").isEmpty {
                     Text("（\(scheduledLabel()) に送るメモ）")
@@ -520,19 +520,19 @@ private struct DetailCoreView: View {
                 TextEditor(text: Binding(get: { recording.afterMessage ?? "" }, set: { recording.afterMessage = String($0.prefix(memoLimit)) }))
                     .frame(minHeight: 90)
                     .scrollContentBackground(.hidden)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white))
-                    .foregroundStyle(.black)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.textFieldBackground))
+                    .foregroundStyle(Theme.textFieldInputColor)
             }
-            HStack { Spacer(); Text("\((recording.afterMessage ?? "").count)/\(memoLimit)").font(.caption2).foregroundStyle(.white.opacity(0.7)) }
+            HStack { Spacer(); Text("\((recording.afterMessage ?? "").count)/\(memoLimit)").font(.caption2).foregroundStyle(Theme.secondaryText) }
         }
     }
 
     private var urlSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("URL（任意・https:// のみ）")
-                    .font(.headline)
-                    .foregroundStyle(.white)
+            Text("URL（任意・https:// のみ）")
+                .font(.headline)
+                .foregroundStyle(Theme.primaryText)
                 Spacer()
                 if !urlPresets.isEmpty {
                     Button {
@@ -541,7 +541,7 @@ private struct DetailCoreView: View {
                         }
                     } label: {
                         Image(systemName: "list.bullet")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                     }
                     .buttonStyle(.plain)
                 }
@@ -561,7 +561,7 @@ private struct DetailCoreView: View {
     private var tasksSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("ToDo").font(.headline).foregroundStyle(.white)
+            Text("ToDo").font(.headline).foregroundStyle(Theme.primaryText)
                 Spacer()
                 if !taskPresets.isEmpty {
                     Button {
@@ -570,7 +570,7 @@ private struct DetailCoreView: View {
                         }
                     } label: {
                         Image(systemName: "list.bullet")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                     }
                     .buttonStyle(.plain)
                 }
@@ -578,7 +578,7 @@ private struct DetailCoreView: View {
             if recording.tasks.isEmpty {
                 Button(action: { addTask() }) {
                     HStack(spacing: 8) { Image(systemName: "plus.circle"); Text("タスクを追加") }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                         .frame(maxWidth: .infinity).padding(14)
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(style: StrokeStyle(lineWidth: 1, dash: [6])).foregroundColor(.white))
                 }
@@ -594,7 +594,7 @@ private struct DetailCoreView: View {
                     }
                     Button(action: { addTask() }) {
                         HStack(spacing: 8) { Image(systemName: "plus.circle"); Text("タスクを追加") }
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                             .frame(maxWidth: .infinity).padding(10)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(style: StrokeStyle(lineWidth: 1, dash: [6])).foregroundColor(.white))
                     }
@@ -607,7 +607,7 @@ private struct DetailCoreView: View {
     private var deadlineSection: some View {
         if !recording.tasks.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("全タスクの締切設定").font(.headline).foregroundStyle(.white)
+                Text("全タスクの締切設定").font(.headline).foregroundStyle(Theme.primaryText)
                 Picker("モード", selection: $deadlineMode) {
                     Text(DeadlineMode.hoursMinutes.rawValue).tag(DeadlineMode.hoursMinutes)
                     Text(DeadlineMode.days.rawValue).tag(DeadlineMode.days)
@@ -618,7 +618,7 @@ private struct DetailCoreView: View {
 
                 if deadlineMode == .hoursMinutes {
                     HStack {
-                        Text("\(recording.deadlineHours ?? 0) 時間").foregroundStyle(.white)
+                        Text("\(recording.deadlineHours ?? 0) 時間").foregroundStyle(Theme.primaryText)
                         Spacer()
                         Stepper("", value: Binding(get: { recording.deadlineHours ?? 0 }, set: { recording.deadlineHours = $0 }), in: 0...72)
                             .labelsHidden()
@@ -626,7 +626,7 @@ private struct DetailCoreView: View {
                             .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
                     }
                     HStack {
-                        Text("\(recording.deadlineMinutes ?? 0) 分").foregroundStyle(.white)
+                        Text("\(recording.deadlineMinutes ?? 0) 分").foregroundStyle(Theme.primaryText)
                         Spacer()
                         Stepper("", value: Binding(get: { recording.deadlineMinutes ?? 0 }, set: { recording.deadlineMinutes = $0 }), in: 0...59)
                             .labelsHidden()
@@ -635,7 +635,7 @@ private struct DetailCoreView: View {
                     }
                 } else {
                     HStack {
-                        Text("\(recording.deadlineDays ?? 0) 日後").foregroundStyle(.white)
+                        Text("\(recording.deadlineDays ?? 0) 日後").foregroundStyle(Theme.primaryText)
                         Spacer()
                         Stepper("", value: Binding(get: { recording.deadlineDays ?? 0 }, set: { recording.deadlineDays = $0 }), in: 0...60)
                             .labelsHidden()

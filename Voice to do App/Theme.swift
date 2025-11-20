@@ -1,48 +1,343 @@
 import SwiftUI
+import Foundation
 
+// アプリ全体のテーマ種別
+enum AppThemeKind: String, CaseIterable, Identifiable {
+    case future      // 既存の青ベース
+    case engineer    // 暗いグレー + 黄緑文字
+    case emperor     // 暗い赤 + 薄い灰文字
+    case paradox     // 暗い紫 + 薄い黄文字
+    case singularity // 白背景 + 黒文字（特殊扱い）
+    case abyss       // 黒背景 + 白文字
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .future: return "Future"
+        case .engineer: return "Engineer"
+        case .emperor: return "Emperor"
+        case .paradox: return "Paradox"
+        case .singularity: return "Singularity"
+        case .abyss: return "Abyss"
+        }
+    }
+}
+
+// ユーザ設定に基づいて現在のテーマを管理
+enum ThemeManager {
+    static func currentKind() -> AppThemeKind {
+        SortPreference.loadThemeKind()
+    }
+
+    static func applyTheme(kind: AppThemeKind) {
+        let palette = ThemePalette(kind: kind)
+
+        // Window 背景（ステータスバー / ノッチ背面）
+        let windowColor = palette.navBackground
+        UIWindow.appearance().backgroundColor = windowColor
+        if #available(iOS 13.0, *) {
+            UIView.appearance(whenContainedInInstancesOf: [UITabBarController.self]).backgroundColor = windowColor
+        }
+
+        // Navigation bar
+        let nav = UINavigationBarAppearance()
+        nav.configureWithOpaqueBackground()
+        nav.backgroundColor = palette.navBackground
+        nav.titleTextAttributes = [.foregroundColor: palette.navText]
+        nav.largeTitleTextAttributes = [.foregroundColor: palette.navText]
+        UINavigationBar.appearance().standardAppearance = nav
+        UINavigationBar.appearance().scrollEdgeAppearance = nav
+        UINavigationBar.appearance().tintColor = palette.navText
+        UINavigationBar.appearance().compactAppearance = nav
+        UINavigationBar.appearance().isTranslucent = false
+        UINavigationBar.appearance().barTintColor = palette.navBackground
+
+        // Tab bar
+        let tab = UITabBarAppearance()
+        tab.configureWithOpaqueBackground()
+        tab.backgroundColor = palette.tabBackground
+        tab.shadowColor = .clear
+
+        // 選択時
+        tab.stackedLayoutAppearance.selected.iconColor = palette.tabSelected
+        tab.inlineLayoutAppearance.selected.iconColor = palette.tabSelected
+        tab.compactInlineLayoutAppearance.selected.iconColor = palette.tabSelected
+        tab.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: palette.tabSelected]
+        tab.inlineLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: palette.tabSelected]
+        tab.compactInlineLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: palette.tabSelected]
+        // 非選択時
+        tab.stackedLayoutAppearance.normal.iconColor = palette.tabUnselected
+        tab.inlineLayoutAppearance.normal.iconColor = palette.tabUnselected
+        tab.compactInlineLayoutAppearance.normal.iconColor = palette.tabUnselected
+        tab.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: palette.tabUnselected]
+        tab.inlineLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: palette.tabUnselected]
+        tab.compactInlineLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: palette.tabUnselected]
+
+        UITabBar.appearance().isTranslucent = false
+        UITabBar.appearance().barTintColor = palette.tabBackground
+        UITabBar.appearance().backgroundColor = palette.tabBackground
+        UITabBar.appearance().standardAppearance = tab
+        if #available(iOS 15.0, *) {
+            UITabBar.appearance().scrollEdgeAppearance = tab
+        }
+        UITabBar.appearance().unselectedItemTintColor = palette.tabUnselected
+        UITabBar.appearance().tintColor = palette.tabSelected
+    }
+
+    static func applyCurrentTheme() {
+        applyTheme(kind: currentKind())
+    }
+}
+
+// テーマ別のカラー定義
+struct ThemePalette {
+    let kind: AppThemeKind
+
+    init(kind: AppThemeKind) {
+        self.kind = kind
+    }
+
+    // SwiftUI Colors
+    var bgTop: Color {
+        switch kind {
+        case .future:
+            return Color(red: 44/255, green: 55/255, blue: 140/255)
+        case .engineer:
+            return Color(red: 0.18, green: 0.18, blue: 0.20)
+        case .emperor:
+            return Color(red: 0.32, green: 0.06, blue: 0.06)
+        case .paradox:
+            return Color(red: 0.26, green: 0.16, blue: 0.38)
+        case .singularity:
+            return Color(red: 0.98, green: 0.98, blue: 0.99)
+        case .abyss:
+            return Color(red: 0.06, green: 0.06, blue: 0.06)
+        }
+    }
+
+    var bgBottom: Color {
+        switch kind {
+        case .future:
+            return Color(red: 18/255, green: 23/255, blue: 84/255)
+        case .engineer:
+            return Color(red: 0.05, green: 0.05, blue: 0.07)
+        case .emperor:
+            return Color(red: 0.14, green: 0.02, blue: 0.02)
+        case .paradox:
+            return Color(red: 0.12, green: 0.04, blue: 0.24)
+        case .singularity:
+            return Color(red: 0.92, green: 0.92, blue: 0.94)
+        case .abyss:
+            return Color.black
+        }
+    }
+
+    var primaryText: Color {
+        switch kind {
+        case .future:      return .white
+        case .engineer:    return Color(red: 0.82, green: 1.0, blue: 0.72)   // 黄緑
+        case .emperor:     return Color(white: 0.92)                         // 薄い灰
+        case .paradox:     return Color(red: 1.0, green: 0.96, blue: 0.76)   // 薄い黄
+        case .singularity: return .black
+        case .abyss:       return .white
+        }
+    }
+
+    var secondaryText: Color {
+        primaryText.opacity(0.75)
+    }
+
+    var keypadDigitText: Color {
+        primaryText
+    }
+
+    var keyFillTop: Color {
+        switch kind {
+        case .future:
+            return Color(red: 0.22, green: 0.35, blue: 0.78)
+        case .engineer:
+            return Color(red: 0.36, green: 0.42, blue: 0.20)
+        case .emperor:
+            return Color(red: 0.55, green: 0.20, blue: 0.20)
+        case .paradox:
+            return Color(red: 0.45, green: 0.30, blue: 0.65)
+        case .singularity:
+            return Color(red: 0.88, green: 0.88, blue: 0.90)
+        case .abyss:
+            return Color(red: 0.30, green: 0.30, blue: 0.32)
+        }
+    }
+
+    var keyFillBottom: Color {
+        switch kind {
+        case .future:
+            return Color(red: 0.14, green: 0.22, blue: 0.55)
+        case .engineer:
+            return Color(red: 0.22, green: 0.24, blue: 0.16)
+        case .emperor:
+            return Color(red: 0.36, green: 0.10, blue: 0.10)
+        case .paradox:
+            return Color(red: 0.28, green: 0.16, blue: 0.46)
+        case .singularity:
+            return Color(red: 0.78, green: 0.78, blue: 0.80)
+        case .abyss:
+            return Color(red: 0.16, green: 0.16, blue: 0.18)
+        }
+    }
+
+    var searchBackground: Color {
+        switch kind {
+        case .future:
+            return Color(red: 167/255, green: 216/255, blue: 255/255)
+        case .engineer:
+            return Color(red: 0.32, green: 0.40, blue: 0.26)
+        case .emperor:
+            return Color(red: 0.52, green: 0.32, blue: 0.32)
+        case .paradox:
+            return Color(red: 0.44, green: 0.32, blue: 0.60)
+        case .singularity:
+            return Color(red: 0.90, green: 0.90, blue: 0.92)
+        case .abyss:
+            return Color(red: 0.22, green: 0.22, blue: 0.24)
+        }
+    }
+
+    // UIKit Colors forナビ/タブ
+    var navBackground: UIColor {
+        switch kind {
+        case .future:
+            return UIColor(red: 27/255.0, green: 30/255.0, blue: 99/255.0, alpha: 1.0)
+        case .engineer:
+            return UIColor(red: 0.10, green: 0.10, blue: 0.12, alpha: 1.0)
+        case .emperor:
+            return UIColor(red: 0.25, green: 0.03, blue: 0.03, alpha: 1.0)
+        case .paradox:
+            return UIColor(red: 0.20, green: 0.08, blue: 0.30, alpha: 1.0)
+        case .singularity:
+            return UIColor(white: 0.99, alpha: 1.0)
+        case .abyss:
+            return UIColor.black
+        }
+    }
+
+    var navText: UIColor {
+        switch kind {
+        case .future:      return .white
+        case .engineer:    return UIColor(red: 0.82, green: 1.0, blue: 0.72, alpha: 1.0)
+        case .emperor:     return UIColor(white: 0.92, alpha: 1.0)
+        case .paradox:     return UIColor(red: 1.0, green: 0.96, blue: 0.76, alpha: 1.0)
+        case .singularity: return .black
+        case .abyss:       return .white
+        }
+    }
+
+    var tabBackground: UIColor {
+        navBackground
+    }
+
+    var tabSelected: UIColor {
+        navText
+    }
+
+    var tabUnselected: UIColor {
+        navText.withAlphaComponent(0.8)
+    }
+}
+
+// テーマ変更通知
+extension Notification.Name {
+    static let themeDidChange = Notification.Name("ThemeDidChange")
+}
+
+// 既存 Theme API をテーマ対応させる
 enum Theme {
-    // Base brand blue
-    // sRGB: #1B1E63 (27, 30, 99)
-    static let appBlue = Color(red: 27/255, green: 30/255, blue: 99/255)
+    // Base brand blue (Future のベースとして利用)
+    static var appBlue: Color {
+        Color(red: 27/255, green: 30/255, blue: 99/255)
+    }
 
-    // Background gradient (soft, eye-friendly; tuned to keypadUI2.png 近似)
-    static let bgTop = Color(red: 44/255, green: 55/255, blue: 140/255)
-    static let bgBottom = Color(red: 18/255, green: 23/255, blue: 84/255)
-    static let tabBlue = appBlue
-    // Light blue for tab/search backgrounds
-    static let lightBlue = Color(red: 167/255, green: 216/255, blue: 255/255)
+    // 背景グラデーション
+    static var bgTop: Color {
+        ThemePalette(kind: ThemeManager.currentKind()).bgTop
+    }
+
+    static var bgBottom: Color {
+        ThemePalette(kind: ThemeManager.currentKind()).bgBottom
+    }
+
     static var appGradient: LinearGradient {
         LinearGradient(colors: [bgTop, bgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
-    // Segment
-    static let segmentBackground = Color.black.opacity(0.82)
-    static let segmentText = Color.white
-        static let segmentPresentText = Color(red: 0.90, green: 1.0, blue: 0.90) // slight green tint
-        static let segmentPlaceholder = Color(white: 0.55) // 濃い灰色プレースホルダ
-    static let segmentBorderActive = Color.white
-    static let segmentDash = Color.white.opacity(0.6)
+    static var isSingularity: Bool {
+        ThemeManager.currentKind() == .singularity
+    }
 
-    // Label plate
-    static let plateFill = Color(red: 0.92, green: 0.78, blue: 0.40)
-    static let plateText = Color(red: 0.20, green: 0.12, blue: 0.02)
+    // テキスト
+    static var primaryText: Color {
+        ThemePalette(kind: ThemeManager.currentKind()).primaryText
+    }
+
+    static var secondaryText: Color {
+        ThemePalette(kind: ThemeManager.currentKind()).secondaryText
+    }
+
+    // Segment
+    static var segmentBackground: Color { Color.black.opacity(0.82) }
+    static var segmentText: Color { primaryText }
+    static var segmentPresentText: Color { Color(red: 0.90, green: 1.0, blue: 0.90) } // slight green tint
+    static var segmentPlaceholder: Color { Color(white: 0.55) } // 濃い灰色プレースホルダ
+    static var segmentBorderActive: Color { primaryText }
+    static var segmentDash: Color { primaryText.opacity(0.6) }
+
+    // Label plate（現状のまま）
+    static var plateFill: Color { Color(red: 0.92, green: 0.78, blue: 0.40) }
+    static var plateText: Color { Color(red: 0.20, green: 0.12, blue: 0.02) }
 
     // Keys
-    static let keyFillTop = Color(red: 0.22, green: 0.35, blue: 0.78)
-    static let keyFillBottom = Color(red: 0.14, green: 0.22, blue: 0.55)
-    static let keyStroke = Color.white.opacity(0.7)
+    static var keyFillTop: Color {
+        ThemePalette(kind: ThemeManager.currentKind()).keyFillTop
+    }
+    static var keyFillBottom: Color {
+        ThemePalette(kind: ThemeManager.currentKind()).keyFillBottom
+    }
+    static var keyStroke: Color { primaryText.opacity(0.7) }
 
-    // Call button
-    static let callFillTop = Color(red: 0.08, green: 0.70, blue: 0.32)
-    static let callFillBottom = Color(red: 0.04, green: 0.55, blue: 0.24)
+    // Call button（従来通りの緑系を維持）
+    static var callFillTop: Color { Color(red: 0.08, green: 0.70, blue: 0.32) }
+    static var callFillBottom: Color { Color(red: 0.04, green: 0.55, blue: 0.24) }
 
     // Aux sheet background (slightly more cyan than screen background)
-    // Slightly more blue and 85% opacity
-    static let auxSheetBackground = Color(red: 0.10, green: 0.44, blue: 0.95, opacity: 0.85)
-    static let auxSheetBackgroundDark = Color(red: 0.06, green: 0.30, blue: 0.75, opacity: 0.90)
+    static var auxSheetBackground: Color {
+        Color(red: 0.10, green: 0.44, blue: 0.95, opacity: 0.85)
+    }
+    static var auxSheetBackgroundDark: Color {
+        Color(red: 0.06, green: 0.30, blue: 0.75, opacity: 0.90)
+    }
+
     // Aux sheet background for Preset (yellow-green tone)
-    static let auxPresetBackground = Color(red: 0.52, green: 0.85, blue: 0.22, opacity: 0.85)
-    static let auxPresetBackgroundDark = Color(red: 0.36, green: 0.66, blue: 0.14, opacity: 0.90)
+    static var auxPresetBackground: Color {
+        Color(red: 0.52, green: 0.85, blue: 0.22, opacity: 0.85)
+    }
+    static var auxPresetBackgroundDark: Color {
+        Color(red: 0.36, green: 0.66, blue: 0.14, opacity: 0.90)
+    }
+
+    // Light blue for tab/search backgrounds（テーマごとの searchBackground を利用）
+    static var lightBlue: Color {
+        ThemePalette(kind: ThemeManager.currentKind()).searchBackground
+    }
+
+    // テキストフィールド用の背景色（現在は全テーマ共通で白）
+    static var textFieldBackground: Color {
+        .white
+    }
+
+    // テキストフィールド内の入力文字色（仕様に合わせて常に黒）
+    static var textFieldInputColor: Color {
+        .black
+    }
 
     // 共通の丸ボタンスタイル
     static let circleButtonSize: CGFloat = 64

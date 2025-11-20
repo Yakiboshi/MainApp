@@ -34,7 +34,7 @@ private struct TopBarPlaceholder_History: View {
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                TextField("検索（未実装）", text: $query)
+                TextField("検索", text: $query)
                     .textFieldStyle(.plain)
                     .foregroundColor(.black)
                     .padding(.horizontal, 12)
@@ -42,7 +42,7 @@ private struct TopBarPlaceholder_History: View {
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.lightBlue))
                 Button(action: { cycleSort() }) { Text(labelForSort(sortMode)) }
                     .buttonStyle(.plain)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
             }
             .padding(.horizontal)
             .padding(.top, 8)
@@ -99,7 +99,7 @@ struct HistoryListPage: View {
                 Color.clear.overlay(
                     Text("履歴はありません")
                         .font(.headline)
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(Theme.secondaryText)
                 )
             } else {
                 ZStack {
@@ -255,12 +255,12 @@ private struct HistoryRowView: View {
             // 中央: タイトル / 保存日時
             VStack(alignment: .leading, spacing: 4) {
                 Text(title())
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                     .font(.title3)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text(savedDateText())
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(Theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
