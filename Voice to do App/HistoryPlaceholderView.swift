@@ -230,58 +230,60 @@ struct HistoryListPage: View {
 private struct HistoryRowView: View {
     let entity: RecordingEntity
     var body: some View {
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        let scale: CGFloat = isPad ? 2.0 : 1.0
         let remaining = entity.tasks.filter { !$0.isDone }.count
         let hasTasks = !entity.tasks.isEmpty
         let deadline = computeDeadline()
         let expired = isDeadlineExpired(deadline: deadline)
 
-        HStack(spacing: 12) {
+        HStack(spacing: 12 * scale) {
             // 左: 丸型アイコン（保存画像）
             if let data = entity.iconImageData ?? DefaultIconStore.load(),
                let ui = UIImage(data: data) {
                 Image(uiImage: ui)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 44 * scale, height: 44 * scale)
                     .clipShape(Circle())
-                    .shadow(radius: 2)
+                    .shadow(radius: 2 * scale)
             } else {
                 Circle()
                     .fill(Color.white.opacity(0.2))
-                    .frame(width: 44, height: 44)
+                    .frame(width: 44 * scale, height: 44 * scale)
                     .overlay(Image(systemName: "person.fill").foregroundStyle(.white.opacity(0.7)))
             }
 
             // 中央: タイトル / 保存日時
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 4 * scale) {
                 Text(title())
                     .foregroundStyle(Theme.primaryText)
-                    .font(.title3)
+                    .font(.system(size: 20 * scale, weight: .semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text(savedDateText())
-                    .font(.caption)
+                    .font(.system(size: 12 * scale))
                     .foregroundStyle(Theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             // 右: タスク/締切ステータス
             if hasTasks {
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: 4 * scale) {
                     if expired && remaining > 0 {
                         Text("タスク未完了")
-                            .font(.headline.weight(.bold))
+                            .font(.system(size: 17 * scale, weight: .bold))
                             .foregroundStyle(.red)
                     } else if remaining == 0 {
                         Text("全タスク完了")
-                            .font(.headline.weight(.bold))
+                            .font(.system(size: 17 * scale, weight: .bold))
                             .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
                     } else {
-                        HStack(spacing: 2) {
+                        HStack(spacing: 2 * scale) {
                             Text("残りタスク")
-                                .font(.caption)
+                                .font(.system(size: 12 * scale))
                                 .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
                             Text("\(remaining)個")
-                                .font(.system(size: 16, weight: .bold))
+                                .font(.system(size: 16 * scale, weight: .bold))
                                 .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
                         }
                     }
@@ -289,19 +291,19 @@ private struct HistoryRowView: View {
                     if let d = deadline {
                         if expired && remaining > 0 {
                             Text("期限超過")
-                                .font(.caption2)
+                                .font(.system(size: 11 * scale))
                                 .foregroundStyle(.red)
                         } else if remaining > 0 {
                             Text(deadlineLabel(for: d))
-                                .font(.caption2)
+                                .font(.system(size: 11 * scale))
                                 .foregroundStyle(.red)
                         }
                     }
                 }
-                .frame(minWidth: 80)
+                .frame(minWidth: 80 * scale)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 8 * scale)
         .listRowBackground(Color.clear)
     }
 

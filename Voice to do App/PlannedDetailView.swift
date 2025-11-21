@@ -45,6 +45,7 @@ struct PlannedDetailView: View {
     private let actionBarHeight: CGFloat = 120
     private let titleLimit = 30
     private let memoLimit = 140
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     var body: some View {
         ZStack {
@@ -59,51 +60,56 @@ struct PlannedDetailView: View {
                     )
 
                 // 下部固定バー（キャンセル / 完了）
+                let scale: CGFloat = isPad ? 2.0 : 1.0
                 LinearGradient(colors: [Color.black.opacity(0.55), Color.black.opacity(0)], startPoint: .bottom, endPoint: .top)
-                    .frame(height: actionBarHeight)
-                    .overlay(
-                        HStack(spacing: Theme.circleButtonSpacing) {
-                            VStack(spacing: 6) {
+                    .frame(height: actionBarHeight * scale)
+                    .overlay {
+                        let spacing = Theme.circleButtonSpacing * (isPad ? 2.5 : 1.0)
+                        let buttonSize = Theme.circleButtonSize * scale
+                        let iconFont = Font.system(size: 22 * scale, weight: .bold)
+                        let labelFont = Font.system(size: 12 * scale, weight: .medium)
+                        HStack(spacing: spacing) {
+                            VStack(spacing: 6 * scale) {
                                 Button {
                                     // 変更を破棄して閉じる
                                     dismiss()
                                 } label: {
                                     Circle()
                                         .fill(Color.red)
-                                        .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                        .frame(width: buttonSize, height: buttonSize)
                                         .overlay(
                                             Image(systemName: "xmark")
                                                 .foregroundStyle(.white)
-                                                .font(Theme.circleButtonIconFont)
+                                                .font(iconFont)
                                         )
                                 }
                                 Text("キャンセル")
-                                    .font(Theme.circleButtonLabelFont)
+                                    .font(labelFont)
                                     .foregroundStyle(Theme.secondaryText)
                             }
 
-                            VStack(spacing: 6) {
+                            VStack(spacing: 6 * scale) {
                                 Button {
                                     saveAndClose()
                                 } label: {
                                     Circle()
                                         .fill(Color.green.opacity(0.9))
-                                        .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                        .frame(width: buttonSize, height: buttonSize)
                                         .overlay(
                                             Image(systemName: "checkmark")
                                                 .foregroundStyle(.white)
-                                                .font(Theme.circleButtonIconFont)
+                                                .font(iconFont)
                                         )
                                 }
                                 .disabled(!isFutureDate || !isUniqueDate)
                                 .opacity(isFutureDate && isUniqueDate ? 1.0 : 0.6)
                                 Text("完了")
-                                    .font(Theme.circleButtonLabelFont)
+                                    .font(labelFont)
                                     .foregroundStyle(Theme.secondaryText)
                             }
                         }
-                        .padding(.bottom, 28)
-                    )
+                        .padding(.bottom, 28 * scale)
+                    }
             }
             .ignoresSafeArea(edges: .bottom)
 
@@ -137,7 +143,7 @@ struct PlannedDetailView: View {
             urlSection
             tasksSection
             deadlineSection
-            Spacer(minLength: actionBarHeight)
+            Spacer(minLength: actionBarHeight * (isPad ? 2.0 : 1.0))
         }
         .padding(.horizontal)
         .padding(.top, 12)
@@ -575,7 +581,7 @@ struct PlannedDetailView: View {
 
             GeometryReader { geo in
                 let height = geo.size.height
-                let topY = height * 0.55
+                let topY = height * (isPad ? 0.40 : 0.55)
 
                 VStack {
                     Spacer()
@@ -657,7 +663,7 @@ struct PlannedDetailView: View {
 
             GeometryReader { geo in
                 let height = geo.size.height
-                let topY = height * 0.55
+                let topY = height * (isPad ? 0.40 : 0.55)
 
                 VStack {
                     Spacer()

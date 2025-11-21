@@ -33,6 +33,7 @@ private struct DetailCoreView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Bindable var recording: RecordingEntity
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     // 音声プレビュー
     @State private var player: AVAudioPlayer?
@@ -69,64 +70,68 @@ private struct DetailCoreView: View {
             VStack(spacing: 0) {
                 ScrollView { contentStack }
             
-                // 下部固定バー
+                // 下部固定バー（iPadは2倍）
+                let scale: CGFloat = isPad ? 2.0 : 1.0
                 LinearGradient(colors: [Color.black.opacity(0.55), Color.black.opacity(0)], startPoint: .bottom, endPoint: .top)
-                    .frame(height: actionBarHeight)
+                    .frame(height: actionBarHeight * scale)
                     .overlay(
-                        HStack(spacing: Theme.circleButtonSpacing) {
-                            VStack(spacing: 6) {
+                        HStack(spacing: Theme.circleButtonSpacing * scale) {
+                            let buttonSize = Theme.circleButtonSize * scale
+                            let iconFont = Font.system(size: 22 * scale, weight: .bold)
+                            let labelFont = Font.system(size: 12 * scale, weight: .medium)
+                            VStack(spacing: 6 * scale) {
                                 Button { deleteAndExit() } label: {
                                     Circle()
                                         .fill(Color.red)
-                                        .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                        .frame(width: buttonSize, height: buttonSize)
                                         .overlay(
                                             Image(systemName: "xmark")
                                                 .foregroundStyle(.white)
-                                                .font(Theme.circleButtonIconFont)
+                                                .font(iconFont)
                                         )
                                 }
                                 Text("キャンセル")
-                                    .font(Theme.circleButtonLabelFont)
+                                    .font(labelFont)
                                     .foregroundStyle(Theme.secondaryText)
                             }
-                            VStack(spacing: 6) {
+                            VStack(spacing: 6 * scale) {
                                 Button {
                                     SoundManager.shared.play("nutural", ext: "mp3")
                                     deleteAndGoBackToRecord()
                                 } label: {
                                     Circle()
                                         .fill(Color.white)
-                                        .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                        .frame(width: buttonSize, height: buttonSize)
                                         .overlay(
                                             Image(systemName: "arrow.uturn.left")
                                                 .foregroundStyle(.black)
-                                                .font(Theme.circleButtonIconFont)
+                                                .font(iconFont)
                                         )
                                 }
                                 Text("かけ直し")
-                                    .font(Theme.circleButtonLabelFont)
+                                    .font(labelFont)
                                     .foregroundStyle(Theme.secondaryText)
                             }
-                            VStack(spacing: 6) {
+                            VStack(spacing: 6 * scale) {
                                 Button {
                                     SoundManager.shared.play("kettei", ext: "mp3")
                                     saveAndContinue()
                                 } label: {
                                     Circle()
                                         .fill(Color.green.opacity(0.9))
-                                        .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                        .frame(width: buttonSize, height: buttonSize)
                                         .overlay(
                                             Image(systemName: "checkmark")
                                                 .foregroundStyle(.white)
-                                                .font(Theme.circleButtonIconFont)
+                                                .font(iconFont)
                                         )
                                 }
                                 Text("確定")
-                                    .font(Theme.circleButtonLabelFont)
+                                    .font(labelFont)
                                     .foregroundStyle(Theme.secondaryText)
                             }
                         }
-                        .padding(.bottom, 28)
+                        .padding(.bottom, 28 * scale)
                     )
             }
             .ignoresSafeArea(edges: .bottom)
@@ -174,7 +179,7 @@ private struct DetailCoreView: View {
 
             GeometryReader { geo in
                 let height = geo.size.height
-                let topY = height * 0.55 // 下部 45% をシートに使う
+                let topY = height * (isPad ? 0.40 : 0.55) // iPad は高さを広く使う
 
                 VStack {
                     Spacer()
@@ -257,7 +262,7 @@ private struct DetailCoreView: View {
 
             GeometryReader { geo in
                 let height = geo.size.height
-                let topY = height * 0.55
+                let topY = height * (isPad ? 0.40 : 0.55)
 
                 VStack {
                     Spacer()
@@ -338,7 +343,7 @@ private struct DetailCoreView: View {
             urlSection
             tasksSection
             deadlineSection
-            Spacer(minLength: actionBarHeight)
+            Spacer(minLength: actionBarHeight * (isPad ? 2.0 : 1.0))
         }
         .padding(.horizontal)
         .padding(.top, 12)

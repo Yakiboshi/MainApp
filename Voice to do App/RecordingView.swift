@@ -3,6 +3,7 @@ import SwiftData
 import AVFoundation
 import Foundation
 import Combine
+import UIKit
 
 // 録音画面：表示と同時に自動録音開始。停止で保存→通知→閉じる
 struct RecordingView: View {
@@ -15,9 +16,18 @@ struct RecordingView: View {
 
     let date: Date
 
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
     var body: some View {
         GeometryReader { geo in
             let h = geo.size.height
+            let scale: CGFloat = isPad ? 2.0 : 1.0
+            let isLandscapePhone = (geo.size.width > geo.size.height) && !isPad
+            let topSpacing = h * (isPad ? 0.24 : 0.33)
+            let bottomPadding = h * (isPad ? 0.10 : 0.12)
+            let meterHeight: CGFloat = isPad ? 110 : 80
+            let timerFont: CGFloat = isPad ? 52 : 44
+
             ZStack {
                 // 背景（AudioPlayView と同グラデ）
                 LinearGradient(
@@ -30,118 +40,245 @@ struct RecordingView: View {
                 )
                 .ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    Spacer().frame(height: h/3)
+                Group {
+                    if isLandscapePhone {
+                        let buttonSpacing = Theme.circleButtonSpacing * scale
+                        let buttonSize = Theme.circleButtonSize * scale
+                        let iconFont = Font.system(size: 22 * scale, weight: .bold)
+                        let labelFont = Font.system(size: 12 * scale, weight: .medium)
 
-                    // 経過時間（等幅）
-                    Text(timeString(recorder.elapsedSec))
-                        .font(.system(size: 44, weight: .bold, design: .default))
-                        .monospacedDigit()
-                        .foregroundStyle(.white)
-                        .accessibilityLabel("録音経過時間")
+                        HStack(alignment: .center, spacing: isPad ? 32 : 24) {
+                            VStack(spacing: 20) {
+                                // 経過時間（等幅）
+                                Text(timeString(recorder.elapsedSec))
+                                    .font(.system(size: timerFont, weight: .bold, design: .default))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.white)
+                                    .accessibilityLabel("録音経過時間")
 
-                    Spacer().frame(height: 20)
+                                // 軽量レベルメータ（バー型）
+                                LightLevelMeterView(level: $recorder.level)
+                                    .frame(height: meterHeight)
+                                    .padding(.horizontal, 32)
 
-                    // 軽量レベルメータ（バー型）
-                    LightLevelMeterView(level: $recorder.level)
-                        .frame(height: 80)
-                        .padding(.horizontal, 32)
+                                // 残り時間
+                                Text("残り時間  \(timeString(recorder.remainingSec))")
+                                    .foregroundStyle(.white)
+                                    .font(.system(size: isPad ? 22 : 17, weight: .semibold))
 
-                    // 残り時間
-                    Text("残り時間  \(timeString(recorder.remainingSec))")
-                        .foregroundStyle(.white)
-                        .font(.headline)
-                        .padding(.top, 16)
-
-                    // 入力切替ボタン（下から1/3付近）
-                    Spacer()
-                    VStack(spacing: 6) {
-                        Button(action: {
-                            routeManager.toggleBuiltInOutput()
-                        }) {
-                            Image(systemName: routeManager.hasExternalOutput
-                                  ? "headphones.circle"
-                                  : (routeManager.isUsingSpeaker ? "speaker.wave.2.circle.fill" : "phone.circle.fill"))
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundStyle(.black)
-                                .padding(14)
-                                .background(Color.white)
-                                .clipShape(Circle())
-                        }
-                        .accessibilityLabel("出力切り替え")
-                        if routeManager.hasExternalOutput {
-                            Text(routeManager.externalOutputName ?? "外部機器")
-                                .font(Theme.circleButtonLabelFont)
-                                .foregroundStyle(.white)
-                        } else {
-                            Text(routeManager.isUsingSpeaker ? "スピーカー" : "受話口")
-                                .font(Theme.circleButtonLabelFont)
-                                .foregroundStyle(.white)
-                        }
-                    }
-
-                    Spacer()
-
-                    // 下部 3 ボタン（基準スタイル）
-                    HStack(spacing: Theme.circleButtonSpacing) {
-                        VStack(spacing: 6) {
-                            Button(action: {
-                                SoundManager.shared.play("cancell", ext: "mp3")
-                                cancelAndClose()
-                            }) {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
-                                    .overlay(
-                                        Image(systemName: "xmark")
-                                            .font(Theme.circleButtonIconFont)
-                                            .foregroundStyle(.white)
-                                    )
-                                    .shadow(color: .black.opacity(0.35), radius: 6, x: 0, y: 3)
-                            }
-                            .accessibilityLabel("キャンセル")
-                            Text("キャンセル")
-                                .font(Theme.circleButtonLabelFont)
-                                .foregroundStyle(.white)
-                        }
-
-                        VStack(spacing: 6) {
-                            Button(action: { togglePause() }) {
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
-                                    .overlay(
-                                        Image(systemName: recorder.isPaused ? "play.fill" : "pause.fill")
-                                            .font(Theme.circleButtonIconFont)
+                                // 入力切替ボタン
+                                VStack(spacing: 6) {
+                                    Button(action: {
+                                        routeManager.toggleBuiltInOutput()
+                                    }) {
+                                        Image(systemName: routeManager.hasExternalOutput
+                                              ? "headphones.circle"
+                                              : (routeManager.isUsingSpeaker ? "speaker.wave.2.circle.fill" : "phone.circle.fill"))
+                                            .font(.system(size: 24, weight: .semibold))
                                             .foregroundStyle(.black)
-                                    )
-                                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
-                            }
-                            .accessibilityLabel(recorder.isPaused ? "再開" : "一時停止")
-                            Text(recorder.isPaused ? "再開" : "一時停止")
-                                .font(Theme.circleButtonLabelFont)
-                                .foregroundStyle(.white)
-                        }
-
-                        VStack(spacing: 6) {
-                            Button(action: { finishAndProceed() }) {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
-                                    .overlay(
-                                        Image(systemName: "phone.down.fill")
-                                            .font(Theme.circleButtonIconFont)
+                                            .padding(14)
+                                            .background(Color.white)
+                                            .clipShape(Circle())
+                                    }
+                                    .accessibilityLabel("出力切り替え")
+                                    if routeManager.hasExternalOutput {
+                                        Text(routeManager.externalOutputName ?? "外部機器")
+                                            .font(Theme.circleButtonLabelFont)
                                             .foregroundStyle(.white)
-                                    )
-                                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
+                                    } else {
+                                        Text(routeManager.isUsingSpeaker ? "スピーカー" : "受話口")
+                                            .font(Theme.circleButtonLabelFont)
+                                            .foregroundStyle(.white)
+                                    }
+                                }
                             }
-                            .accessibilityLabel("終了")
-                            Text("終了")
-                                .font(Theme.circleButtonLabelFont)
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                            VStack(spacing: 16) {
+                                Spacer()
+                                HStack(spacing: buttonSpacing) {
+                                    VStack(spacing: 6) {
+                                        Button(action: {
+                                            SoundManager.shared.play("cancell", ext: "mp3")
+                                            cancelAndClose()
+                                        }) {
+                                            Circle()
+                                                .fill(Color.red)
+                                                .frame(width: buttonSize, height: buttonSize)
+                                                .overlay(
+                                                    Image(systemName: "xmark")
+                                                        .font(iconFont)
+                                                        .foregroundStyle(.white)
+                                                )
+                                                .shadow(color: .black.opacity(0.35), radius: 6 * scale, x: 0, y: 3 * scale)
+                                        }
+                                        .accessibilityLabel("キャンセル")
+                                        Text("キャンセル")
+                                            .font(labelFont)
+                                            .foregroundStyle(.white)
+                                    }
+
+                                    VStack(spacing: 6) {
+                                        Button(action: { togglePause() }) {
+                                            Circle()
+                                                .fill(Color.white)
+                                                .frame(width: buttonSize, height: buttonSize)
+                                                .overlay(
+                                                    Image(systemName: recorder.isPaused ? "play.fill" : "pause.fill")
+                                                        .font(iconFont)
+                                                        .foregroundStyle(.black)
+                                                )
+                                                .shadow(color: .black.opacity(0.25), radius: 4 * scale, x: 0, y: 2 * scale)
+                                        }
+                                        .accessibilityLabel(recorder.isPaused ? "再開" : "一時停止")
+                                        Text(recorder.isPaused ? "再開" : "一時停止")
+                                            .font(labelFont)
+                                            .foregroundStyle(.white)
+                                    }
+
+                                    VStack(spacing: 6) {
+                                        Button(action: { finishAndProceed() }) {
+                                            Circle()
+                                                .fill(Color.green)
+                                                .frame(width: buttonSize, height: buttonSize)
+                                                .overlay(
+                                                    Image(systemName: "phone.down.fill")
+                                                        .font(iconFont)
+                                                        .foregroundStyle(.white)
+                                                )
+                                                .shadow(color: .black.opacity(0.25), radius: 4 * scale, x: 0, y: 2 * scale)
+                                        }
+                                        .accessibilityLabel("終了")
+                                        Text("終了")
+                                            .font(labelFont)
+                                            .foregroundStyle(.white)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        }
+                        .padding(.horizontal, 32)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    } else {
+                        VStack(spacing: 0) {
+                            Spacer().frame(height: topSpacing)
+
+                            // 経過時間（等幅）
+                            Text(timeString(recorder.elapsedSec))
+                                .font(.system(size: timerFont, weight: .bold, design: .default))
+                                .monospacedDigit()
                                 .foregroundStyle(.white)
+                                .accessibilityLabel("録音経過時間")
+
+                            Spacer().frame(height: 20)
+
+                            // 軽量レベルメータ（バー型）
+                            LightLevelMeterView(level: $recorder.level)
+                                .frame(height: meterHeight)
+                                .padding(.horizontal, 32)
+
+                            // 残り時間
+                            Text("残り時間  \(timeString(recorder.remainingSec))")
+                                .foregroundStyle(.white)
+                                .font(.system(size: isPad ? 22 : 17, weight: .semibold))
+                                .padding(.top, 16)
+
+                            // 入力切替ボタン（下から1/3付近）
+                            Spacer()
+                            VStack(spacing: 6) {
+                                Button(action: {
+                                    routeManager.toggleBuiltInOutput()
+                                }) {
+                                    Image(systemName: routeManager.hasExternalOutput
+                                          ? "headphones.circle"
+                                          : (routeManager.isUsingSpeaker ? "speaker.wave.2.circle.fill" : "phone.circle.fill"))
+                                        .font(.system(size: 24, weight: .semibold))
+                                        .foregroundStyle(.black)
+                                        .padding(14)
+                                        .background(Color.white)
+                                        .clipShape(Circle())
+                                }
+                                .accessibilityLabel("出力切り替え")
+                                if routeManager.hasExternalOutput {
+                                    Text(routeManager.externalOutputName ?? "外部機器")
+                                        .font(Theme.circleButtonLabelFont)
+                                        .foregroundStyle(.white)
+                                } else {
+                                    Text(routeManager.isUsingSpeaker ? "スピーカー" : "受話口")
+                                        .font(Theme.circleButtonLabelFont)
+                                        .foregroundStyle(.white)
+                                }
+                            }
+
+                            Spacer()
+
+                            // 下部 3 ボタン（基準スタイル）
+                            let buttonSpacing = Theme.circleButtonSpacing * scale
+                            HStack(spacing: buttonSpacing) {
+                                let buttonSize = Theme.circleButtonSize * scale
+                                let iconFont = Font.system(size: 22 * scale, weight: .bold)
+                                let labelFont = Font.system(size: 12 * scale, weight: .medium)
+                                VStack(spacing: 6) {
+                                    Button(action: {
+                                        SoundManager.shared.play("cancell", ext: "mp3")
+                                        cancelAndClose()
+                                    }) {
+                                        Circle()
+                                            .fill(Color.red)
+                                            .frame(width: buttonSize, height: buttonSize)
+                                            .overlay(
+                                                Image(systemName: "xmark")
+                                                    .font(iconFont)
+                                                    .foregroundStyle(.white)
+                                            )
+                                            .shadow(color: .black.opacity(0.35), radius: 6 * scale, x: 0, y: 3 * scale)
+                                    }
+                                    .accessibilityLabel("キャンセル")
+                                    Text("キャンセル")
+                                        .font(labelFont)
+                                        .foregroundStyle(.white)
+                                }
+
+                                VStack(spacing: 6) {
+                                    Button(action: { togglePause() }) {
+                                        Circle()
+                                            .fill(Color.white)
+                                            .frame(width: buttonSize, height: buttonSize)
+                                            .overlay(
+                                                Image(systemName: recorder.isPaused ? "play.fill" : "pause.fill")
+                                                    .font(iconFont)
+                                                    .foregroundStyle(.black)
+                                            )
+                                            .shadow(color: .black.opacity(0.25), radius: 4 * scale, x: 0, y: 2 * scale)
+                                    }
+                                    .accessibilityLabel(recorder.isPaused ? "再開" : "一時停止")
+                                    Text(recorder.isPaused ? "再開" : "一時停止")
+                                        .font(labelFont)
+                                        .foregroundStyle(.white)
+                                }
+
+                                VStack(spacing: 6) {
+                                    Button(action: { finishAndProceed() }) {
+                                        Circle()
+                                            .fill(Color.green)
+                                            .frame(width: buttonSize, height: buttonSize)
+                                            .overlay(
+                                                Image(systemName: "phone.down.fill")
+                                                    .font(iconFont)
+                                                    .foregroundStyle(.white)
+                                            )
+                                            .shadow(color: .black.opacity(0.25), radius: 4 * scale, x: 0, y: 2 * scale)
+                                    }
+                                    .accessibilityLabel("終了")
+                                    Text("終了")
+                                        .font(labelFont)
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                            .padding(.bottom, bottomPadding)
                         }
                     }
-                    .padding(.bottom, h/12)
                 }
             }
         }

@@ -16,6 +16,7 @@ struct CallConversationView: View {
     @State private var elapsedTime: Double = 0
     @State private var animateWave: Bool = false
     private let tick = Timer.publish(every: 0.3, on: .main, in: .common).autoconnect()
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     var body: some View {
         ZStack {
@@ -31,8 +32,14 @@ struct CallConversationView: View {
             .ignoresSafeArea()
 
             GeometryReader { proxy in
+                let topSpacing = proxy.size.height * (isPad ? 0.08 : 0.10)
+                let avatarSize: CGFloat = isPad ? 210 : 160
+                let wavePadding: CGFloat = isPad ? 120 : 48
+                let bottomSpacing = proxy.size.height * (isPad ? 0.08 : 0.10)
+                let scale: CGFloat = isPad ? 2.0 : 1.0
+
                 VStack {
-                    Spacer().frame(height: proxy.size.height * 0.10)
+                    Spacer().frame(height: topSpacing)
 
                     // 丸型写真（SwiftyCrop 画像）。無い場合はプレースホルダ
                     Group {
@@ -40,13 +47,13 @@ struct CallConversationView: View {
                             Image(uiImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(width: 160, height: 160)
+                                .frame(width: avatarSize, height: avatarSize)
                                 .clipShape(Circle())
                                 .shadow(radius: 10)
                         } else {
                             Circle()
                                 .fill(Color(red: 0.70, green: 0.72, blue: 0.75))
-                                .frame(width: 160, height: 160)
+                                .frame(width: avatarSize, height: avatarSize)
                                 .overlay(
                                     Image(systemName: "person.fill")
                                         .resizable()
@@ -59,7 +66,7 @@ struct CallConversationView: View {
 
                     // 再生時間（例: 00 : 25）
                     Text(formatTime(elapsedTime))
-                        .font(.system(size: 36, weight: .bold, design: .monospaced))
+                        .font(.system(size: isPad ? 44 : 36, weight: .bold, design: .monospaced))
                         .foregroundStyle(.white)
                         .padding(.top, 24)
 
@@ -67,7 +74,7 @@ struct CallConversationView: View {
                     VStack(spacing: 8) {
                         WaveformView(isAnimating: $animateWave)
                             .frame(height: 40)
-                            .padding(.horizontal, 48)
+                            .padding(.horizontal, wavePadding)
                         if let msg = errorText { Text(msg).foregroundStyle(.white.opacity(0.9)) }
                     }
                     .padding(.vertical, 16)
@@ -75,7 +82,7 @@ struct CallConversationView: View {
                     Spacer()
 
                     // 通話終了ボタン（録音画面に合わせたスタイル）
-                    VStack(spacing: 6) {
+                    VStack(spacing: 6 * scale) {
                         Button {
                     // 手動終了 → AfterCallをリクエスト
                     SoundManager.shared.play("start", ext: "mp3")
@@ -86,17 +93,17 @@ struct CallConversationView: View {
                             ZStack {
                                 Circle()
                                     .fill(Color.red)
-                                    .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                    .frame(width: Theme.circleButtonSize * scale, height: Theme.circleButtonSize * scale)
                                 Image(systemName: "phone.down.fill")
                                     .foregroundStyle(.white)
-                                    .font(Theme.circleButtonIconFont)
+                                    .font(.system(size: 22 * scale, weight: .bold))
                             }
                         }
                         Text("通話終了")
                             .foregroundStyle(.white)
-                            .font(Theme.circleButtonLabelFont)
+                            .font(.system(size: 12 * scale, weight: .medium))
                     }
-                    .padding(.bottom, proxy.size.height * 0.10)
+                    .padding(.bottom, bottomSpacing)
                 }
             }
         }

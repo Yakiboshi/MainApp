@@ -174,31 +174,33 @@ struct VoicemailListPage: View {
 private struct VoicemailRowView: View {
     let entity: RecordingEntity
     var body: some View {
-        HStack(spacing: 12) {
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        let scale: CGFloat = isPad ? 2.0 : 1.0
+        HStack(spacing: 12 * scale) {
             if let data = entity.iconImageData ?? DefaultIconStore.load(),
                let ui = UIImage(data: data) {
                 Image(uiImage: ui)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 44 * scale, height: 44 * scale)
                     .clipShape(Circle())
-                    .shadow(radius: 2)
+                    .shadow(radius: 2 * scale)
             } else {
-                Circle().fill(Color.white.opacity(0.2)).frame(width: 44, height: 44)
+                Circle().fill(Color.white.opacity(0.2)).frame(width: 44 * scale, height: 44 * scale)
                     .overlay(Image(systemName: "person.fill").foregroundStyle(.white.opacity(0.7)))
             }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 4 * scale) {
                 Text(title())
                     .foregroundStyle(Theme.primaryText)
-                    .font(.title3)
+                    .font(.system(size: 20 * scale, weight: .semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text(savedDateText())
-                    .font(.caption)
+                    .font(.system(size: 12 * scale))
                     .foregroundStyle(Theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 8 * scale)
     }
 
     private func title() -> String {

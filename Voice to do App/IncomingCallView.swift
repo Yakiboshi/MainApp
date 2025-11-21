@@ -23,6 +23,7 @@ struct IncomingCallView: View {
 
     // プレビュー判定（プレビュー時はサウンドを抑止）
     private var isPreview: Bool { ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" }
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     var body: some View {
         ZStack {
@@ -41,9 +42,9 @@ struct IncomingCallView: View {
             GeometryReader { proxy in
                 let h = proxy.size.height
                 // アイコンは端末幅に追従（上限 280pt）
-                let iconSize = min(proxy.size.width * 0.55, 280)
+                let iconSize = min(proxy.size.width * (isPad ? 0.6 : 0.55), isPad ? 340 : 280)
                 // 上部から 2/5 の位置にアイコン中心が来るように調整
-                let centerY = h * 0.40
+                let centerY = h * (isPad ? 0.32 : 0.40)
                 let topPadding = max(0, centerY - iconSize / 2)
 
                 VStack(spacing: 12) {
@@ -92,7 +93,11 @@ struct IncomingCallView: View {
                     Spacer()
 
                     // 下部ボタン（録音画面に合わせたスタイル）
-                    HStack(spacing: Theme.circleButtonSpacing) {
+                    let scale = isPad ? 2.0 : 1.0
+                    let buttonSize = Theme.circleButtonSize * scale
+                    let iconFont = Font.system(size: 22 * scale, weight: .bold)
+                    let labelFont = Font.system(size: 12 * scale, weight: .medium)
+                    HStack(spacing: Theme.circleButtonSpacing * scale) {
                         // 拒否
                         VStack(spacing: 8) {
                             Button {
@@ -129,14 +134,14 @@ struct IncomingCallView: View {
                                 ZStack {
                                     Circle()
                                         .fill(Color(red: 0.92, green: 0.18, blue: 0.16))
-                                        .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                        .frame(width: buttonSize, height: buttonSize)
                                     Image(systemName: "phone.down.fill")
                                         .foregroundStyle(Color(red: 1, green: 1, blue: 1))
-                                        .font(Theme.circleButtonIconFont)
+                                        .font(iconFont)
                                 }
                             }
                             Text("拒否")
-                                .font(Theme.circleButtonLabelFont)
+                                .font(labelFont)
                                 .foregroundStyle(Color(red: 1, green: 1, blue: 1))
                         }
 
@@ -153,18 +158,18 @@ struct IncomingCallView: View {
                                     ZStack {
                                         Circle()
                                             .fill(Color.white)
-                                            .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                            .frame(width: buttonSize, height: buttonSize)
                                             .overlay(
                                                 Image(systemName: "repeat")
                                                     .foregroundStyle(Color.black)
-                                                    .font(Theme.circleButtonIconFont)
+                                                    .font(iconFont)
                                             )
                                     }
                                 }
 
                                 VStack(spacing: 2) {
                                     Text("スヌーズ")
-                                        .font(Theme.circleButtonLabelFont)
+                                        .font(labelFont)
                                         .foregroundStyle(Color.white)
                                 }
                             }
@@ -198,18 +203,18 @@ struct IncomingCallView: View {
                                 ZStack {
                                     Circle()
                                         .fill(Color(red: 0.10, green: 0.78, blue: 0.22))
-                                        .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                        .frame(width: buttonSize, height: buttonSize)
                                     Image(systemName: "phone.fill")
                                         .foregroundStyle(Color(red: 1, green: 1, blue: 1))
-                                        .font(Theme.circleButtonIconFont)
+                                        .font(iconFont)
                                 }
                             }
                             Text("応答")
-                                .font(Theme.circleButtonLabelFont)
+                                .font(labelFont)
                                 .foregroundStyle(Color(red: 1, green: 1, blue: 1))
                         }
                     }
-                    .padding(.bottom, h / 6)
+                    .padding(.bottom, isPad ? h / 9 : h / 6)
                 }
                 .frame(maxWidth: .infinity)
             }

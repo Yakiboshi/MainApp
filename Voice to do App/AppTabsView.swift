@@ -35,48 +35,75 @@ struct AppTabsView: View {
         .init(title: "留守電", system: "tray.fill")
     ]
 
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             Theme.appGradient.ignoresSafeArea()
             if selectedIndex == 2 {
-            VStack(spacing: 20) {
-                // ヘッダー（上段=現在時刻, 下段=入力中の目的地）
-                TimeCircuitsOverlayView(
-                    present: toRowValues(date: now),
-                    destination: toRowValues(destination: destination),
-                    showDebugFrames: false,
-                    destinationForeground: destinationForegroundColor(now: now)
-                )
-                .padding(.top, 0)
-                // Header bottom reporting via preference
-                .onPreferenceChange(HeaderBottomPreferenceKey.self) { headerBottomY = $0 }
+            GeometryReader { geo in
+                let isLandscape = geo.size.width > geo.size.height
+                let headerKeypadPad: CGFloat = isPad ? 24 : 12
 
-                Spacer()
-                // キーパッドは横幅指定なし。下端からの距離のみ維持。
-                KeypadUI(
-                    onDigit: { n in destination.appendDigit(n) },
-                    onBackspace: { destination.backspace() },
-                    onLeftAux: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet.toggle() } },
-                    onOk: {
-                        // DESTINATIONTIME が緑（有効）なら通信画面へ遷移
-                        if !hasImmediateInvalid(destination, now: now) && isComplete(destination) && destination.isValid(now: now),
-                           let date = destination.toDate() {
-                            scheduledDateForCall = date
-                            showAuxSheet = false
-                            showAudioPlay = true
-                        } else {
-                            // 無効時は何もしない（将来: 震動/アラートなど）
+                let headerView =
+                    TimeCircuitsOverlayView(
+                        present: toRowValues(date: now),
+                        destination: toRowValues(destination: destination),
+                        showDebugFrames: false,
+                        destinationForeground: destinationForegroundColor(now: now)
+                    )
+                    .frame(maxWidth: isPad ? 680 : .infinity)
+                    .padding(.top, isPad ? 8 : 0)
+                    // Header bottom reporting via preference
+                    .onPreferenceChange(HeaderBottomPreferenceKey.self) { headerBottomY = $0 }
+
+                let keypadView =
+                    KeypadUI(
+                        onDigit: { n in destination.appendDigit(n) },
+                        onBackspace: { destination.backspace() },
+                        onLeftAux: { withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { showAuxSheet.toggle() } },
+                        onOk: {
+                            // DESTINATIONTIME が緑（有効）なら通信画面へ遷移
+                            if !hasImmediateInvalid(destination, now: now) && isComplete(destination) && destination.isValid(now: now),
+                               let date = destination.toDate() {
+                                scheduledDateForCall = date
+                                showAuxSheet = false
+                                showAudioPlay = true
+                            } else {
+                                // 無効時は何もしない（将来: 震動/アラートなど）
+                            }
+                        },
+                        callSoundNameProvider: { callSoundName(now: now) }
+                    )
+                    .background(
+                        GeometryReader { p in
+                            Color.clear
+                                .preference(key: KeypadTopPreferenceKey.self, value: p.frame(in: .named("AppRoot")).minY)
                         }
-                    },
-                    callSoundNameProvider: { callSoundName(now: now) }
-                )
-                .background(
-                    GeometryReader { p in
-                        Color.clear
-                            .preference(key: KeypadTopPreferenceKey.self, value: p.frame(in: .named("AppRoot")).minY)
+                    )
+                    .padding(.bottom, isPad ? tmpKeypadBottomOffset * 3 : tmpKeypadBottomOffset)
+
+                Group {
+                    if isLandscape {
+                        HStack(alignment: .center, spacing: isPad ? 40 : 24) {
+                            headerView
+                                .frame(maxWidth: .infinity, alignment: .center)
+                            Spacer(minLength: headerKeypadPad)
+                            keypadView
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    } else {
+                        VStack(spacing: isPad ? 14 : 20) {
+                            headerView
+                                .frame(maxWidth: .infinity, alignment: .center)
+                            Spacer(minLength: headerKeypadPad)
+                            keypadView
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.top, isPad ? headerKeypadPad : 0)
+                        }
                     }
-                )
-                .padding(.bottom, tmpKeypadBottomOffset)
+                }
             }
             // 小ウィンドウ（見た目のみ）: タブ上端〜ヘッダー下端の範囲を覆う。非表示時は完全に見えない。
             .overlay(alignment: .top) {
@@ -586,34 +613,36 @@ private struct PresetPane: View {
     @Environment(\.modelContext) private var context
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        let scale: CGFloat = isPad ? 2.0 : 1.0
+        VStack(alignment: .leading, spacing: 8 * scale) {
             // Header row handled by sheet safe area; keep list only here
 
             if presets.isEmpty {
                 Text("プリセットがありません。右上の＋から作成してください。")
-                    .font(.footnote)
+                    .font(.system(size: 12 * scale))
                     .foregroundStyle(.white.opacity(0.8))
             } else {
                 ForEach(presets, id: \.id) { p in
-                    HStack(spacing: 8) {
+                    HStack(spacing: 8 * scale) {
                         // Row content (entire row tappable via onTapGesture)
                         HStack {
                             Text(p.title)
-                                .font(.body)
+                                .font(.system(size: 17 * scale, weight: .semibold))
                                 .foregroundStyle(.white)
                             Spacer()
                             Text(detail(for: p))
-                                .font(.caption)
+                                .font(.system(size: 12 * scale))
                                 .foregroundStyle(.white.opacity(0.8))
                         }
 
                         // Edit and delete circular buttons (remain as separate buttons)
-                        HStack(spacing: 6) {
+                        HStack(spacing: 6 * scale) {
                             Button(action: { editTarget = p; showEdit = true }) {
                                 Image(systemName: "pencil")
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(.system(size: 12 * scale, weight: .bold))
                                     .foregroundStyle(.white)
-                                    .frame(width: 28, height: 28)
+                                    .frame(width: 28 * scale, height: 28 * scale)
                                     .background(Circle().fill(Color.white.opacity(0.18)))
                             }
                             .buttonStyle(.plain)
@@ -623,22 +652,22 @@ private struct PresetPane: View {
                                 withAnimation { context.delete(p) }
                             }) {
                                 Image(systemName: "xmark")
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(.system(size: 12 * scale, weight: .bold))
                                     .foregroundStyle(.white)
-                                    .frame(width: 28, height: 28)
+                                    .frame(width: 28 * scale, height: 28 * scale)
                                     .background(Circle().fill(Color.white.opacity(0.18)))
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 8 * scale)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         SoundManager.shared.play("list", ext: "mp3")
                         onApplyPreset(date(for: p, from: now))
                         p.lastUsedAt = Date()
                     }
-                    Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1)
+                    Rectangle().fill(Color.white.opacity(0.1)).frame(height: 1 * scale)
                 }
             }
         }

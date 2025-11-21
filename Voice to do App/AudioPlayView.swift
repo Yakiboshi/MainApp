@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // 通信画面：遷移直後に接続音を再生し、完了で録音画面へ進む（ナビゲーションバーなし）
 struct AudioPlayView: View {
@@ -10,6 +11,7 @@ struct AudioPlayView: View {
     @State private var showRecording = false
     @State private var started = false
     @Environment(\.dismiss) private var dismiss
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     init(scheduledAt: Date, soundName: String = "callSound", soundExt: String = "mp3") {
         self.scheduledAt = scheduledAt
@@ -39,11 +41,14 @@ struct AudioPlayView: View {
                     // 通信中ビュー（UIパーツ配置）
                     GeometryReader { geo in
                         let h = geo.size.height
+                        let scale = isPad ? 2.0 : 1.0
+                        let topSpacing = h * (isPad ? 0.24 : 0.33)
+                        let bottomSpacing = h * (isPad ? 0.12 : 0.17)
                         VStack(spacing: 0) {
-                            Spacer().frame(height: h/3)
+                            Spacer().frame(height: topSpacing)
                             // 見出し
                             Text("通信中")
-                                .font(.title).bold()
+                                .font(.system(size: isPad ? 36 : 28, weight: .bold))
                                 .foregroundStyle(.white)
                                 .accessibilityLabel("通信中")
 
@@ -53,7 +58,7 @@ struct AudioPlayView: View {
                             ProgressView()
                                 .progressViewStyle(.circular)
                                 .tint(.white)
-                                .scaleEffect(1.8)
+                                .scaleEffect(isPad ? 2.2 : 1.8)
                                 .accessibilityLabel("読み込み中")
 
                             Spacer()
@@ -68,10 +73,10 @@ struct AudioPlayView: View {
                                     ZStack {
                                         Circle()
                                             .fill(Color.red)
-                                            .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
-                                            .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4)
+                                            .frame(width: Theme.circleButtonSize * scale, height: Theme.circleButtonSize * scale)
+                                            .shadow(color: .black.opacity(0.4), radius: 8 * scale, x: 0, y: 4 * scale)
                                         Image(systemName: "xmark")
-                                            .font(Theme.circleButtonIconFont)
+                                            .font(.system(size: 22 * scale, weight: .bold))
                                             .foregroundStyle(.white)
                                     }
                                 }
@@ -79,11 +84,11 @@ struct AudioPlayView: View {
                                 .accessibilityLabel("通信を終了")
 
                                 Text("キャンセル")
-                                    .font(Theme.circleButtonLabelFont)
+                                    .font(.system(size: 12 * scale, weight: .medium))
                                     .foregroundStyle(.white.opacity(0.9))
                                     .accessibilityHidden(true)
                             }
-                            .padding(.bottom, h/6)
+                            .padding(.bottom, bottomSpacing)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }

@@ -18,6 +18,7 @@ struct AfterCallView: View {
     // カウントダウン（1秒間隔で更新。60分以上でも許容範囲内のコスト）
     @State private var now: Date = Date()
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -25,8 +26,8 @@ struct AfterCallView: View {
 
             GeometryReader { proxy in
                 let h = proxy.size.height
-                let iconSize = min(proxy.size.width * 0.55, 280)
-                let topSpacing = h * 0.12
+                let iconSize = min(proxy.size.width * (isPad ? 0.6 : 0.55), isPad ? 360 : 280)
+                let topSpacing = h * (isPad ? 0.08 : 0.12)
 
                 VStack(spacing: 12) {
                     Spacer().frame(height: topSpacing)
@@ -138,7 +139,7 @@ struct AfterCallView: View {
                                     .padding(.vertical, 16)
                                     .padding(.horizontal, 20)
                                 }
-                                .frame(width: min(proxy.size.width - 40, 360))
+                                .frame(width: isPad ? min(proxy.size.width - 80, 520) : min(proxy.size.width - 40, 360))
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.bottom, 220) // ボタン干渉回避（余白増）
                             }
@@ -157,68 +158,69 @@ struct AfterCallView: View {
 
             // 下部ボタン群
             HStack {
+                let scale: CGFloat = 1.0
                 // 左: 聞き直し
-                VStack(spacing: 6) {
+                VStack(spacing: 6 * scale) {
                     Button {
                         SoundManager.shared.play("cancell", ext: "mp3")
                         showReListen = true
                     } label: {
                         Circle()
                             .fill(Color.white)
-                            .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                            .frame(width: Theme.circleButtonSize * scale, height: Theme.circleButtonSize * scale)
                             .overlay(
                                 Image(systemName: "arrow.uturn.left")
                                     .foregroundStyle(.black)
-                                    .font(Theme.circleButtonIconFont)
+                                    .font(.system(size: 22 * scale, weight: .bold))
                             )
                     }
                     Text("聞き直し")
                         .foregroundStyle(.white)
-                        .font(Theme.circleButtonLabelFont)
+                        .font(.system(size: 12 * scale, weight: .medium))
                 }
                 Spacer()
 
                 // 中央: ショートカット（有効な https:// のみ）
                 if let url = shortcutURL(), isHTTPS(url) {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 6 * scale) {
                         Button {
                             SoundManager.shared.play("nutural", ext: "mp3")
                             openShortcut(url)
                         } label: {
                             Circle()
                                 .fill(Color(red: 0.52, green: 0.85, blue: 0.22))
-                                .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                .frame(width: Theme.circleButtonSize * scale, height: Theme.circleButtonSize * scale)
                                 .overlay(
                                     Image(systemName: "link")
                                         .foregroundStyle(.white)
-                                        .font(Theme.circleButtonIconFont)
+                                        .font(.system(size: 22 * scale, weight: .bold))
                                 )
                         }
                         Text("ショートカット")
                             .foregroundStyle(.white)
-                            .font(Theme.circleButtonLabelFont)
+                            .font(.system(size: 12 * scale, weight: .medium))
                     }
                     Spacer()
                 }
 
                 // 右: 完了
-                VStack(spacing: 6) {
+                VStack(spacing: 6 * scale) {
                     Button {
                         SoundManager.shared.play("kettei", ext: "mp3")
                         completeAndClose()
                     } label: {
                         Circle()
                             .fill(Color.white)
-                            .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                            .frame(width: Theme.circleButtonSize * scale, height: Theme.circleButtonSize * scale)
                             .overlay(
                                 Image(systemName: "checkmark")
                                     .foregroundStyle(.black)
-                                    .font(Theme.circleButtonIconFont)
+                                    .font(.system(size: 22 * scale, weight: .bold))
                             )
                     }
                     Text("完了")
                         .foregroundStyle(.white)
-                        .font(Theme.circleButtonLabelFont)
+                        .font(.system(size: 12 * scale, weight: .medium))
                 }
             }
             .padding(.horizontal, 40)
@@ -432,40 +434,46 @@ private struct ReListenPlayerView: View {
     @State private var duration: Double = 1
     @State private var didFinish: Bool = false
     private let tick = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     var body: some View {
         ZStack {
             Theme.appGradient.ignoresSafeArea()
+            let topSpacing: CGFloat = isPad ? 120 : 80
+            let iconSize: CGFloat = isPad ? 200 : 160
+            let waveHeight: CGFloat = isPad ? 110 : 80
+            let horizontalPadding: CGFloat = isPad ? 60 : 24
+            let bottomPadding: CGFloat = isPad ? 64 : 48
             VStack {
-                Spacer().frame(height: 80)
+                Spacer().frame(height: topSpacing)
                 if let data = recording.iconImageData ?? DefaultIconStore.load(),
                    let ui = UIImage(data: data) {
                     Image(uiImage: ui)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 160, height: 160)
+                        .frame(width: iconSize, height: iconSize)
                         .clipShape(Circle())
                         .shadow(radius: 10)
                 } else {
                     Circle()
                         .fill(Color.white.opacity(0.15))
-                        .frame(width: 160, height: 160)
+                        .frame(width: iconSize, height: iconSize)
                         .overlay(
                             Image(systemName: "person.crop.circle.fill")
                                 .resizable()
                                 .scaledToFit()
                                 .foregroundStyle(.white.opacity(0.7))
-                                .padding(24)
+                                .padding(iconSize * 0.15)
                         )
                 }
                 Text(timeString(elapsed))
-                    .font(.system(size: 36, weight: .bold, design: .monospaced))
+                    .font(.system(size: isPad ? 42 : 36, weight: .bold, design: .monospaced))
                     .foregroundStyle(Theme.primaryText)
                     .padding(.top, 16)
                 // 波形（再生中のみアニメ）
                 WaveformViewSimple(isAnimating: Binding(get: { player.isPlaying }, set: { _ in }))
-                    .frame(height: 80)
-                    .padding(.vertical, 10)
+                    .frame(height: waveHeight)
+                    .padding(.vertical, 12)
 
                 // コントロール + 進捗スライダー
                 HStack(spacing: 12) {
@@ -495,7 +503,7 @@ private struct ReListenPlayerView: View {
                     }), in: 0...max(duration, 1))
                     .tint(sliderTint)
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, horizontalPadding)
 
                 Spacer()
                 VStack(spacing: 8) {
@@ -513,7 +521,7 @@ private struct ReListenPlayerView: View {
                         .foregroundStyle(Theme.primaryText)
                         .font(Theme.circleButtonLabelFont)
                 }
-                .padding(.bottom, 48)
+                .padding(.bottom, bottomPadding)
             }
         }
         .onAppear { start() }

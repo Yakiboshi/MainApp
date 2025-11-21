@@ -100,16 +100,18 @@ private struct HistoryDetailScreen: View {
     @State private var retryHours: Int = 0
     @State private var retryMinutes: Int = 0
     @State private var retryDate: Date = Date()
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
     var body: some View {
+        let scale: CGFloat = isPad ? 2.0 : 1.0
         ZStack(alignment: .bottom) {
             GeometryReader { proxy in
                 let h = proxy.size.height
-                let boxWidth = min(proxy.size.width - 32, 380) // 両端16pt程度の余白で少し拡大
-                let topSpacing = h * 0.12
-                let iconSize = min(boxWidth, 220)
+                let boxWidth = min(proxy.size.width - 32 * scale, proxy.size.width * 0.92, 380 * scale)
+                let topSpacing = min(h * 0.03, h * 0.55) // 上端余白は通常サイズの1/4
+                let iconSize = min(boxWidth, 220 * scale, h * 0.45)
 
-                VStack(spacing: 16) {
+                VStack(spacing: 16 * scale) {
                     Spacer().frame(height: topSpacing)
 
                     // アイコン + タイトル + 再生ボックスをまとめて背面に丸型アイコンを配置
@@ -121,41 +123,41 @@ private struct HistoryDetailScreen: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: iconSize, height: iconSize)
                                 .clipShape(Circle())
-                                .opacity(0.25)
-                                .offset(y: -10)
-                        } else {
-                            Circle()
-                                .fill(Color.white.opacity(0.12))
-                                .frame(width: iconSize, height: iconSize)
-                                .opacity(0.6)
-                                .offset(y: -10)
-                        }
+                        .opacity(0.25)
+                        .offset(y: -10 * scale)
+                    } else {
+                        Circle()
+                            .fill(Color.white.opacity(0.12))
+                            .frame(width: iconSize, height: iconSize)
+                            .opacity(0.6)
+                            .offset(y: -10 * scale)
+                    }
 
-                        VStack(spacing: 16) {
+                        VStack(spacing: 16 * scale) {
                             // タイトル + サブテキスト
-                            VStack(spacing: 6) {
+                            VStack(spacing: 6 * scale) {
                                 Text(title())
-                                    .font(.title2).fontWeight(.semibold)
+                                    .font(.system(size: 22 * scale, weight: .semibold))
                                     .foregroundStyle(.white)
                                     .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 24)
+                                    .padding(.horizontal, 24 * scale)
 
                                 if let at = entity.answeredAt {
                                     Text(at.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.subheadline)
+                                        .font(.system(size: 15 * scale))
                                         .foregroundStyle(.white.opacity(0.9))
                                 }
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
+                            .padding(.horizontal, 16 * scale)
+                            .padding(.vertical, 10 * scale)
                             .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                RoundedRectangle(cornerRadius: 14 * scale, style: .continuous)
                                     .fill(Color.black.opacity(0.35))
                             )
 
                             // プレーヤーボックス（スライダー + 時刻 + 前/再生/次）
                             ZStack {
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                RoundedRectangle(cornerRadius: 18 * scale, style: .continuous)
                                     .fill(
                                         LinearGradient(
                                             colors: [
@@ -167,13 +169,13 @@ private struct HistoryDetailScreen: View {
                                         )
                                     )
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                            .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                                        RoundedRectangle(cornerRadius: 18 * scale, style: .continuous)
+                                            .stroke(Color.white.opacity(0.25), lineWidth: 1 * scale)
                                     )
 
-                                VStack(spacing: 12) {
+                                VStack(spacing: 12 * scale) {
                                     // 上部: 進捗スライダー
-                                    VStack(spacing: 4) {
+                                    VStack(spacing: 4 * scale) {
                                         Slider(
                                             value: Binding(
                                                 get: { elapsed },
@@ -188,21 +190,21 @@ private struct HistoryDetailScreen: View {
 
                                         HStack {
                                             Text(timeString(elapsed))
-                                                .font(.caption)
+                                                .font(.system(size: 12 * scale))
                                                 .foregroundStyle(.white)
                                             Spacer()
                                             Text(timeString(duration))
-                                                .font(.caption)
+                                                .font(.system(size: 12 * scale))
                                                 .foregroundStyle(.white.opacity(0.8))
                                         }
                                     }
-                                    .padding(.horizontal, 18) // バーの端とボックス枠の間に余白を確保
+                                    .padding(.horizontal, 18 * scale) // バーの端とボックス枠の間に余白を確保
 
-                                    HStack(spacing: 32) {
+                                    HStack(spacing: 32 * scale) {
                                         // 前へ
                                         Button(action: { goToPrevious() }) {
                                             Image(systemName: "chevron.left.circle.fill")
-                                                .font(.system(size: 28, weight: .bold))
+                                                .font(.system(size: 28 * scale, weight: .bold))
                                                 .foregroundStyle(.white)
                                                 .opacity(previousId == nil ? 0.3 : 1.0)
                                         }
@@ -211,44 +213,45 @@ private struct HistoryDetailScreen: View {
                                         // 再生 / 一時停止
                                         Button(action: { togglePlay() }) {
                                             Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                                .font(.system(size: 40, weight: .bold))
+                                                .font(.system(size: 40 * scale, weight: .bold))
                                                 .foregroundStyle(.white)
                                         }
 
                                         // 次へ
                                         Button(action: { goToNext() }) {
                                             Image(systemName: "chevron.right.circle.fill")
-                                                .font(.system(size: 28, weight: .bold))
+                                                .font(.system(size: 28 * scale, weight: .bold))
                                                 .foregroundStyle(.white)
                                                 .opacity(nextId == nil ? 0.3 : 1.0)
                                         }
                                         .disabled(nextId == nil)
                                     }
                                 }
-                                .padding(.vertical, 16)
+                                .padding(.vertical, 16 * scale)
                             }
-                            .frame(width: boxWidth, height: 150)
+                            .frame(width: boxWidth, height: 150 * scale)
                         }
                     }
                     .frame(maxWidth: .infinity)
 
                     // スクロール領域（メモ + タスク一式）
                     ScrollView {
-                        VStack(alignment: .center, spacing: 20) {
+                        VStack(alignment: .center, spacing: 20 * scale) {
                             if let msg = entity.afterMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
                                !msg.isEmpty {
                                 Text(msg)
                                     .multilineTextAlignment(.center)
                                     .foregroundStyle(.white)
                                     .frame(width: proxy.size.width * 0.8)
-                                    .padding(.top, 6)
+                                    .font(.system(size: 17 * scale))
+                                    .padding(.top, 6 * scale)
                             }
 
                             if !entity.tasks.isEmpty {
                                 taskBox(proxyWidth: proxy.size.width)
                             }
                         }
-                        .padding(.bottom, 220) // 下部ボタンと被らないように十分な余白を確保
+                        .padding(.bottom, 220 * scale) // 下部ボタンと被らないように十分な余白を確保
                     }
                     // スクロール操作でキーボードを閉じる
                     .simultaneousGesture(
@@ -266,53 +269,53 @@ private struct HistoryDetailScreen: View {
                     startPoint: .bottom,
                     endPoint: .top
                 )
-                .frame(height: 140)
+                .frame(height: 140 * scale)
                 .ignoresSafeArea(edges: .bottom)
 
                 HStack {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 6 * scale) {
                         Button {
                             player.stop()
                             router.dismissHistoryDetail()
                         } label: {
                             Circle()
                                 .fill(Color.white)
-                                .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                .frame(width: Theme.circleButtonSize * scale, height: Theme.circleButtonSize * scale)
                                 .overlay(
                                     Image(systemName: "chevron.backward")
                                         .foregroundStyle(.black)
-                                        .font(Theme.circleButtonIconFont)
+                                        .font(.system(size: 22 * scale, weight: .bold))
                                 )
                         }
                         Text("履歴に戻る")
                             .foregroundStyle(.white)
-                            .font(Theme.circleButtonLabelFont)
+                            .font(.system(size: 12 * scale, weight: .medium))
                     }
 
                     Spacer()
 
                     if let url = historyShortcutURL() {
-                        VStack(spacing: 6) {
+                        VStack(spacing: 6 * scale) {
                             Button {
                                 openShortcut(url)
                             } label: {
                                 Circle()
                                     .fill(Color(red: 0.52, green: 0.85, blue: 0.22))
-                                    .frame(width: Theme.circleButtonSize, height: Theme.circleButtonSize)
+                                    .frame(width: Theme.circleButtonSize * scale, height: Theme.circleButtonSize * scale)
                                     .overlay(
                                         Image(systemName: "link")
                                             .foregroundStyle(.white)
-                                            .font(Theme.circleButtonIconFont)
+                                            .font(.system(size: 22 * scale, weight: .bold))
                                     )
                             }
                             Text("ショートカット")
                                 .foregroundStyle(.white)
-                                .font(Theme.circleButtonLabelFont)
+                                .font(.system(size: 12 * scale, weight: .medium))
                         }
                     }
                 }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 32)
+                .padding(.horizontal, 40 * scale)
+                .padding(.bottom, 32 * scale)
             }
         }
         // 背景タップでキーボードを閉じる
@@ -436,6 +439,7 @@ private struct HistoryDetailScreen: View {
     // MARK: - Retry deadline overlay
     @ViewBuilder
     private func retryOverlay() -> some View {
+        let scale: CGFloat = isPad ? 2.0 : 1.0
         ZStack {
             Color.black.opacity(0.45)
                 .ignoresSafeArea()
@@ -443,9 +447,9 @@ private struct HistoryDetailScreen: View {
                     showRetrySheet = false
                 }
 
-            VStack(spacing: 16) {
+            VStack(spacing: 16 * scale) {
                 Text("締切をやり直す")
-                    .font(.headline)
+                    .font(.system(size: 17 * scale, weight: .semibold))
                     .foregroundStyle(.white)
 
                 if entity.deadlineDays != nil {
@@ -460,24 +464,26 @@ private struct HistoryDetailScreen: View {
                     .tint(.white)
                 } else {
                     // 時間・分モード
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 8 * scale) {
                         HStack {
                             Text("\(retryHours) 時間")
                                 .foregroundStyle(.white)
+                                .font(.system(size: 16 * scale))
                             Spacer()
                             Stepper("", value: $retryHours, in: 0...72)
                                 .labelsHidden()
                                 .tint(.white)
-                                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
+                                .background(RoundedRectangle(cornerRadius: 8 * scale).fill(Color.white.opacity(0.15)))
                         }
                         HStack {
                             Text("\(retryMinutes) 分")
                                 .foregroundStyle(.white)
+                                .font(.system(size: 16 * scale))
                             Spacer()
                             Stepper("", value: $retryMinutes, in: 0...59)
                                 .labelsHidden()
                                 .tint(.white)
-                                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.15)))
+                                .background(RoundedRectangle(cornerRadius: 8 * scale).fill(Color.white.opacity(0.15)))
                         }
                     }
                 }
@@ -488,12 +494,12 @@ private struct HistoryDetailScreen: View {
                         showRetrySheet = false
                     } label: {
                         Text("戻る")
-                            .font(.headline)
+                            .font(.system(size: 17 * scale, weight: .semibold))
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 18 * scale)
+                            .padding(.vertical, 8 * scale)
                             .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                RoundedRectangle(cornerRadius: 14 * scale, style: .continuous)
                                     .fill(Color.black.opacity(0.9))
                             )
                     }
@@ -504,36 +510,37 @@ private struct HistoryDetailScreen: View {
                         startRetryDeadline()
                     } label: {
                         Text("スタート")
-                            .font(.headline)
+                            .font(.system(size: 17 * scale, weight: .semibold))
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 18 * scale)
+                            .padding(.vertical, 8 * scale)
                             .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                RoundedRectangle(cornerRadius: 14 * scale, style: .continuous)
                                     .fill(Color(red: 0.96, green: 0.80, blue: 0.20))
                             )
                     }
                 }
             }
-            .padding(20)
+            .padding(20 * scale)
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: 18 * scale, style: .continuous)
                     .fill(Color.black.opacity(0.85))
             )
-            .padding(.horizontal, 40)
+            .padding(.horizontal, 40 * scale)
         }
     }
 
     // MARK: - Tasks & deadline
     @ViewBuilder
     private func taskBox(proxyWidth: CGFloat) -> some View {
+        let scale: CGFloat = isPad ? 2.0 : 1.0
         let total = entity.tasks.count
         let remaining = entity.tasks.filter { !$0.isDone }.count
         let deadline = computeDeadline(for: entity)
         let locked = isExpired(for: entity)
 
         ZStack {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 18 * scale, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -545,41 +552,40 @@ private struct HistoryDetailScreen: View {
                     )
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 18 * scale, style: .continuous)
+                        .stroke(Color.white.opacity(0.25), lineWidth: 1 * scale)
                 )
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 12 * scale) {
                 // 見出し（締切未超過時は総数+残タスク、超過時は「タスク未達成」）
                 if let d = deadline, locked {
                     HStack {
                         Spacer()
                         Text("タスク未達成")
-                            .font(.title2)
-                            .fontWeight(.bold)
+                            .font(.system(size: 22 * scale, weight: .bold))
                             .foregroundStyle(.red)
                         Spacer()
                     }
                 } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8 * scale) {
                         // 総タスク数: 背面に 8 を同フォントで配置
                         let totalText = "\(total)"
                         let totalMask = String(repeating: "8", count: totalText.count)
                         ZStack {
                             Text(totalMask)
-                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28 * scale))
                                 .foregroundStyle(.black)
                             Text(totalText)
-                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28 * scale))
                                 .foregroundStyle(.white)
                         }
                         Text("個のタスクがあります。")
-                            .font(.headline)
+                            .font(.system(size: 17 * scale, weight: .semibold))
                             .foregroundStyle(.white)
                         if remaining > 0 {
                             // 残りタスク数は元のフォントに戻す
                             Text("残り \(remaining)")
-                                .font(.headline)
+                                .font(.system(size: 17 * scale, weight: .semibold))
                                 .foregroundStyle(.red)
                         }
                         Spacer()
@@ -598,12 +604,12 @@ private struct HistoryDetailScreen: View {
                             showRetrySheet = true
                         } label: {
                             Text("やり直し")
-                                .font(.headline)
+                                .font(.system(size: 17 * scale, weight: .semibold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
+                                .padding(.horizontal, 16 * scale)
+                                .padding(.vertical, 8 * scale)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    RoundedRectangle(cornerRadius: 14 * scale, style: .continuous)
                                         .fill(Color.white.opacity(0.18))
                                 )
                         }
@@ -611,14 +617,14 @@ private struct HistoryDetailScreen: View {
                     }
                 }
 
-                VStack(spacing: 10) {
+                VStack(spacing: 10 * scale) {
                     ForEach(entity.tasks, id: \.id) { task in
                         taskRow(task: task, isLocked: locked && !isNew(task: task))
                     }
                 }
 
                 if !locked {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 8 * scale) {
                         TextField(
                             "",
                             text: $newTaskText,
@@ -626,21 +632,23 @@ private struct HistoryDetailScreen: View {
                         )
                         .textFieldStyle(.roundedBorder)
                         .foregroundStyle(.black)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.white))
+                        .font(.system(size: 16 * scale))
+                        .frame(minHeight: 32 * scale)
+                        .background(RoundedRectangle(cornerRadius: 6 * scale).fill(Color.white))
 
                         Button(action: { addTask() }) {
                             Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 22, weight: .bold))
+                                .font(.system(size: 22 * scale, weight: .bold))
                                 .foregroundStyle(trimmedNewTaskText.isEmpty ? Color.white.opacity(0.4) : .white)
                         }
                         .disabled(trimmedNewTaskText.isEmpty)
                     }
                 }
             }
-            .padding(.vertical, 16)
-            .padding(.horizontal, 20)
+            .padding(.vertical, 16 * scale)
+            .padding(.horizontal, 20 * scale)
         }
-        .frame(width: min(proxyWidth - 40, 360))
+        .frame(width: min(proxyWidth - 40 * scale, 360 * scale))
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
@@ -649,15 +657,17 @@ private struct HistoryDetailScreen: View {
         return task.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    @ViewBuilder
     private func taskRow(task: RecordingTaskEntity, isLocked: Bool) -> some View {
-        HStack(alignment: .center, spacing: 12) {
+        let scale: CGFloat = isPad ? 2.0 : 1.0
+        HStack(alignment: .center, spacing: 12 * scale) {
             Button(action: {
                 guard !isLocked else { return }
                 task.isDone.toggle()
                 try? context.save()
             }) {
                 Image(systemName: task.isDone ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: 22 * scale, weight: .semibold))
                     .foregroundStyle(isLocked ? Color.white.opacity(0.6) : .white)
             }
             .disabled(isLocked)
@@ -665,6 +675,7 @@ private struct HistoryDetailScreen: View {
             Text(task.text.isEmpty ? "新しいタスク" : task.text)
                 .foregroundStyle(taskTextColor(task: task, isLocked: isLocked))
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .font(.system(size: 16 * scale))
 
             if deletableTaskIds.contains(task.id) && !isLocked {
                 Button(role: .destructive) {
@@ -706,49 +717,50 @@ private struct HistoryDetailScreen: View {
 
     private func deadlineSection(deadline: Date) -> some View {
         let remaining = max(0, deadline.timeIntervalSince(now))
+        let scale: CGFloat = isPad ? 2.0 : 1.0
         let lessThan1h = remaining < 3600
 
         if entity.deadlineDays != nil { // 日数モード
             return AnyView(
-                VStack(spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text("目標まで").foregroundStyle(.white).font(.headline)
+                VStack(spacing: 4 * scale) {
+                    HStack(spacing: 6 * scale) {
+                        Text("目標まで").foregroundStyle(.white).font(.system(size: 17 * scale, weight: .semibold))
                         let daysText = "\(entity.deadlineDays ?? 0)"
                         let daysMask = String(repeating: "8", count: daysText.count)
                         ZStack {
                             Text(daysMask)
-                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28 * scale))
                                 .foregroundStyle(.black)
                             Text(daysText)
-                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28 * scale))
                                 .foregroundStyle(Color(red: 0.65, green: 0.95, blue: 0.35))
                         }
-                        Text("日後").foregroundStyle(.white).font(.headline)
+                        Text("日後").foregroundStyle(.white).font(.system(size: 17 * scale, weight: .semibold))
                     }
                     Text(formatDateOnly(deadline))
-                        .font(.footnote)
+                        .font(.system(size: 12 * scale))
                         .foregroundStyle(Color.white.opacity(0.8))
                 }
             )
         } else if (entity.deadlineHours ?? 0) > 0 || (entity.deadlineMinutes ?? 0) > 0 { // 時間/分モード
             let textColor: Color = lessThan1h ? .red : .white
             return AnyView(
-                VStack(spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text("目標時刻まで").foregroundStyle(.white).font(.headline)
+                VStack(spacing: 4 * scale) {
+                    HStack(spacing: 6 * scale) {
+                        Text("目標時刻まで").foregroundStyle(.white).font(.system(size: 17 * scale, weight: .semibold))
                         let timeText = lessThan1h ? formatMMSS(remaining) : formatHHMM(remaining)
                         let timeMask = String(timeText.map { $0 == ":" ? ":" : "8" })
                         ZStack {
                             Text(timeMask)
-                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28 * scale))
                                 .foregroundStyle(.black)
                             Text(timeText)
-                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28))
+                                .font(.custom("BTTFTimeCircuitsUPDATEDAGAINIMSORRY", size: 28 * scale))
                                 .foregroundStyle(lessThan1h ? .red : Color(red: 0.65, green: 0.95, blue: 0.35))
                         }
                     }
                     Text(formatDateTime(deadline))
-                        .font(.footnote)
+                        .font(.system(size: 12 * scale))
                         .foregroundStyle(textColor.opacity(0.8))
                 }
             )
