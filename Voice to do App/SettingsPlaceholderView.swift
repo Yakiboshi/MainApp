@@ -263,16 +263,9 @@ struct SettingsPlaceholderView: View {
                             Text("録音画面の最大録音時間（1〜60分）")
                                 .foregroundStyle(Theme.secondaryText)
                                 .font(.footnote)
-                            HStack {
-                                Stepper(
-                                    value: $recordingMaxMinutes,
-                                    in: 1...60,
-                                    step: 1
-                                ) {
-                                    Text("\(recordingMaxMinutes) 分")
-                                        .foregroundStyle(Theme.primaryText)
-                                }
-                                .tint(.white)
+                            ThemedStepper(value: $recordingMaxMinutes, range: 1...60, step: 1) {
+                                Text("\(recordingMaxMinutes) 分")
+                                    .foregroundStyle(Theme.primaryText)
                             }
                         }
                         .padding()
@@ -289,16 +282,9 @@ struct SettingsPlaceholderView: View {
                             Text("登録できる未来の上限（1〜10年）")
                                 .foregroundStyle(Theme.secondaryText)
                                 .font(.footnote)
-                            HStack {
-                                Stepper(
-                                    value: $maxFutureYears,
-                                    in: 1...10,
-                                    step: 1
-                                ) {
-                                    Text("\(maxFutureYears) 年先まで")
-                                        .foregroundStyle(Theme.primaryText)
-                                }
-                                .tint(.white)
+                            ThemedStepper(value: $maxFutureYears, range: 1...10, step: 1) {
+                                Text("\(maxFutureYears) 年先まで")
+                                    .foregroundStyle(Theme.primaryText)
                             }
                         }
                         .padding()
@@ -689,6 +675,40 @@ private extension SettingsPlaceholderView {
     }
 }
 
+// シンプルなカスタムステッパー（−／＋を白で統一）
+private struct ThemedStepper<Label: View>: View {
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let step: Int
+    @ViewBuilder var label: () -> Label
+
+    var body: some View {
+        HStack(spacing: 12) {
+            label()
+            Spacer()
+            HStack(spacing: 12) {
+                Button(action: { value = max(range.lowerBound, value - step) }) {
+                    Text("−")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.black.opacity(0.35)))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: { value = min(range.upperBound, value + step) }) {
+                    Text("+")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.black.opacity(0.35)))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
 // MARK: - プリセット用 日付オプション追加・削除 小ウィンドウ
 private struct PresetDateOptionSheet: View {
     @Environment(\.modelContext) private var context
@@ -1052,8 +1072,12 @@ private struct UrlPresetSheet: View {
                                     Text("タイトル")
                                         .foregroundStyle(.white.opacity(0.9))
                                     TextField("プリセット名（必須）", text: $title)
-                                        .textFieldStyle(.roundedBorder)
-                                        .foregroundColor(.black)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 8)
+                                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
+                                        .foregroundColor(Theme.inputFieldText)
+                                        .textInputAutocapitalization(.sentences)
+                                        .autocorrectionDisabled(false)
                                 }
                                 .padding(.horizontal, 16)
 
@@ -1064,8 +1088,10 @@ private struct UrlPresetSheet: View {
                                         .keyboardType(.URL)
                                         .textInputAutocapitalization(.never)
                                         .autocorrectionDisabled()
-                                        .foregroundColor(.black)
-                                        .textFieldStyle(.roundedBorder)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 8)
+                                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
+                                        .foregroundColor(Theme.inputFieldText)
                                         .onChange(of: urlInput) { newVal in
                                             let trimmed = newVal.trimmingCharacters(in: .whitespaces)
                                             isValidHTTPS = trimmed.isEmpty || trimmed.hasPrefix("https://")
@@ -1318,8 +1344,10 @@ private struct TaskPresetSheet: View {
                                     Text("タイトル")
                                         .foregroundStyle(.white)
                                     TextField("プリセット名（必須）", text: $title)
-                                        .foregroundColor(.black)
-                                        .textFieldStyle(.roundedBorder)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 8)
+                                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
+                                        .foregroundColor(Theme.inputFieldText)
                                 }
                                 .padding(.horizontal, 16)
 
@@ -1360,8 +1388,10 @@ private struct TaskPresetSheet: View {
                                                             }
                                                         )
                                                     )
-                                                    .textFieldStyle(.roundedBorder)
-                                                    .foregroundColor(.black)
+                                                    .padding(.horizontal, 10)
+                                                    .padding(.vertical, 8)
+                                                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
+                                                    .foregroundColor(Theme.inputFieldText)
                                                     Button(role: .destructive) {
                                                         tasks.removeAll { $0.id == task.id }
                                                     } label: {

@@ -32,6 +32,9 @@ enum ThemeManager {
 
     static func applyTheme(kind: AppThemeKind) {
         let palette = ThemePalette(kind: kind)
+        // ナビゲーションバーは全テーマ共通で暗いグレーに固定
+        let navColor = UIColor(white: 0.08, alpha: 1.0)
+        let navTextColor = UIColor.white
 
         // Window 背景（ステータスバー / ノッチ背面）
         let windowColor = palette.navBackground
@@ -43,15 +46,15 @@ enum ThemeManager {
         // Navigation bar
         let nav = UINavigationBarAppearance()
         nav.configureWithOpaqueBackground()
-        nav.backgroundColor = palette.navBackground
-        nav.titleTextAttributes = [.foregroundColor: palette.navText]
-        nav.largeTitleTextAttributes = [.foregroundColor: palette.navText]
+        nav.backgroundColor = navColor
+        nav.titleTextAttributes = [.foregroundColor: navTextColor]
+        nav.largeTitleTextAttributes = [.foregroundColor: navTextColor]
         UINavigationBar.appearance().standardAppearance = nav
         UINavigationBar.appearance().scrollEdgeAppearance = nav
-        UINavigationBar.appearance().tintColor = palette.navText
+        UINavigationBar.appearance().tintColor = navTextColor
         UINavigationBar.appearance().compactAppearance = nav
         UINavigationBar.appearance().isTranslucent = false
-        UINavigationBar.appearance().barTintColor = palette.navBackground
+        UINavigationBar.appearance().barTintColor = navColor
 
         // Tab bar
         let tab = UITabBarAppearance()
@@ -83,10 +86,55 @@ enum ThemeManager {
         }
         UITabBar.appearance().unselectedItemTintColor = palette.tabUnselected
         UITabBar.appearance().tintColor = palette.tabSelected
+        refreshVisibleNavigationBars(with: nav, tint: navTextColor, background: navColor)
     }
 
     static func applyCurrentTheme() {
         applyTheme(kind: currentKind())
+    }
+
+    // 既存の UINavigationBar にも最新の外観を即時適用する
+    private static func refreshVisibleNavigationBars(with appearance: UINavigationBarAppearance, tint: UIColor, background: UIColor) {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .forEach { window in
+                for nav in window.collectNavigationControllers() {
+                    let bar = nav.navigationBar
+                    bar.standardAppearance = appearance
+                    bar.scrollEdgeAppearance = appearance
+                    bar.compactAppearance = appearance
+                    if #available(iOS 15.0, *) {
+                        bar.compactScrollEdgeAppearance = appearance
+                    }
+                    bar.tintColor = tint
+                    bar.isTranslucent = false
+                    bar.barTintColor = background
+                    bar.setNeedsLayout()
+                    bar.layoutIfNeeded()
+                }
+            }
+    }
+}
+
+private extension UIWindow {
+    func collectNavigationControllers() -> [UINavigationController] {
+        guard let root = rootViewController else { return [] }
+        return collect(from: root)
+    }
+
+    func collect(from controller: UIViewController) -> [UINavigationController] {
+        var result: [UINavigationController] = []
+        if let nav = controller as? UINavigationController {
+            result.append(nav)
+        }
+        for child in controller.children {
+            result.append(contentsOf: collect(from: child))
+        }
+        if let presented = controller.presentedViewController {
+            result.append(contentsOf: collect(from: presented))
+        }
+        return result
     }
 }
 
@@ -98,6 +146,57 @@ struct ThemePalette {
         self.kind = kind
     }
 
+    var navColor: Color {
+        switch kind {
+        case .future:
+            return Theme.appBlue
+        case .engineer:
+            return Color(red: 0.22, green: 0.24, blue: 0.16)
+        case .emperor:
+            return Color(red: 0.40, green: 0.1, blue: 0.1)
+        case .paradox:
+            return Color(red: 0.24, green: 0.00, blue: 0.40)
+        case .singularity:
+            return Color.black
+        case .abyss:
+            return Color(red: 0.10, green: 0.10, blue: 0.10)
+        }
+    }
+
+    var navButton: Color {
+        switch kind {
+        case .future:
+            return .white
+        case .engineer:
+            return Color(red: 0.82, green: 1.0, blue: 0.72)   // 黄緑
+        case .emperor:
+            return .white
+        case .paradox:
+            return Color(red: 1.0, green: 0.96, blue: 0.76)   // 薄い黄
+        case .singularity:
+            return .white
+        case .abyss:
+            return .white
+        }
+    }
+    
+    var deNavButton: Color {
+        switch kind {
+        case .future:
+            return Color.white.opacity(0.70)
+        case .engineer:
+            return Color(red: 0.62, green: 0.75, blue: 0.55)
+        case .emperor:
+            return Color.white.opacity(0.70)
+        case .paradox:
+            return Color(red: 0.7, green: 0.68, blue: 0.5)
+        case .singularity:
+            return Color.white.opacity(0.70)
+        case .abyss:
+            return Color.white.opacity(0.70)
+        }
+    }
+    
     // SwiftUI Colors
     var bgTop: Color {
         switch kind {
@@ -135,12 +234,18 @@ struct ThemePalette {
 
     var primaryText: Color {
         switch kind {
-        case .future:      return .white
-        case .engineer:    return Color(red: 0.82, green: 1.0, blue: 0.72)   // 黄緑
-        case .emperor:     return Color(white: 0.92)                         // 薄い灰
-        case .paradox:     return Color(red: 1.0, green: 0.96, blue: 0.76)   // 薄い黄
-        case .singularity: return .black
-        case .abyss:       return .white
+        case .future:
+            return .white
+        case .engineer:
+            return Color(red: 0.82, green: 1.0, blue: 0.72)   // 黄緑
+        case .emperor:
+            return Color(white: 0.92)                         // 薄い灰
+        case .paradox:
+            return Color(red: 1.0, green: 0.96, blue: 0.76)   // 薄い黄
+        case .singularity:
+            return .black
+        case .abyss:
+            return .white
         }
     }
 
@@ -157,7 +262,7 @@ struct ThemePalette {
         case .future:
             return Color(red: 0.22, green: 0.35, blue: 0.78)
         case .engineer:
-            return Color(red: 0.36, green: 0.42, blue: 0.20)
+            return Color(red: 0.51, green: 0.53, blue: 0.55)
         case .emperor:
             return Color(red: 0.55, green: 0.20, blue: 0.20)
         case .paradox:
@@ -174,7 +279,7 @@ struct ThemePalette {
         case .future:
             return Color(red: 0.14, green: 0.22, blue: 0.55)
         case .engineer:
-            return Color(red: 0.22, green: 0.24, blue: 0.16)
+            return Color(red: 0.24, green: 0.25, blue: 0.27)
         case .emperor:
             return Color(red: 0.36, green: 0.10, blue: 0.10)
         case .paradox:
@@ -191,15 +296,47 @@ struct ThemePalette {
         case .future:
             return Color(red: 167/255, green: 216/255, blue: 255/255)
         case .engineer:
-            return Color(red: 0.32, green: 0.40, blue: 0.26)
+            return Color(red: 0.64, green: 0.80, blue: 0.52)
         case .emperor:
             return Color(red: 0.52, green: 0.32, blue: 0.32)
         case .paradox:
             return Color(red: 0.44, green: 0.32, blue: 0.60)
         case .singularity:
-            return Color(red: 0.90, green: 0.90, blue: 0.92)
+            return .black
         case .abyss:
             return Color(red: 0.22, green: 0.22, blue: 0.24)
+        }
+    }
+
+    var inputFieldBackground: Color {
+        switch kind {
+        case .future:
+            return .white
+        case .engineer:
+            return Color(red: 0.72, green: 0.90, blue: 0.58)
+        case .emperor:
+            return Color(red: 0.52, green: 0.32, blue: 0.32)
+        case .paradox:
+            return Color(red: 0.44, green: 0.32, blue: 0.60)
+        case .singularity:
+            return .black
+        case .abyss:
+            return Color(red: 0.22, green: 0.22, blue: 0.24)
+        }
+    }
+
+    var inputFieldText: Color {
+        switch kind {
+        case .future:
+            return .black
+        case .engineer:
+            return Color(red: 0.14, green: 0.18, blue: 0.11)
+        case .paradox:
+            return Color(red: 1.0, green: 0.98, blue: 0.89)
+        case .emperor, .abyss:
+            return .white
+        case .singularity:
+            return .white
         }
     }
 
@@ -329,6 +466,15 @@ enum Theme {
         ThemePalette(kind: ThemeManager.currentKind()).searchBackground
     }
 
+    // 検索バー/詳細入力用の背景色（テーマごとに設定可能）
+    static var inputFieldBackground: Color {
+        ThemePalette(kind: ThemeManager.currentKind()).inputFieldBackground
+    }
+
+    // 入力文字色（テーマごとに設定可能）
+    static var inputFieldText: Color {
+        ThemePalette(kind: ThemeManager.currentKind()).inputFieldText
+    }
     // テキストフィールド用の背景色（現在は全テーマ共通で白）
     static var textFieldBackground: Color {
         .white

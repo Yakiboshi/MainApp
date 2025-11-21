@@ -342,9 +342,9 @@ struct PlannedDetailView: View {
                 prompt: Text(defaultTitle()).foregroundColor(.secondary)
             ) {}
             .textFieldStyle(.plain)
-            .foregroundStyle(Theme.textFieldInputColor)
+            .foregroundStyle(Theme.inputFieldText)
             .padding(10)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.textFieldBackground))
+            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.inputFieldBackground))
             HStack {
                 Spacer()
                 Text("\(title.count)/\(titleLimit)")
@@ -374,8 +374,8 @@ struct PlannedDetailView: View {
                 )
                 .frame(minHeight: 90)
                 .scrollContentBackground(.hidden)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Theme.textFieldBackground))
-                .foregroundStyle(Theme.textFieldInputColor)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Theme.inputFieldBackground))
+                .foregroundStyle(Theme.inputFieldText)
             }
             HStack {
                 Spacer()
@@ -416,7 +416,10 @@ struct PlannedDetailView: View {
                 ),
                 prompt: Text("https://example.com").foregroundColor(.secondary)
             ) {}
-            .textFieldStyle(.roundedBorder)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
+            .foregroundStyle(Theme.inputFieldText)
 
             if !linkIsValidHTTPS {
                 Text("URLは https:// で始めてください")
@@ -476,8 +479,10 @@ struct PlannedDetailView: View {
                                     }
                                 )
                             )
-                            .textFieldStyle(.roundedBorder)
-                            .foregroundStyle(.black)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
+                            .foregroundStyle(Theme.inputFieldText)
                             Button(role: .destructive) {
                                 removeTask(task)
                             } label: {

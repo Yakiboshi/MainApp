@@ -229,13 +229,13 @@ private struct BottomNavBar: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .foregroundStyle(idx == selectedIndex ? Color.white : Color.white.opacity(0.85))
+                        .foregroundStyle(idx == selectedIndex ? ThemePalette(kind: ThemeManager.currentKind()).navButton : ThemePalette(kind: ThemeManager.currentKind()).deNavButton)
                         .contentShape(Rectangle())
                     }
                 }
             }
             .padding(.bottom, 8)
-            .background(Theme.appBlue)
+            .background(ThemePalette(kind: ThemeManager.currentKind()).navColor)
         }
         .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: -2)
     }

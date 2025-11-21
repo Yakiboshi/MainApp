@@ -36,10 +36,10 @@ private struct TopBarPlaceholder_History: View {
             HStack(spacing: 8) {
                 TextField("検索", text: $query)
                     .textFieldStyle(.plain)
-                    .foregroundColor(.black)
+                    .foregroundColor(Theme.inputFieldText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.lightBlue))
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
                 Button(action: { cycleSort() }) { Text(labelForSort(sortMode)) }
                     .buttonStyle(.plain)
                     .foregroundStyle(Theme.primaryText)

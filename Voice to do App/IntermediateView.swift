@@ -500,9 +500,9 @@ private struct DetailCoreView: View {
                 prompt: Text(defaultTitleNow()).foregroundColor(.secondary)
             ) {}
             .textFieldStyle(.plain)
-            .foregroundStyle(Theme.textFieldInputColor)
+            .foregroundStyle(Theme.inputFieldText)
             .padding(10)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.textFieldBackground))
+            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.inputFieldBackground))
             HStack { Spacer(); Text("\((recording.title ?? "").count)/\(titleLimit)").font(.caption2).foregroundStyle(Theme.secondaryText) }
         }
     }
@@ -520,8 +520,8 @@ private struct DetailCoreView: View {
                 TextEditor(text: Binding(get: { recording.afterMessage ?? "" }, set: { recording.afterMessage = String($0.prefix(memoLimit)) }))
                     .frame(minHeight: 90)
                     .scrollContentBackground(.hidden)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.textFieldBackground))
-                    .foregroundStyle(Theme.textFieldInputColor)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.inputFieldBackground))
+                    .foregroundStyle(Theme.inputFieldText)
             }
             HStack { Spacer(); Text("\((recording.afterMessage ?? "").count)/\(memoLimit)").font(.caption2).foregroundStyle(Theme.secondaryText) }
         }
@@ -553,7 +553,10 @@ private struct DetailCoreView: View {
                 }),
                 prompt: Text("https://example.com").foregroundColor(.secondary)
             ) {}
-            .textFieldStyle(.roundedBorder)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
+            .foregroundStyle(Theme.inputFieldText)
             if !linkIsValidHTTPS { Text("URLは https:// で始めてください").font(.footnote).foregroundStyle(.red) }
         }
     }
@@ -587,8 +590,10 @@ private struct DetailCoreView: View {
                     ForEach(recording.tasks, id: \.id) { task in
                         HStack(alignment: .top, spacing: 8) {
                             TextField("タスク", text: Binding(get: { task.text }, set: { task.text = String($0.prefix(120)) }))
-                                .textFieldStyle(.roundedBorder)
-                                .foregroundStyle(.black)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
+                                .foregroundStyle(Theme.inputFieldText)
                             Button(role: .destructive) { removeTask(task) } label: { Image(systemName: "trash").foregroundStyle(.red) }
                         }
                     }
