@@ -387,7 +387,7 @@ private struct DetailCoreView: View {
                 } else { showPhotoPicker = false }
             }
         }
-        .sheet(item: $cropTarget) { box in
+        .fullScreenCover(item: $cropTarget) { box in
             IconCropperSheet(image: box.image) { result in
                 if let img = result, let data = img.pngData() { recording.iconImageData = data }
                 cropTarget = nil

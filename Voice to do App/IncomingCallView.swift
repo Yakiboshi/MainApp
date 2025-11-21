@@ -24,6 +24,7 @@ struct IncomingCallView: View {
     // プレビュー判定（プレビュー時はサウンドを抑止）
     private var isPreview: Bool { ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" }
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+    private var isPhone: Bool { UIDevice.current.userInterfaceIdiom == .phone }
 
     var body: some View {
         ZStack {
@@ -237,11 +238,15 @@ struct IncomingCallView: View {
             }
 
             // 新仕様ではスヌーズ回数制限は設けないため、事前チェックは不要
+            enforcePortraitIfPhone()
         }
         .onDisappear { ringtone.stop() }
         .onChange(of: router.showAfterCallForMessageId) { mid in
             // ルートが AfterCall を提示（UI側の追加処理はなし）
             guard mid != nil else { return }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            enforcePortraitIfPhone()
         }
     }
 
@@ -281,6 +286,14 @@ struct IncomingCallView: View {
             return d
         }
         return Date()
+    }
+
+    private func enforcePortraitIfPhone() {
+        guard isPhone else { return }
+        if UIDevice.current.orientation.isLandscape {
+            UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
+            UIViewController.attemptRotationToDeviceOrientation()
+        }
     }
 }
 

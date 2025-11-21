@@ -26,10 +26,12 @@ struct AfterCallView: View {
 
             GeometryReader { proxy in
                 let h = proxy.size.height
+                let isLandscape = proxy.size.width > proxy.size.height
                 let iconSize = min(proxy.size.width * (isPad ? 0.6 : 0.55), isPad ? 360 : 280)
                 let topSpacing = h * (isPad ? 0.08 : 0.12)
 
-                VStack(spacing: 12) {
+                // 上部（アイコン＋タイトル）セクション
+                let headerSection = VStack(spacing: 12) {
                     Spacer().frame(height: topSpacing)
 
                     // 丸アイコン
@@ -69,8 +71,10 @@ struct AfterCallView: View {
                                 .padding(.bottom, 2)
                         }
                     }
+                }
 
-                    // スクロール領域（アフターメッセージ + タスク一式）
+                // アフターメッセージ以降のセクション（メッセージ + タスク）
+                let messageTaskSection =
                     ScrollView {
                         VStack(alignment: .center, spacing: 20) {
                             if let rec = recording, let msg = (rec.afterMessage?.trimmingCharacters(in: .whitespacesAndNewlines)), !msg.isEmpty {
@@ -147,7 +151,19 @@ struct AfterCallView: View {
                         .frame(maxWidth: .infinity)
                     }
 
-                    Spacer()
+                if isLandscape {
+                    HStack(alignment: .top, spacing: isPad ? 32 : 20) {
+                        headerSection
+                            .frame(maxWidth: proxy.size.width * 0.45, alignment: .top)
+                        messageTaskSection
+                            .frame(maxWidth: .infinity, alignment: .top)
+                    }
+                } else {
+                    VStack(spacing: 12) {
+                        headerSection
+                        messageTaskSection
+                        Spacer()
+                    }
                 }
             }
 
@@ -435,6 +451,7 @@ private struct ReListenPlayerView: View {
     @State private var didFinish: Bool = false
     private let tick = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
     private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+    private var isPhone: Bool { UIDevice.current.userInterfaceIdiom == .phone }
 
     var body: some View {
         ZStack {
@@ -529,6 +546,9 @@ private struct ReListenPlayerView: View {
             elapsed = player.currentTime()
             duration = max(player.duration(), 1)
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            enforcePortraitIfPhone()
+        }
     }
 
     private func start() {
@@ -542,6 +562,7 @@ private struct ReListenPlayerView: View {
         let volume = baseGain * userGain
         player.playURL(url, loops: 0, volume: volume) { didFinish = true }
         duration = max(player.duration(), 1)
+        enforcePortraitIfPhone()
     }
     private func restart() {
         didFinish = false
@@ -550,6 +571,14 @@ private struct ReListenPlayerView: View {
 
     private func timeString(_ sec: Double) -> String {
         let s = Int(sec); return String(format: "%02d : %02d", s/60, s%60)
+    }
+
+    private func enforcePortraitIfPhone() {
+        guard isPhone else { return }
+        if UIDevice.current.orientation.isLandscape {
+            UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
+            UIViewController.attemptRotationToDeviceOrientation()
+        }
     }
 }
 

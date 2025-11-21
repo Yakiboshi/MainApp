@@ -9,7 +9,7 @@ struct VoicemailPlaceholderView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+                ZStack {
                 Theme.appGradient.ignoresSafeArea()
                 TabView(selection: $page) {
                     VoicemailListPage(sortMode: sortMode, query: query)
@@ -92,6 +92,9 @@ struct VoicemailListPage: View {
     @Query private var records: [RecordingEntity]
     fileprivate let sortMode: SortMode
     fileprivate let query: String
+    @State private var deleteTarget: RecordingEntity? = nil
+    @State private var showDeleteConfirm: Bool = false
+    private var confirmDelete: Bool { SortPreference.loadConfirmDelete() }
     fileprivate init(sortMode: SortMode, query: String) { self.sortMode = sortMode; self.query = query }
 
     var body: some View {
@@ -128,8 +131,15 @@ struct VoicemailListPage: View {
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
+                    .padding(.bottom, listBottomPadding)
                 }
             }
+        }
+        .alert("削除しますか", isPresented: $showDeleteConfirm, presenting: deleteTarget) { target in
+            Button("はい", role: .destructive) { playAndDelete(target) }
+            Button("いいえ", role: .cancel) { }
+        } message: { _ in
+            Text("この留守電を削除してよろしいですか？")
         }
         .onAppear { VoicemailMigrator.migrateIfNeeded(context: context) }
     }
@@ -168,6 +178,33 @@ struct VoicemailListPage: View {
             // 留守電数・履歴バッジベースを更新
             _ = AppBadgeManager.refresh(using: context)
         }
+    }
+
+    private func handleDelete(_ rec: RecordingEntity) {
+        if confirmDelete {
+            deleteTarget = rec
+            showDeleteConfirm = true
+        } else {
+            playAndDelete(rec)
+        }
+    }
+
+    private func playAndDelete(_ rec: RecordingEntity) {
+        SoundManager.shared.play("trush", ext: "mp3")
+        // ファイル削除
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let url = docs.appendingPathComponent(rec.fileName)
+        try? FileManager.default.removeItem(at: url)
+        // DB削除
+        withAnimation {
+            context.delete(rec)
+            try? context.save()
+        }
+        _ = AppBadgeManager.refresh(using: context)
+    }
+
+    var listBottomPadding: CGFloat {
+        UIDevice.current.userInterfaceIdiom == .pad ? 160 : 120
     }
 }
 

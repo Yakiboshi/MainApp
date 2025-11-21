@@ -1,6 +1,7 @@
 import Foundation
 import UserNotifications
 import SwiftData
+import UIKit
 
 @MainActor
 final class LocalNotificationManager: NSObject {
@@ -62,11 +63,20 @@ final class LocalNotificationManager: NSObject {
                     } else {
                         content.title = "着信予定があります"
                     }
-                    content.body = "録音メッセージの再生時間です"
+                    // サブタイトルは設定しない
+                    let savedDate = rec.savedAt ?? rec.recordedAt
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy/MM/dd HH:mm"
+                    let dateString = formatter.string(from: savedDate)
+                    content.body = "\(dateString)のあなたから電話が掛かっています。"
                     content.categoryIdentifier = "CALL_INCOMING"
                     content.userInfo = [
                         "messageId": messageId
                     ]
+
+                    if let attachment = makeIconAttachment(for: rec) {
+                        content.attachments = [attachment]
+                    }
 
                     if let s = soundName {
                         content.sound = UNNotificationSound(named: UNNotificationSoundName(s))
@@ -135,5 +145,19 @@ final class LocalNotificationManager: NSObject {
         // スヌーズ後の予定を反映し、バッジベースも更新
         _ = AppBadgeManager.refresh(using: context)
         refreshAllNotifications(in: context)
+    }
+
+    private func makeIconAttachment(for rec: RecordingEntity) -> UNNotificationAttachment? {
+        guard let data = rec.iconImageData ?? DefaultIconStore.load(),
+              let image = UIImage(data: data),
+              let pngData = image.pngData() else { return nil }
+        let tmpURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("notif_icon_\(UUID().uuidString).png")
+        do {
+            try pngData.write(to: tmpURL)
+            let attachment = try UNNotificationAttachment(identifier: "icon", url: tmpURL, options: nil)
+            return attachment
+        } catch {
+            return nil
+        }
     }
 }

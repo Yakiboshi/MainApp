@@ -48,6 +48,7 @@ enum SortPreference {
     private static let maxFutureYearsKey = "settings.maxFutureYears"
     private static let playbackVolumeSliderKey = "settings.playbackVolumeSlider"
     private static let themeKindKey = "settings.themeKind"
+    private static let confirmDeleteKey = "settings.confirmDelete"
 
     static func loadHistory() -> History {
         if let raw = UserDefaults.standard.string(forKey: historyKey),
@@ -229,5 +230,17 @@ enum SortPreference {
 
     static func saveThemeKind(_ kind: AppThemeKind) {
         UserDefaults.standard.set(kind.rawValue, forKey: themeKindKey)
+    }
+
+    // MARK: - Delete confirmation (default ON)
+    static func loadConfirmDelete() -> Bool {
+        if UserDefaults.standard.object(forKey: confirmDeleteKey) == nil {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: confirmDeleteKey)
+    }
+
+    static func saveConfirmDelete(_ flag: Bool) {
+        UserDefaults.standard.set(flag, forKey: confirmDeleteKey)
     }
 }

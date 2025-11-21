@@ -96,6 +96,9 @@ struct PlannedListPage: View {
     private var records: [RecordingEntity]
     fileprivate let sortMode: SortMode
     fileprivate let query: String
+    @State private var deleteTarget: RecordingEntity? = nil
+    @State private var showDeleteConfirm: Bool = false
+    private var confirmDelete: Bool { SortPreference.loadConfirmDelete() }
     fileprivate init(sortMode: SortMode, query: String) { self.sortMode = sortMode; self.query = query }
 
     var body: some View {
@@ -136,8 +139,7 @@ struct PlannedListPage: View {
                             .listRowBackground(Color.clear)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
-                                    SoundManager.shared.play("trush", ext: "mp3")
-                                    delete(rec)
+                                    handleDelete(rec)
                                 } label: {
                                     Label("削除", systemImage: "trash")
                                 }
@@ -147,9 +149,16 @@ struct PlannedListPage: View {
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
+                    .padding(.bottom, listBottomPadding)
                 }
                 // 直接NavigationLink(destination:)を使用し、型ベース遷移に依存しない
             }
+        }
+        .alert("削除しますか", isPresented: $showDeleteConfirm, presenting: deleteTarget) { target in
+            Button("はい", role: .destructive) { playAndDelete(target) }
+            Button("いいえ", role: .cancel) { }
+        } message: { _ in
+            Text("この予定を削除してよろしいですか？")
         }
         // 予定の追加・削除・日時変更は SwiftData のクエリ経由で常に最新が反映される
     }
@@ -176,6 +185,20 @@ struct PlannedListPage: View {
         guard !q.isEmpty else { return true }
         guard let t = rec.title?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return false }
         return t.localizedCaseInsensitiveContains(q) || t.localizedStandardContains(q)
+    }
+
+    private func handleDelete(_ rec: RecordingEntity) {
+        if confirmDelete {
+            deleteTarget = rec
+            showDeleteConfirm = true
+        } else {
+            playAndDelete(rec)
+        }
+    }
+
+    private func playAndDelete(_ rec: RecordingEntity) {
+        SoundManager.shared.play("trush", ext: "mp3")
+        delete(rec)
     }
 
     private func delete(_ rec: RecordingEntity) {
@@ -272,5 +295,9 @@ private struct PlannedRowView: View {
 private extension PlannedListPage {
     private func isSnoozed(_ rec: RecordingEntity) -> Bool {
         rec.isSnoozed
+    }
+
+    var listBottomPadding: CGFloat {
+        UIDevice.current.userInterfaceIdiom == .pad ? 160 : 120
     }
 }

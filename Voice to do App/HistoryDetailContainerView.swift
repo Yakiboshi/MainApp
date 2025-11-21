@@ -107,11 +107,15 @@ private struct HistoryDetailScreen: View {
         ZStack(alignment: .bottom) {
             GeometryReader { proxy in
                 let h = proxy.size.height
-                let boxWidth = min(proxy.size.width - 32 * scale, proxy.size.width * 0.92, 380 * scale)
-                let topSpacing = min(h * 0.03, h * 0.55) // 上端余白は通常サイズの1/4
-                let iconSize = min(boxWidth, 220 * scale, h * 0.45)
+                let isLandscape = proxy.size.width > proxy.size.height
+                let sizeScale = isLandscape ? scale * 0.85 : scale
+                let availableWidth = isLandscape ? max(0, proxy.size.width * 0.56 - 32 * sizeScale) : proxy.size.width
+                let boxWidth = min(availableWidth - 32 * sizeScale, availableWidth * 0.92, 380 * sizeScale)
+                let topSpacing = min(h * 0.08, h * 0.55) // 上端余白を広げる
+                let iconSize = min(boxWidth, 220 * sizeScale, h * 0.45)
 
-                VStack(spacing: 16 * scale) {
+                // 上部（アイコン＋タイトル＋プレイヤー）
+                let headerSection = VStack(spacing: 16 * sizeScale) {
                     Spacer().frame(height: topSpacing)
 
                     // アイコン + タイトル + 再生ボックスをまとめて背面に丸型アイコンを配置
@@ -123,41 +127,41 @@ private struct HistoryDetailScreen: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: iconSize, height: iconSize)
                                 .clipShape(Circle())
-                        .opacity(0.25)
-                        .offset(y: -10 * scale)
-                    } else {
-                        Circle()
-                            .fill(Color.white.opacity(0.12))
-                            .frame(width: iconSize, height: iconSize)
-                            .opacity(0.6)
-                            .offset(y: -10 * scale)
-                    }
+                                .opacity(0.25)
+                                .offset(y: -10 * sizeScale)
+                        } else {
+                            Circle()
+                                .fill(Color.white.opacity(0.12))
+                                .frame(width: iconSize, height: iconSize)
+                                .opacity(0.6)
+                                .offset(y: -10 * sizeScale)
+                        }
 
-                        VStack(spacing: 16 * scale) {
+                        VStack(spacing: 16 * sizeScale) {
                             // タイトル + サブテキスト
-                            VStack(spacing: 6 * scale) {
+                            VStack(spacing: 6 * sizeScale) {
                                 Text(title())
-                                    .font(.system(size: 22 * scale, weight: .semibold))
+                                    .font(.system(size: 22 * sizeScale, weight: .semibold))
                                     .foregroundStyle(.white)
                                     .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 24 * scale)
+                                    .padding(.horizontal, 24 * sizeScale)
 
                                 if let at = entity.answeredAt {
                                     Text(at.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.system(size: 15 * scale))
+                                        .font(.system(size: 15 * sizeScale))
                                         .foregroundStyle(.white.opacity(0.9))
                                 }
                             }
-                            .padding(.horizontal, 16 * scale)
-                            .padding(.vertical, 10 * scale)
+                            .padding(.horizontal, 16 * sizeScale)
+                            .padding(.vertical, 10 * sizeScale)
                             .background(
-                                RoundedRectangle(cornerRadius: 14 * scale, style: .continuous)
+                                RoundedRectangle(cornerRadius: 14 * sizeScale, style: .continuous)
                                     .fill(Color.black.opacity(0.35))
                             )
 
                             // プレーヤーボックス（スライダー + 時刻 + 前/再生/次）
                             ZStack {
-                                RoundedRectangle(cornerRadius: 18 * scale, style: .continuous)
+                                RoundedRectangle(cornerRadius: 18 * sizeScale, style: .continuous)
                                     .fill(
                                         LinearGradient(
                                             colors: [
@@ -169,13 +173,13 @@ private struct HistoryDetailScreen: View {
                                         )
                                     )
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 18 * scale, style: .continuous)
-                                            .stroke(Color.white.opacity(0.25), lineWidth: 1 * scale)
+                                        RoundedRectangle(cornerRadius: 18 * sizeScale, style: .continuous)
+                                            .stroke(Color.white.opacity(0.25), lineWidth: 1 * sizeScale)
                                     )
 
-                                VStack(spacing: 12 * scale) {
+                                VStack(spacing: 12 * sizeScale) {
                                     // 上部: 進捗スライダー
-                                    VStack(spacing: 4 * scale) {
+                                    VStack(spacing: 4 * sizeScale) {
                                         Slider(
                                             value: Binding(
                                                 get: { elapsed },
@@ -190,21 +194,21 @@ private struct HistoryDetailScreen: View {
 
                                         HStack {
                                             Text(timeString(elapsed))
-                                                .font(.system(size: 12 * scale))
+                                                .font(.system(size: 12 * sizeScale))
                                                 .foregroundStyle(.white)
                                             Spacer()
                                             Text(timeString(duration))
-                                                .font(.system(size: 12 * scale))
+                                                .font(.system(size: 12 * sizeScale))
                                                 .foregroundStyle(.white.opacity(0.8))
                                         }
                                     }
-                                    .padding(.horizontal, 18 * scale) // バーの端とボックス枠の間に余白を確保
+                                    .padding(.horizontal, 18 * sizeScale) // バーの端とボックス枠の間に余白を確保
 
-                                    HStack(spacing: 32 * scale) {
+                                    HStack(spacing: 32 * sizeScale) {
                                         // 前へ
                                         Button(action: { goToPrevious() }) {
                                             Image(systemName: "chevron.left.circle.fill")
-                                                .font(.system(size: 28 * scale, weight: .bold))
+                                                .font(.system(size: 28 * sizeScale, weight: .bold))
                                                 .foregroundStyle(.white)
                                                 .opacity(previousId == nil ? 0.3 : 1.0)
                                         }
@@ -213,28 +217,30 @@ private struct HistoryDetailScreen: View {
                                         // 再生 / 一時停止
                                         Button(action: { togglePlay() }) {
                                             Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                                .font(.system(size: 40 * scale, weight: .bold))
+                                                .font(.system(size: 40 * sizeScale, weight: .bold))
                                                 .foregroundStyle(.white)
                                         }
 
                                         // 次へ
                                         Button(action: { goToNext() }) {
                                             Image(systemName: "chevron.right.circle.fill")
-                                                .font(.system(size: 28 * scale, weight: .bold))
+                                                .font(.system(size: 28 * sizeScale, weight: .bold))
                                                 .foregroundStyle(.white)
                                                 .opacity(nextId == nil ? 0.3 : 1.0)
                                         }
                                         .disabled(nextId == nil)
                                     }
                                 }
-                                .padding(.vertical, 16 * scale)
+                                .padding(.vertical, 16 * sizeScale)
                             }
-                            .frame(width: boxWidth, height: 150 * scale)
+                            .frame(width: boxWidth, height: 150 * sizeScale)
                         }
                     }
                     .frame(maxWidth: .infinity)
+                }
 
-                    // スクロール領域（メモ + タスク一式）
+                // アフターメッセージ以降
+                let messageTaskSection =
                     ScrollView {
                         VStack(alignment: .center, spacing: 20 * scale) {
                             if let msg = entity.afterMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -242,13 +248,13 @@ private struct HistoryDetailScreen: View {
                                 Text(msg)
                                     .multilineTextAlignment(.center)
                                     .foregroundStyle(.white)
-                                    .frame(width: proxy.size.width * 0.8)
+                                    .frame(width: availableWidth * 0.8)
                                     .font(.system(size: 17 * scale))
                                     .padding(.top, 6 * scale)
                             }
 
                             if !entity.tasks.isEmpty {
-                                taskBox(proxyWidth: proxy.size.width)
+                                taskBox(proxyWidth: availableWidth)
                             }
                         }
                         .padding(.bottom, 220 * scale) // 下部ボタンと被らないように十分な余白を確保
@@ -259,6 +265,20 @@ private struct HistoryDetailScreen: View {
                             dismissKeyboard()
                         }
                     )
+
+                if isLandscape {
+                    HStack(alignment: .top, spacing: 24 * scale) {
+                        headerSection
+                            .frame(maxWidth: proxy.size.width * 0.45, alignment: .top)
+                        messageTaskSection
+                            .frame(maxWidth: .infinity, alignment: .top)
+                    }
+                    .padding(.horizontal, 16 * scale) // 側面に余白を追加
+                } else {
+                    VStack(spacing: 16 * scale) {
+                        headerSection
+                        messageTaskSection
+                    }
                 }
             }
 

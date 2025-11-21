@@ -9,6 +9,7 @@ struct CallConversationView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @StateObject private var player = AudioPlayerViewModel()
+    private var isPhone: Bool { UIDevice.current.userInterfaceIdiom == .phone }
     // AfterCall 表示は NotificationRouter 経由に変更（裏で通話画面を閉じるため）
     @State private var errorText: String? = nil
     // UI 表示用
@@ -111,6 +112,7 @@ struct CallConversationView: View {
             // 通話開始時は通話向けセッション（.playAndRecord + defaultToSpeaker）に切り替え
             AudioRouteManager.configureForPreCall()
             startPlayback()
+            enforcePortraitIfPhone()
         }
         .onDisappear {
             player.stop()
@@ -119,6 +121,9 @@ struct CallConversationView: View {
             // 再生時間の更新と波形の状態反映
             elapsedTime = player.currentTime()
             animateWave = player.isPlaying
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            enforcePortraitIfPhone()
         }
     }
 
@@ -173,6 +178,14 @@ struct CallConversationView: View {
                 }
             }
         } catch {}
+    }
+
+    private func enforcePortraitIfPhone() {
+        guard isPhone else { return }
+        if UIDevice.current.orientation.isLandscape {
+            UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
+            UIViewController.attemptRotationToDeviceOrientation()
+        }
     }
 }
 

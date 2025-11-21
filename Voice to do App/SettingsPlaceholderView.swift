@@ -13,6 +13,7 @@ struct SettingsPlaceholderView: View {
     @State private var recordingMaxMinutes: Int = SortPreference.loadRecordingMaxMinutes()
     @State private var maxFutureYears: Int = SortPreference.loadMaxFutureYears()
     @State private var playbackVolumeSlider: Double = Double(SortPreference.loadPlaybackVolumeSlider())
+    @State private var confirmDelete: Bool = SortPreference.loadConfirmDelete()
     @State private var defaultIconImageData: Data? = nil
     @State private var showDefaultIconPhotoPicker: Bool = false
     @State private var defaultIconPickedItem: PhotosPickerItem?
@@ -57,6 +58,10 @@ struct SettingsPlaceholderView: View {
                         settingToggleRow(
                             title: "固定 月 を追加",
                             isOn: $autoMonth
+                        )
+                        settingToggleRow(
+                            title: "データ削除時の再確認の有無",
+                            isOn: $confirmDelete
                         )
                         VStack(alignment: .leading, spacing: 8) {
                             Text("着信音")
@@ -476,10 +481,15 @@ struct SettingsPlaceholderView: View {
                         )
 
                         Spacer(minLength: 24)
+
+                        Text("効果音にて一部OtoLogicを使用。")
+                            .font(.footnote)
+                            .foregroundStyle(Color.gray.opacity(0.8))
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
-                    .padding(.bottom, 32)
+                    .padding(.bottom, settingsBottomPadding)
                 }
             }
             .ignoresSafeArea(edges: .bottom)
@@ -597,7 +607,7 @@ struct SettingsPlaceholderView: View {
                 }
             }
         }
-        .sheet(item: $defaultIconCropTarget) { box in
+        .fullScreenCover(item: $defaultIconCropTarget) { box in
             IconCropperSheet(image: box.image) { result in
                 if let img = result, let data = img.pngData() {
                     defaultIconImageData = data
@@ -611,6 +621,7 @@ struct SettingsPlaceholderView: View {
                 defaultIconImageData = DefaultIconStore.load()
             }
         }
+        .onChange(of: confirmDelete) { SortPreference.saveConfirmDelete($0) }
     }
 }
 
@@ -672,6 +683,10 @@ private extension SettingsPlaceholderView {
             return sound.fileName
         }
         return "デフォルト"
+    }
+
+    var settingsBottomPadding: CGFloat {
+        UIDevice.current.userInterfaceIdiom == .pad ? 180 : 140
     }
 }
 
