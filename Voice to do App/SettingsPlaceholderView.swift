@@ -1089,8 +1089,9 @@ private struct UrlPresetSheet: View {
                                     TextField("プリセット名（必須）", text: $title)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 8)
-                                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
-                                        .foregroundColor(Theme.inputFieldText)
+                                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
+                                        .foregroundColor(.black)
+                                        .tint(.black)
                                         .textInputAutocapitalization(.sentences)
                                         .autocorrectionDisabled(false)
                                 }
@@ -1105,8 +1106,9 @@ private struct UrlPresetSheet: View {
                                         .autocorrectionDisabled()
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 8)
-                                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
-                                        .foregroundColor(Theme.inputFieldText)
+                                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
+                                        .foregroundColor(.black)
+                                        .tint(.black)
                                         .onChange(of: urlInput) { newVal in
                                             let trimmed = newVal.trimmingCharacters(in: .whitespaces)
                                             isValidHTTPS = trimmed.isEmpty || trimmed.hasPrefix("https://")
@@ -1361,8 +1363,9 @@ private struct TaskPresetSheet: View {
                                     TextField("プリセット名（必須）", text: $title)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 8)
-                                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
-                                        .foregroundColor(Theme.inputFieldText)
+                                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
+                                        .foregroundColor(.black)
+                                        .tint(.black)
                                 }
                                 .padding(.horizontal, 16)
 
@@ -1405,13 +1408,14 @@ private struct TaskPresetSheet: View {
                                                     )
                                                     .padding(.horizontal, 10)
                                                     .padding(.vertical, 8)
-                                                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.inputFieldBackground))
-                                                    .foregroundColor(Theme.inputFieldText)
+                                                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
+                                                    .foregroundColor(.black)
+                                                    .tint(.black)
                                                     Button(role: .destructive) {
                                                         tasks.removeAll { $0.id == task.id }
                                                     } label: {
-                                                        Image(systemName: "trash")
-                                                            .foregroundStyle(.red)
+                                                    Image(systemName: "trash")
+                                                        .foregroundStyle(.red)
                                                     }
                                                 }
                                             }

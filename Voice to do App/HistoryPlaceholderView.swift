@@ -286,7 +286,7 @@ private struct HistoryRowView: View {
                     .foregroundStyle(Theme.primaryText)
                     .font(.system(size: 20 * scale, weight: .semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(savedDateText())
+                Text(incomingDateText())
                     .font(.system(size: 12 * scale))
                     .foregroundStyle(Theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -339,9 +339,9 @@ private struct HistoryRowView: View {
         return "\(f.string(from: entity.recordedAt)) からの電話"
     }
 
-    private func savedDateText() -> String {
+    private func incomingDateText() -> String {
         let f = DateFormatter(); f.dateFormat = "yyyy/MM/dd HH:mm"
-        if let d = entity.savedAt { return f.string(from: d) }
+        if let d = entity.answeredAt { return f.string(from: d) }
         return f.string(from: entity.recordedAt)
     }
 
