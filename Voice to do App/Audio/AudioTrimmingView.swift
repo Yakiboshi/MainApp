@@ -1,70 +1,85 @@
+import AudioEditorKit
 import SwiftUI
-import AVFoundation
+import UIKit
 
-/// 簡易トリミングビュー:
-/// - 選択した音声の長さを取得し、7秒固定ブロックの開始位置をスライダーで指定する。
-/// - 実際のトリミングとフェード処理は NotificationSoundExporter に委譲する。
+/// AudioEditorKit を使ったトリミング起動ビュー。ボタンでエディタを開き、編集結果の URL を呼び出し元へ返す。
 struct AudioTrimmingView: View {
     let audioURL: URL
-    @Binding var startTime: Double
-    let trimDuration: Double = 7.0
-
-    @State private var totalDuration: Double = 0
-    @State private var maxStart: Double = 0
-    @State private var isLoading: Bool = false
+    let displayName: String
+    let onEdited: (URL?) -> Void
+    @State private var showEditor: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("トリミング開始位置")
-                    .foregroundStyle(Color.white)
+                Text(displayName)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .lineLimit(1)
                 Spacer()
-                if totalDuration > 0 {
-                    Text(String(format: "%.1f / %.1f 秒", startTime, totalDuration))
-                        .foregroundStyle(Color.white.opacity(0.7))
-                        .font(.caption)
+                Button("AudioEditorKitで編集") {
+                    showEditor = true
                 }
+                .buttonStyle(.borderedProminent)
             }
-
-            if isLoading {
-                ProgressView()
-                    .tint(.white)
-            } else if totalDuration <= 0 {
-                Text("音声の長さを取得できませんでした")
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .font(.footnote)
-            } else {
-                Slider(
-                    value: Binding(
-                        get: { startTime },
-                        set: { newValue in
-                            startTime = min(max(0, newValue), maxStart)
-                        }
-                    ),
-                    in: 0...maxStart
-                )
-                .tint(.white)
+            Text("編集完了後のファイルを着信音として使用します。（7秒以内推奨）")
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.7))
+        }
+        .fullScreenCover(isPresented: $showEditor) {
+            AudioEditorKitWrapper(audioURL: audioURL) { outputURL in
+                onEdited(outputURL)
+                showEditor = false
             }
         }
-        .onAppear(perform: loadDurationIfNeeded)
+    }
+}
+
+private struct AudioEditorKitWrapper: UIViewControllerRepresentable {
+    let audioURL: URL
+    let onComplete: (URL?) -> Void
+
+    func makeUIViewController(context: Context) -> EditorHostViewController {
+        EditorHostViewController(audioURL: audioURL, onComplete: onComplete)
     }
 
-    private func loadDurationIfNeeded() {
-        guard totalDuration == 0, !isLoading else { return }
-        isLoading = true
-        DispatchQueue.global(qos: .userInitiated).async {
-            let asset = AVURLAsset(url: audioURL)
-            let duration = CMTimeGetSeconds(asset.duration)
-            let safeDuration = duration.isFinite && duration > 0 ? duration : 0
-            let maxStart = max(0, safeDuration - trimDuration)
-            DispatchQueue.main.async {
-                self.totalDuration = safeDuration
-                self.maxStart = maxStart
-                if self.startTime > maxStart {
-                    self.startTime = maxStart
-                }
-                self.isLoading = false
-            }
+    func updateUIViewController(_ uiViewController: EditorHostViewController, context: Context) {
+        uiViewController.audioURL = audioURL
+    }
+}
+
+private final class EditorHostViewController: UIViewController {
+    var audioURL: URL
+    private let onComplete: (URL?) -> Void
+    private var hasPresented = false
+
+    init(audioURL: URL, onComplete: @escaping (URL?) -> Void) {
+        self.audioURL = audioURL
+        self.onComplete = onComplete
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        guard !hasPresented else { return }
+        hasPresented = true
+
+        let representable = AudioFileRepresentable(
+            url: audioURL,
+            aliasTitle: audioURL.lastPathComponent,
+            descriptionText: ""
+        )
+
+        AudioEditorKit.presentEditor(audio: representable, parent: self) { [weak self] edited, url in
+            guard let self else { return }
+            let result = edited ? url : nil
+            onComplete(result)
+            dismiss(animated: true)
         }
     }
 }

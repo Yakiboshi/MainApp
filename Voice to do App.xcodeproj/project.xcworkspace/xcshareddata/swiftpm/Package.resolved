@@ -1,5 +1,5 @@
 {
-  "originHash" : "da58d3a16f04cfba10725379c4a7b5d3e347c687bc7bbcbf64cbdbfa32990b9f",
+  "originHash" : "3df0efb9d63a30f238d6b3f59583201b55bc6abc9e220c212cae8a061cdf0660",
   "pins" : [
     {
       "identity" : "audioeditorkit",
@@ -8,6 +8,33 @@
       "state" : {
         "revision" : "f20666af43928548f6abc4a6806bc9cb45561cc6",
         "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "audiokit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AudioKit/AudioKit.git",
+      "state" : {
+        "revision" : "5b3fd238ef8ee95c9842ca4ea83ca58ee151e630",
+        "version" : "5.6.5"
+      }
+    },
+    {
+      "identity" : "audiokitui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Yakiboshi/AudioKitUI",
+      "state" : {
+        "branch" : "main",
+        "revision" : "83bacdba297ad921f793ead02f0ebaf8619c7b41"
+      }
+    },
+    {
+      "identity" : "controls",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AudioKit/Controls.git",
+      "state" : {
+        "revision" : "4dd10370125af7f1e26d7a71b2c5929bb3c95087",
+        "version" : "1.1.4"
       }
     },
     {

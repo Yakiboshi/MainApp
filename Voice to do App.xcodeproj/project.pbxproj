@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8C5B4EDA2ED2E49F009466C3 /* AudioKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 8C5B4ED92ED2E49F009466C3 /* AudioKitUI */; };
 		8C60879A2ECE52DD00C7C41A /* AudioEditorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8C6087992ECE52DD00C7C41A /* AudioEditorKit */; };
 		8C62BEB92EC4757800DE566B /* SwiftyCrop in Frameworks */ = {isa = PBXBuildFile; productRef = 8C62BEB82EC4757800DE566B /* SwiftyCrop */; };
 /* End PBXBuildFile section */
@@ -29,6 +30,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8C62BEB92EC4757800DE566B /* SwiftyCrop in Frameworks */,
+				8C5B4EDA2ED2E49F009466C3 /* AudioKitUI in Frameworks */,
 				8C60879A2ECE52DD00C7C41A /* AudioEditorKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -82,6 +84,7 @@
 			packageProductDependencies = (
 				8C62BEB82EC4757800DE566B /* SwiftyCrop */,
 				8C6087992ECE52DD00C7C41A /* AudioEditorKit */,
+				8C5B4ED92ED2E49F009466C3 /* AudioKitUI */,
 			);
 			productName = "Voice to do App";
 			productReference = 8C28D2AB2EB61F2500E2EAC6 /* Voice to do App.app */;
@@ -114,6 +117,7 @@
 			packageReferences = (
 				8C62BEB72EC4757800DE566B /* XCRemoteSwiftPackageReference "SwiftyCrop" */,
 				8C6087982ECE52DD00C7C41A /* XCRemoteSwiftPackageReference "AudioEditorKit" */,
+				8C5B4ED82ED2E49F009466C3 /* XCRemoteSwiftPackageReference "AudioKitUI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8C28D2AC2EB61F2500E2EAC6 /* Products */;
@@ -357,6 +361,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		8C5B4ED82ED2E49F009466C3 /* XCRemoteSwiftPackageReference "AudioKitUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Yakiboshi/AudioKitUI";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		8C6087982ECE52DD00C7C41A /* XCRemoteSwiftPackageReference "AudioEditorKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Lakr233/AudioEditorKit.git";
@@ -376,6 +388,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		8C5B4ED92ED2E49F009466C3 /* AudioKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8C5B4ED82ED2E49F009466C3 /* XCRemoteSwiftPackageReference "AudioKitUI" */;
+			productName = AudioKitUI;
+		};
 		8C6087992ECE52DD00C7C41A /* AudioEditorKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 8C6087982ECE52DD00C7C41A /* XCRemoteSwiftPackageReference "AudioEditorKit" */;

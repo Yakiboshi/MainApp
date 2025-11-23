@@ -23,10 +23,11 @@ final class LocalNotificationManager: NSObject {
             let fd = FetchDescriptor<RecordingEntity>()
             let all = try context.fetch(fd)
 
-            // ローカル通知音は常にバンドル内の固定サウンドを使用する
-            // （ユーザー音源はアプリ内の擬似着信音としてのみ利用）
+            // 通知音は Library/Sounds のカスタムを優先し、無ければバンドルの固定サウンドを使う
             let soundName: String?
-            if Bundle.main.url(forResource: "localsound", withExtension: "mp3") != nil {
+            if let custom = CustomRingtoneManager.notificationSoundNameIfAvailable() {
+                soundName = custom
+            } else if Bundle.main.url(forResource: "localsound", withExtension: "mp3") != nil {
                 soundName = "localsound.mp3"
             } else if Bundle.main.url(forResource: "ks035", withExtension: "wav") != nil {
                 soundName = "ks035.wav"
